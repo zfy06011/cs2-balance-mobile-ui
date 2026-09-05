@@ -133,5 +133,52 @@
     "risk_level": "medium",
     "liquidity": "high",
     "score": 40
+  },
+  "prediction_v2_event": {
+    "p10": 10.4853,
+    "p25": 11.8277,
+    "p50": 13.5216,
+    "p75": 15.458,
+    "p90": 17.437,
+    "prob_profit": 0.9293,
+    "prob_loss": 0.0707,
+    "confidence": 0.3121,
+    "model_version": "baseline-momentum-v2",
+    "target_at": "2026-09-12T00:00:00.000Z",
+    "features": {
+      "latest_price": 11.8,
+      "momentum": 0.165514,
+      "trend_daily": 0.041403,
+      "volatility": 0.075,
+      "history_len": 5,
+      "data_insufficient": false,
+      "trend_clamped": false,
+      "volume_confirm": 1.15,
+      "volume_ratio": 1.92,
+      "popular_rank": 12,
+      "event_active": true,
+      "event_count": 1,
+      "event_adjust": -0.03,
+      "event_kinds": "steam-sale",
+      "event_names": "Test Sale"
+    }
+  },
+  "radar_event": {
+    "signal": "buy",
+    "expected_roi": 0.336257,
+    "pessimistic_roi": 0.210983,
+    "risk_level": "medium",
+    "liquidity": "high",
+    "score": 86.0,
+    "details": {
+      "c5_buy_price": 10.0,
+      "steam_sell_price": 15.0,
+      "predicted_p50": 15.52,
+      "breakeven_price": 11.6,
+      "volatility": 0.02,
+      "popular_rank": null,
+      "data_insufficient": false,
+      "event_adjust": -0.03
+    }
   }
 }

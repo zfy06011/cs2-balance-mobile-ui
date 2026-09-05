@@ -83,3 +83,33 @@ def test_popular_rank_bonus():
     cold = evaluate(_input(popular_rank=None))
     assert hot.score > cold.score
     assert hot.details["popular_rank"] == 12
+
+def test_event_adjust_bonus_matches_ts_baseline():
+    """大促压制（event_adjust=-0.03）买入机会加分 +6，有效卖出价 = 16×0.97 = 15.52。"""
+    import json
+    from pathlib import Path
+
+    b = json.loads((Path(__file__).resolve().parent.parent / "scripts" / "baseline.json").read_text(encoding="utf-8"))["radar_event"]
+    r = evaluate(_input(
+        predicted_p50=16.0,
+        predicted_p25=14.5,
+        steam_sell_price=15.0,
+        breakeven_price=11.6,
+        event_adjust=-0.03,
+    ))
+    assert r.signal == b["signal"]
+    assert r.expected_roi == pytest.approx(b["expected_roi"], abs=1e-6)
+    assert r.pessimistic_roi == pytest.approx(b["pessimistic_roi"], abs=1e-6)
+    assert r.risk_level == b["risk_level"]
+    assert r.liquidity == b["liquidity"]
+    assert r.score == pytest.approx(b["score"], abs=1e-6)
+    assert r.details["event_adjust"] == pytest.approx(-0.03, abs=1e-9)
+    assert r.details["predicted_p50"] == pytest.approx(b["details"]["predicted_p50"], abs=1e-6)
+    # 与无事件修正相比：评分 -0.03×-200 = +6（封顶 ±8）
+    base = evaluate(_input(
+        predicted_p50=16.0,
+        predicted_p25=14.5,
+        steam_sell_price=15.0,
+        breakeven_price=11.6,
+    ))
+    assert r.score - base.score == pytest.approx(6.0, abs=1e-6)

@@ -13,7 +13,8 @@ from __future__ import annotations
 import math
 import statistics
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from typing import Literal
 
 MODEL_VERSION = "baseline-momentum-v1"
 
@@ -146,6 +147,75 @@ def _normal_cdf(x: float) -> float:
 
 MODEL_VERSION_V2 = "baseline-momentum-v2"
 
+# 市场事件类型：Steam 大促 / 游戏内活动 / Major 赛事 / 新箱子发布 / 箱子移除 / Valve 政策
+MarketEventKind = Literal[
+    "steam-sale", "game-event", "major", "case-release", "case-removal", "valve-policy"
+]
+
+
+@dataclass(frozen=True)
+class MarketEvent:
+    kind: MarketEventKind
+    start: date          # 开始日期（UTC，含当天）
+    end: date            # 结束日期（UTC，含当天）
+    name: str | None = None
+    pressure: float | None = None       # 窗口内压制幅度（默认 0.03 = 3%）
+    recovery_days: int | None = None    # 事件结束后回补天数（默认 14）
+
+
+@dataclass(frozen=True)
+class EventAdjustResult:
+    factor: float        # 总价差乘数：1=无影响；<1 压制；>1 回补
+    count: int           # 命中事件数
+    kinds: list[str]     # 命中事件种类（去重、保序）
+    names: list[str]     # 命中事件名称（去重、保序）
+
+
+def compute_event_adjust(target_at: datetime, events: list[MarketEvent]) -> EventAdjustResult:
+    """计算 target_at 的事件价差修正（与 mobile/core/prediction.ts 对齐）。
+
+    - target_at 在事件窗口内（含首尾日）：×(1 - pressure)（大促期间价格被压制）
+    - target_at 在事件结束后 recovery_days 天内：×(1 + pressure × (1 - d / recovery_days))，
+      从结束日起线性回补到 0（价格回归常态）
+    - 其余情况：不修正（factor = 1）
+    """
+    factor = 1.0
+    count = 0
+    kinds: list[str] = []
+    names: list[str] = []
+    target_day = target_at.date()
+    for ev in events:
+        start_day = ev.start
+        end_day = ev.end
+        pressure = ev.pressure if ev.pressure is not None else 0.03
+        recovery_days = ev.recovery_days if ev.recovery_days is not None else 14
+        hit = False
+        if start_day <= target_day <= end_day:
+            factor *= 1.0 - pressure
+            hit = True
+        else:
+            d = (target_day - end_day).days
+            if 0 < d <= recovery_days:
+                factor *= 1.0 + pressure * (1.0 - d / recovery_days)
+                hit = True
+        if hit:
+            count += 1
+            if ev.kind not in kinds:
+                kinds.append(ev.kind)
+            nm = (ev.name or "").strip()
+            if nm and nm not in names:
+                names.append(nm)
+    return EventAdjustResult(factor=factor, count=count, kinds=kinds, names=names)
+
+
+# Steam 2026 官方大促日历（UTC 日期近似）：窗口内压制 3%，结束后 14 天内线性回补
+STEAM_SALE_EVENTS_2026: list[MarketEvent] = [
+    MarketEvent(kind="steam-sale", start=date(2026, 3, 19), end=date(2026, 3, 26), name="Steam 春季特卖"),
+    MarketEvent(kind="steam-sale", start=date(2026, 6, 25), end=date(2026, 7, 9), name="Steam 夏季特卖"),
+    MarketEvent(kind="steam-sale", start=date(2026, 10, 1), end=date(2026, 10, 8), name="Steam 秋季特卖"),
+    MarketEvent(kind="steam-sale", start=date(2026, 12, 17), end=date(2027, 1, 4), name="Steam 冬季特卖"),
+]
+
 
 def _least_squares_slope(xs: list[float], ys: list[float]) -> float:
     n = len(xs)
@@ -185,6 +255,7 @@ class BaselinePredictorV2:
         volume: float | None = None,
         volume_history: list[float] | None = None,
         popular_rank: int | None = None,
+        events: list[MarketEvent] | None = None,
     ) -> PredictionResult:
         if len(prices) < 1:
             raise ValueError("至少需要 1 条历史价格才能预测")
@@ -237,7 +308,12 @@ class BaselinePredictorV2:
 
         drift = drift_daily * self.horizon_days * self.momentum_decay
         sigma_total = vol * math.sqrt(self.horizon_days)
-        p50 = latest * math.exp(drift)
+        pred_at = predicted_at or datetime.utcnow()
+        target_at = pred_at + timedelta(days=self.horizon_days)
+        # 事件窗口价差修正：压制期 ×(1-pressure)，结束后 recovery_days 天内线性回补
+        event_res = compute_event_adjust(target_at, events or [])
+        event_factor = event_res.factor
+        p50 = latest * math.exp(drift) * event_factor
 
         quantiles = {q: max(round(p50 * math.exp(_Z[q] * sigma_total), 4), 0.0) for q in _Z}
 
@@ -260,8 +336,10 @@ class BaselinePredictorV2:
             confidence = max(0.1, min(0.95, confidence + (0.05 if volume_confirm > 1 else -0.05)))
         confidence = round(confidence, 4)
 
-        pred_at = predicted_at or datetime.utcnow()
-        target_at = pred_at + timedelta(days=self.horizon_days)
+        # 事件命中：对大促等事件窗口内的预测打 9 折置信度（保留 0.1~0.95 封顶）
+        if event_res.count > 0:
+            confidence = max(0.1, min(0.95, confidence * 0.9))
+            confidence = round(confidence, 4)
 
         anchor = max(0, len(prices) - self.trend_days)
         momentum = math.log(latest / prices[anchor]) if len(prices) >= 2 and prices[anchor] > 0 else 0.0
@@ -280,6 +358,12 @@ class BaselinePredictorV2:
             features["volume_ratio"] = round(volume_ratio, 3)
         if popular_rank is not None and popular_rank > 0:
             features["popular_rank"] = popular_rank
+        if event_res.count > 0:
+            features["event_active"] = True
+            features["event_count"] = event_res.count
+            features["event_adjust"] = round(event_factor - 1.0, 6)
+            features["event_kinds"] = ",".join(event_res.kinds)
+            features["event_names"] = ",".join(event_res.names)
 
         return PredictionResult(
             item_id=item_id,

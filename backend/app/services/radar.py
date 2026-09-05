@@ -23,6 +23,7 @@ class RadarInput:
     c5_fee_ratio: float = 0.01
     popular_rank: int | None = None       # Steam 热门榜排名（1 起），未提供不加分
     data_insufficient: bool = False       # 历史不足：信号封顶 wait、评分封顶 40
+    event_adjust: float | None = None     # 事件价差修正（预测 event_adjust，如 -0.03）
 
 
 @dataclass
@@ -66,9 +67,14 @@ def evaluate(r: RadarInput) -> RadarOutput:
     liquid = _liquidity(r.steam_volume)
     risk = _risk_level(r.volatility, r.event_risk, liquid)
 
-    p50_sell = r.predicted_p50 or r.steam_sell_price
+    # 事件价差修正：与 mobile/core/radar.ts 对齐。引擎传入还原后的原始 P50/P25，
+    # 这里乘回 (1+event_adjust) 得到事件修正后的有效预测价（避免双重修正）。
+    event_factor = 1.0 + (r.event_adjust if r.event_adjust is not None else 0.0)
+    p50_base = r.predicted_p50 or r.steam_sell_price
+    p50_sell = p50_base * event_factor if p50_base is not None else None
     expected_roi = _roi_of(p50_sell, r.c5_buy_price, r.seller_receive_ratio, r.c5_fee_ratio)
-    pessimistic_roi = _roi_of(r.predicted_p25, r.c5_buy_price, r.seller_receive_ratio, r.c5_fee_ratio)
+    p25_sell = r.predicted_p25 * event_factor if r.predicted_p25 is not None else None
+    pessimistic_roi = _roi_of(p25_sell, r.c5_buy_price, r.seller_receive_ratio, r.c5_fee_ratio)
 
     # 信号规则
     if expected_roi is None:
@@ -97,6 +103,9 @@ def evaluate(r: RadarInput) -> RadarOutput:
             score += 3
         if r.popular_rank <= 30:
             score += 3
+    # 事件价差修正偏移：大促压制期（负修正）买入机会加分，反弹期（正修正）减分（幅度封顶 ±8 分）
+    if r.event_adjust is not None and r.event_adjust != 0:
+        score += max(-8.0, min(8.0, r.event_adjust * -200.0))
     # 历史数据不足：评分封顶 40（避免「看似高分」误导）
     if r.data_insufficient:
         score = min(score, 40.0)
@@ -113,10 +122,11 @@ def evaluate(r: RadarInput) -> RadarOutput:
         details={
             "c5_buy_price": r.c5_buy_price,
             "steam_sell_price": r.steam_sell_price,
-            "predicted_p50": r.predicted_p50,
+            "predicted_p50": round(p50_sell, 4) if p50_sell is not None else None,
             "breakeven_price": r.breakeven_price,
             "volatility": r.volatility,
             "popular_rank": r.popular_rank,
             "data_insufficient": r.data_insufficient,
+            "event_adjust": r.event_adjust,
         },
     )

@@ -8,7 +8,7 @@ import {
 } from '../data/storage';
 import { collectCases, collectOne, CollectProgress, CollectStats } from '../data/collector';
 import { ProfitCalculator } from './profit';
-import { BaselinePredictor, BaselinePredictorV2 } from './prediction';
+import { BaselinePredictor, BaselinePredictorV2, STEAM_SALE_EVENTS_2026, type MarketEvent } from './prediction';
 import { evaluateRadar } from './radar';
 import { simulate as runSimulation, reverseTarget, SimItemInput, SIM_CONFIG } from './simulation';
 import { checkPurchase, BuyProtection, BuyCheckResult, buildBuySummary } from './buy';
@@ -46,18 +46,22 @@ export interface BuyExecuteResult {
 
 function toRadarItem(name: string, c5Price: number | null, steamPrice: number, steamVolume: number, pred: Prediction): RadarItem {
   const breakeven = c5Price != null ? calc.breakevenSellPrice(c5Price) : null;
+  // 事件价差修正：P50/P25 先还原为未修正值（雷达内部乘回 (1+event_adjust)，避免双重修正）
+  const eventAdjust = typeof pred.features?.event_adjust === 'number' ? pred.features.event_adjust : 0;
+  const eventFactor = 1 + eventAdjust;
   const rr = evaluateRadar({
     market_hash_name: name,
     c5_buy_price: c5Price,
     steam_sell_price: steamPrice,
     steam_volume: steamVolume,
-    predicted_p50: pred.p50,
-    predicted_p25: pred.p25,
+    predicted_p50: eventAdjust !== 0 ? pred.p50 / eventFactor : pred.p50,
+    predicted_p25: eventAdjust !== 0 ? pred.p25 / eventFactor : pred.p25,
     breakeven_price: breakeven,
     volatility: typeof pred.features?.volatility === 'number' ? pred.features.volatility : 0.05,
     prob_profit: pred.prob_profit,
     popular_rank: typeof pred.features?.popular_rank === 'number' ? pred.features.popular_rank : null,
     data_insufficient: pred.features?.data_insufficient === true,
+    event_adjust: eventAdjust,
   });
   // 预计几折：以 7 天预测 P50 作为卖出价估算（总成本 / 预测净到手）
   let discount: number | null = null;
@@ -83,6 +87,8 @@ interface PredictExtra {
   volume?: number | null;
   volumeHistory?: number[];
   popularRank?: number | null;
+  /** 市场事件日历（默认注入 Steam 2026 大促） */
+  events?: MarketEvent[];
 }
 
 /** 一次性取齐预测所需输入（Steam 最新价 / C5 价 / 价格历史 / 成交量历史 / 热门排名） */
@@ -118,6 +124,7 @@ function buildPrediction(name: string, c5Price: number | null, prices: number[],
     volume: extra.volume ?? null,
     volumeHistory: extra.volumeHistory,
     popularRank: extra.popularRank ?? null,
+    events: extra.events ?? STEAM_SALE_EVENTS_2026,
   });
   const scenarios: Scenario[] = [];
   if (c5Price != null) {
@@ -197,18 +204,21 @@ export const engine = {
           popularRank: inp.popularRank,
         });
         const breakeven = c5Price != null ? calc.breakevenSellPrice(c5Price) : null;
+        const eventAdjust = typeof pred.features?.event_adjust === 'number' ? pred.features.event_adjust : 0;
+        const eventFactor = 1 + eventAdjust;
         const rr = evaluateRadar({
           market_hash_name: name,
           c5_buy_price: c5Price,
           steam_sell_price: steamPrice,
           steam_volume: steam?.volume ?? 0,
-          predicted_p50: pred.p50,
-          predicted_p25: pred.p25,
+          predicted_p50: eventAdjust !== 0 ? pred.p50 / eventFactor : pred.p50,
+          predicted_p25: eventAdjust !== 0 ? pred.p25 / eventFactor : pred.p25,
           breakeven_price: breakeven,
           volatility: typeof pred.features?.volatility === 'number' ? pred.features.volatility : 0.05,
           prob_profit: pred.prob_profit,
           popular_rank: inp.popularRank,
           data_insufficient: pred.features?.data_insufficient === true,
+          event_adjust: eventAdjust,
         });
         signal = rr.signal;
         dataInsufficient = pred.features?.data_insufficient === true;

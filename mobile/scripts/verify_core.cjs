@@ -25,7 +25,7 @@ execSync('npx tsc --ignoreConfig --module commonjs --target es2020 --skipLibChec
 
 const p = (f) => require(path.join(outDir, f));
 const { ProfitCalculator } = p('profit.js');
-const { BaselinePredictor, BaselinePredictorV2, normalCdf } = p('prediction.js');
+const { BaselinePredictor, BaselinePredictorV2, normalCdf, computeEventAdjust, STEAM_SALE_EVENTS_2026 } = p('prediction.js');
 const { evaluateRadar } = p('radar.js');
 const { simulate, reverseTarget } = p('simulation.js');
 const { DEFAULT_FEES } = p('fees.js');
@@ -134,6 +134,48 @@ assert('pred_v2_low.prob_profit=' + pl.prob_profit, near(v2low.prob_profit, pl.p
 assert('pred_v2_low.data_insufficient=true', v2low.features.data_insufficient === true, v2low.features.data_insufficient);
 assert('pred_v2_low.trend_daily=0', Number(v2low.features.trend_daily) === 0, v2low.features.trend_daily);
 
+// ---------- 2c. 预测 V2 + 事件窗口价差修正（Steam 大促等） ----------
+const v2ev = new BaselinePredictorV2().predict({
+  marketHashName: 'V2 Event Case',
+  prices: [10, 10.4, 10.8, 11.3, 11.8],
+  breakevenPrice: 10.1,
+  predictedAt: new Date('2026-09-05T00:00:00Z'),
+  volume: 6000,
+  volumeHistory: [2000, 2500, 3000, 5000, 6000],
+  popularRank: 12,
+  events: [{ kind: 'steam-sale', name: 'Test Sale', start: '2026-09-10', end: '2026-09-16', pressure: 0.03, recoveryDays: 14 }],
+});
+const pbE = BASELINE.prediction_v2_event;
+assert('pred_v2_event.model_version=' + pbE.model_version, v2ev.model_version === pbE.model_version, v2ev.model_version);
+assert('pred_v2_event.target_at +7d', v2ev.target_at === pbE.target_at, v2ev.target_at);
+for (const q of ['p10', 'p25', 'p50', 'p75', 'p90']) {
+  assert('pred_v2_event.' + q + '=' + pbE[q], near(v2ev[q], pbE[q], 1e-4), v2ev[q]);
+}
+assert('pred_v2_event.prob_profit=' + pbE.prob_profit, near(v2ev.prob_profit, pbE.prob_profit, 1e-4), v2ev.prob_profit);
+assert('pred_v2_event.prob_loss=' + pbE.prob_loss, near(v2ev.prob_loss, pbE.prob_loss, 1e-4), v2ev.prob_loss);
+assert('pred_v2_event.confidence=' + pbE.confidence, near(v2ev.confidence, pbE.confidence, 1e-4), v2ev.confidence);
+assert('pred_v2_event.features.event_active', v2ev.features.event_active === true, String(v2ev.features.event_active));
+assert('pred_v2_event.features.event_count=1', Number(v2ev.features.event_count) === 1, String(v2ev.features.event_count));
+assert('pred_v2_event.features.event_adjust=-0.03', near(Number(v2ev.features.event_adjust), -0.03, 1e-6), String(v2ev.features.event_adjust));
+assert('pred_v2_event.features.event_kinds', v2ev.features.event_kinds === 'steam-sale', String(v2ev.features.event_kinds));
+assert('pred_v2_event.features.event_names', v2ev.features.event_names === 'Test Sale', String(v2ev.features.event_names));
+assert('pred_v2_event.p50=0.97x', near(Number(v2ev.p50), Number(pb2.p50) * 0.97, 1e-4), Number(v2ev.p50));
+assert('pred_v2_event.confidence=0.9x', near(Number(v2ev.confidence), Number(pb2.confidence) * 0.9, 1e-4), Number(v2ev.confidence));
+
+// 事件纯函数：窗口内压制 / 结束后回补 / 无事件不修正（与 Python compute_event_adjust 同口径）
+const evtSale = { kind: 'steam-sale', name: 'Test Sale', start: '2026-09-10', end: '2026-09-16', pressure: 0.03, recoveryDays: 14 };
+const adjSale = computeEventAdjust(new Date('2026-09-12T00:00:00Z'), [evtSale]);
+assert('event_adjust.sale_factor=0.97', near(adjSale.factor, 0.97, 1e-9), adjSale.factor);
+assert('event_adjust.sale_count=1', adjSale.count === 1, adjSale.count);
+const adjRebound = computeEventAdjust(new Date('2026-09-23T00:00:00Z'), [evtSale]);
+// d = 23-16 = 7 → 1 + 0.03×(1-7/14) = 1.015（线性回补）
+assert('event_adjust.rebound_factor=1.015', near(adjRebound.factor, 1.015, 1e-9), adjRebound.factor);
+assert('event_adjust.rebound_count=1', adjRebound.count === 1, adjRebound.count);
+const adjNone = computeEventAdjust(new Date('2026-08-01T00:00:00Z'), [evtSale]);
+assert('event_adjust.no_hit=1', near(adjNone.factor, 1, 1e-9) && adjNone.count === 0, adjNone.factor);
+assert('event_calendar.2026.len=4', STEAM_SALE_EVENTS_2026.length === 4, STEAM_SALE_EVENTS_2026.length);
+assert('event_calendar.2026.summer', STEAM_SALE_EVENTS_2026.some((e) => e.start === '2026-06-25' && e.end === '2026-07-09'), JSON.stringify(STEAM_SALE_EVENTS_2026));
+
 // erf/CDF 合理性（Hermes 无 Math.erf，验证近似精度）
 assert('normalCdf(0)=0.5', near(normalCdf(0), 0.5, 1e-4), normalCdf(0));
 assert('normalCdf(1.96)~0.975', near(normalCdf(1.96), 0.975, 1e-3), normalCdf(1.96));
@@ -185,6 +227,40 @@ assert('radar_insufficient.expected_roi=' + rbI.expected_roi, near(rInsuf.expect
 assert('radar_insufficient.score=' + rbI.score, near(rInsuf.score, rbI.score, 1e-6), rInsuf.score);
 assert('radar_insufficient.details.data_insufficient', rInsuf.details.data_insufficient === true, String(rInsuf.details.data_insufficient));
 assert('radar_insufficient.details.popular_rank=5', Number(rInsuf.details.popular_rank) === 5, String(rInsuf.details.popular_rank));
+
+// 3c. 雷达-事件价差修正：大促压制（event_adjust=-0.03）买入机会加分 +6，
+//     有效卖出价 = 16×0.97 = 15.52（引擎传入还原后原始 P50，雷达乘回 (1+event_adjust)）
+const rEv = evaluateRadar({
+  market_hash_name: 'Event Case A',
+  c5_buy_price: 10,
+  steam_sell_price: 15,
+  steam_volume: 8000,
+  predicted_p50: 16,
+  predicted_p25: 14.5,
+  breakeven_price: 11.6,
+  volatility: 0.02,
+  event_adjust: -0.03,
+});
+const rbE = BASELINE.radar_event;
+assert('radar_event.signal=' + rbE.signal, rEv.signal === rbE.signal, rEv.signal);
+assert('radar_event.expected_roi=' + rbE.expected_roi, near(rEv.expected_roi, rbE.expected_roi, 1e-6), rEv.expected_roi);
+assert('radar_event.pessimistic_roi=' + rbE.pessimistic_roi, near(rEv.pessimistic_roi, rbE.pessimistic_roi, 1e-6), rEv.pessimistic_roi);
+assert('radar_event.risk=' + rbE.risk_level, rEv.risk_level === rbE.risk_level, rEv.risk_level);
+assert('radar_event.liquidity=' + rbE.liquidity, rEv.liquidity === rbE.liquidity, rEv.liquidity);
+assert('radar_event.score=' + rbE.score, near(rEv.score, rbE.score, 1e-6), rEv.score);
+assert('radar_event.details.event_adjust=-0.03', Number(rEv.details.event_adjust) === -0.03, String(rEv.details.event_adjust));
+assert('radar_event.details.predicted_p50=15.52', near(Number(rEv.details.predicted_p50), 15.52, 1e-6), String(rEv.details.predicted_p50));
+const rEvNone = evaluateRadar({
+  market_hash_name: 'Event Case A',
+  c5_buy_price: 10,
+  steam_sell_price: 15,
+  steam_volume: 8000,
+  predicted_p50: 16,
+  predicted_p25: 14.5,
+  breakeven_price: 11.6,
+  volatility: 0.02,
+});
+assert('radar_event.offset_vs_none=+6', near(rEv.score - rEvNone.score, 6, 1e-6), rEv.score - rEvNone.score);
 
 // ---------- 4. 模拟 ----------
 const sim = simulate(1000, [

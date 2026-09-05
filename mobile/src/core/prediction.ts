@@ -164,6 +164,100 @@ export function erf(x: number): number {
  */
 export const MODEL_VERSION_V2 = 'baseline-momentum-v2';
 
+/** 市场事件类型：Steam 大促 / 游戏内活动 / Major 赛事 / 新箱子发布 / 箱子移除 / Valve 政策 */
+export type MarketEventKind =
+  | 'steam-sale'
+  | 'game-event'
+  | 'major'
+  | 'case-release'
+  | 'case-removal'
+  | 'valve-policy';
+
+/** 市场事件：对 7 天后目标日做窗口价差修正（与后端 services/prediction.py 对齐） */
+export interface MarketEvent {
+  kind: MarketEventKind;
+  /** 事件名称（用于 features.event_names 展示） */
+  name?: string;
+  /** 开始日期（YYYY-MM-DD，UTC，含当天） */
+  start: string;
+  /** 结束日期（YYYY-MM-DD，UTC，含当天） */
+  end: string;
+  /** 窗口内压制幅度（默认 0.03 = 3%） */
+  pressure?: number;
+  /** 事件结束后回补天数（默认 14） */
+  recoveryDays?: number;
+}
+
+export interface EventAdjustResult {
+  /** 总价差乘数：1=无影响；<1 为压制；>1 为回补 */
+  factor: number;
+  /** 命中事件数 */
+  count: number;
+  /** 命中事件种类（去重、保序） */
+  kinds: string[];
+  /** 命中事件名称（去重、保序） */
+  names: string[];
+}
+
+const _DAY_MS = 86400000;
+
+function _dayNumAt(d: Date): number {
+  return Math.floor(d.getTime() / _DAY_MS);
+}
+
+function _dayNumOf(s: string): number {
+  return _dayNumAt(new Date(s + 'T00:00:00Z'));
+}
+
+/**
+ * 计算 targetAt 的事件价差修正：
+ * - targetAt 在事件窗口内（含首尾日）：× (1 - pressure)（大促期间价格被压制）
+ * - targetAt 在事件结束后 recoveryDays 天内：× (1 + pressure × (1 - d / recoveryDays))，
+ *   从结束日起线性回补到 0（价格回归常态）
+ * - 其余情况：不修正（factor = 1）
+ * 说明：prediction 模块本身不注入默认日历，events 由调用方（引擎层）传入；
+ * 缺省为空数组时行为与旧版完全一致。
+ */
+export function computeEventAdjust(targetAt: Date, events: MarketEvent[]): EventAdjustResult {
+  let factor = 1;
+  let count = 0;
+  const kinds: string[] = [];
+  const names: string[] = [];
+  const targetDay = _dayNumAt(targetAt);
+  for (const ev of events) {
+    const startDay = _dayNumOf(ev.start);
+    const endDay = _dayNumOf(ev.end);
+    const pressure = ev.pressure ?? 0.03;
+    const recoveryDays = ev.recoveryDays ?? 14;
+    let hit = false;
+    if (targetDay >= startDay && targetDay <= endDay) {
+      factor *= 1 - pressure;
+      hit = true;
+    } else {
+      const d = targetDay - endDay;
+      if (d > 0 && d <= recoveryDays) {
+        factor *= 1 + pressure * (1 - d / recoveryDays);
+        hit = true;
+      }
+    }
+    if (hit) {
+      count += 1;
+      if (!kinds.includes(ev.kind)) kinds.push(ev.kind);
+      const nm = (ev.name ?? '').trim();
+      if (nm && !names.includes(nm)) names.push(nm);
+    }
+  }
+  return { factor, count, kinds, names };
+}
+
+/** Steam 2026 官方大促日历（UTC 日期近似）：窗口内压制 3%，结束后 14 天内线性回补 */
+export const STEAM_SALE_EVENTS_2026: MarketEvent[] = [
+  { kind: 'steam-sale', name: 'Steam 春季特卖', start: '2026-03-19', end: '2026-03-26' },
+  { kind: 'steam-sale', name: 'Steam 夏季特卖', start: '2026-06-25', end: '2026-07-09' },
+  { kind: 'steam-sale', name: 'Steam 秋季特卖', start: '2026-10-01', end: '2026-10-08' },
+  { kind: 'steam-sale', name: 'Steam 冬季特卖', start: '2026-12-17', end: '2027-01-04' },
+];
+
 export interface PredictV2Params {
   marketHashName: string;
   prices: number[];
@@ -176,6 +270,8 @@ export interface PredictV2Params {
   volumeHistory?: number[];
   /** Steam 热门榜排名（1 起） */
   popularRank?: number | null;
+  /** 市场事件日历（Steam 大促等）：对 targetAt 做窗口价差修正；缺省不修正（保持与旧版一致） */
+  events?: MarketEvent[];
 }
 
 /** 最小二乘斜率：xs（0..n-1）对 ys 的回归斜率 */
@@ -210,7 +306,7 @@ export class BaselinePredictorV2 {
   ) {}
 
   predict(params: PredictV2Params): PredictionResult {
-    const { marketHashName, prices, breakevenPrice, itemId, predictedAt, volume, volumeHistory, popularRank } = params;
+    const { marketHashName, prices, breakevenPrice, itemId, predictedAt, volume, volumeHistory, popularRank, events } = params;
     if (prices.length < 1) {
       throw new Error('至少需要 1 条历史价格才能预测');
     }
@@ -278,7 +374,12 @@ export class BaselinePredictorV2 {
 
     const drift = driftDaily * this.horizonDays * this.momentumDecay;
     const sigmaTotal = vol * Math.sqrt(this.horizonDays);
-    const p50 = latest * Math.exp(drift);
+    const predAt = predictedAt ?? new Date();
+    const targetAt = new Date(predAt.getTime() + this.horizonDays * 86400000);
+    // ---- 事件窗口价差修正（Steam 大促等）：压制期 ×(1-pressure)，结束后 recoveryDays 内线性回补 ----
+    const eventRes = computeEventAdjust(targetAt, events ?? []);
+    const eventFactor = eventRes.factor;
+    const p50 = latest * Math.exp(drift) * eventFactor;
 
     const quantiles: { p10: number; p25: number; p50: number; p75: number; p90: number } = { p10: 0, p25: 0, p50: 0, p75: 0, p90: 0 };
     for (const q of Object.keys(_Z) as (keyof typeof quantiles)[]) {
@@ -310,8 +411,11 @@ export class BaselinePredictorV2 {
     }
     confidence = round2(confidence, 4);
 
-    const predAt = predictedAt ?? new Date();
-    const targetAt = new Date(predAt.getTime() + this.horizonDays * 86400000);
+    // 事件命中：对大促等事件窗口内的预测打 9 折置信度（保留 0.1~0.95 封顶）
+    if (eventRes.count > 0) {
+      confidence = Math.max(0.1, Math.min(0.95, confidence * 0.9));
+      confidence = round2(confidence, 4);
+    }
 
     // 与 v1 同语义的 7 点窗口动量（供 UI 趋势结论复用）
     let momentum = 0;
@@ -332,6 +436,13 @@ export class BaselinePredictorV2 {
     };
     if (volumeRatio != null) features.volume_ratio = round2(volumeRatio, 3);
     if (popularRank != null && popularRank > 0) features.popular_rank = popularRank;
+    if (eventRes.count > 0) {
+      features.event_active = true;
+      features.event_count = eventRes.count;
+      features.event_adjust = round2(eventFactor - 1, 6);
+      features.event_kinds = eventRes.kinds.join(',');
+      features.event_names = eventRes.names.join(',');
+    }
 
     return {
       item_id: itemId ?? null,

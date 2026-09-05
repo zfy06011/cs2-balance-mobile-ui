@@ -13,14 +13,23 @@
 
 | 项目 | 值 |
 |---|---|
-| 最新版本 | **v1.3.1**（versionCode 5，包名 `com.cs2balance.assistant`，minSdk 24） |
-| 安装包 | `releases\CS2余额助手-v1.3.1.apk`（桌面副本 `C:\Users\Administrator\Desktop\CS2余额助手-v1.3.1.apk`） |
+| 最新版本 | **v1.4.0（工作区，未打包）**（目标 versionCode 6，包名 `com.cs2balance.assistant`，minSdk 24；线上 APK 仍为 v1.3.1） |
+| 安装包 | `releases\CS2余额助手-v1.3.1.apk`（线上最新包；v1.4.0 打包后归档替换 releases 与桌面副本） |
 | 一级页面 | 首页 / 市场 / 库存 / 雷达 / 我的（资金模拟为首页工具入口，不作一级导航） |
-| 已验证 | typecheck 零错误；引擎交叉验证 **98/98 PASS**（TS==Python 全对拍：v1 71 项 + V2/雷达新增 27 项） |
-| 工作区引擎 | **baseline-momentum-v2**（已合入但**未打包**；线上 APK v1.3.1 仍为 v1 引擎，下次打包升级 v1.4.0+） |
+| 已验证 | typecheck 零错误；引擎交叉验证 **131/131 PASS**（TS==Python 全对拍：v1 71 项 + V2/雷达/事件新增 60 项）；pytest **39 passed** |
+| 工作区引擎 | **baseline-momentum-v2 + 事件日历 V3**（已合入但**未打包**；线上 APK v1.3.1 仍为 v1 引擎，下次打包升级 v1.4.0+） |
 | 核心指标 | **预计几折余额**（低于 1 更划算；如投入 100 元、预计 Steam 净到手 108 元 = 9.26 折） |
 
 ## 2. v2 已完成功能（相对 v1.2.0）
+
+**v1.4.0（工作区，未打包）—— 事件日历 + 活动窗口价差修正**：
+- **预测器 V3（事件增强）**：`BaselinePredictorV2.predict({ events })` 对 targetAt（7 天后）做窗口价差修正：
+  - Steam 大促等事件**窗口内**（含首尾日）：×（1 - pressure，默认 3%，价格被压制）
+  - 事件**结束后 recoveryDays（默认 14）天内**：×（1 + pressure×(1 - d/recoveryDays)）线性回补到 0
+  - 命中事件 → features 带 event_active / event_count / event_adjust / event_kinds / event_names，confidence ×0.9（保留 0.1~0.95 封顶）
+- **Steam 2026 官方大促内置**：`STEAM_SALE_EVENTS_2026`（春促 3/19~3/26、夏促 6/25~7/9、秋促 10/1~10/8、冬促 12/17~1/4，UTC 日期近似），由引擎层注入；prediction 模块缺省为空数组 → 旧行为与旧基准完全不变
+- **雷达事件修正**：引擎把**还原后的原始 P50/P25** 传给雷达，雷达内部乘回 (1+event_adjust) 避免双重修正；评分偏移 event_adjust×-200（封顶 ±8，大促压制期买入机会加分）；details 输出 event_adjust 与修正后 predicted_p50
+- 验证：TS==Python 双实现全对拍 **131/131 PASS**；pytest **39 passed**
 
 **v1.3.1（2026-09-05）**：
 - **预测/推荐引擎 V2（工作区已合入、未打包）**：
@@ -70,7 +79,7 @@ mobile/
   src/api/        client.ts 对外 API（与旧后端形状一致；prepareBuy/executeBuy/markets/history/orders 新增）
   src/utils/      format.ts（fmtMoney/fmtZhe/displayNameOf/SIGNAL_TEXT）、buyFlow.ts（一键买入流程）
   src/screens/    首页/市场/详情/库存/雷达/我的/资金模拟
-  scripts/        verify_core.cjs（71 项对拍）、verify_c5.cjs（C5 在线冒烟，需要 $env:C5_APP_KEY）
+  scripts/        verify_core.cjs（131 项对拍）、verify_c5.cjs（C5 在线冒烟，需要 $env:C5_APP_KEY）
 backend/          旧电脑后端（历史参考 + baseline.json 基准；运行不依赖它）
 releases/         APK 产物（*.apk 被 gitignore，不入库）
 docs/             Phase 0 调研报告
@@ -127,7 +136,7 @@ Steam 卖出价是**收入**（到账比例 0.8696，即扣 13%）。单位统�
 ```powershell
 cd D:\Codex\cs2-balance-mobile\mobile
 npm run typecheck        # TS 零错误
-npm run verify:core      # 引擎交叉验证 98/98（v1 71 项 + V2/雷达 27 项）
+npm run verify:core      # 引擎交叉验证 131/131（v1 71 项 + V2/雷达/事件 60 项）
 $env:C5_APP_KEY='<用户的key>'; npm run verify:c5   # C5 在线冒烟（可选，key 找用户要，勿入库）
 
 # 打包（android/ 被 gitignore，需手动改版本）
@@ -163,9 +172,10 @@ $env:JAVA_HOME="D:\dev\jdk17\jdk-17.0.20.1+1"; $env:ANDROID_HOME="D:\Android\Sdk
 2. **采集频率调度**：默认每 30 分钟自动采集（当前仅手动一键扫描），可配置
 3. **自采集提醒**：限制期结束本地通知（需 expo-notifications，注意权限与国内厂商后台限制）
 4. **智能拆单**：预算较大时按风险/数量限制分散到多个箱子（HANDOFF v2 第 9 节）
-5. **市场事件数据库**：Steam 大促 / CS2 更新 / Major 等作为预测与回测特征（第 8 节）
-6. **模型增强 + 回测**：V2 已完成回归趋势 + 量价确认 + 数据不足保护（aseline-momentum-v2）；
-   下一档：波动率自适应、事件特征（大促/Major）、真实回测指标 MAE/RMSE/方向准确率/盈利命中率/平均实际折扣（第 24 节）
+5. **~~市场事件数据库~~ → 部分完成（v1.4.0 工作区）**：Steam 2026 大促日历内置 `STEAM_SALE_EVENTS_2026`，
+   预测器 V3 对 targetAt 做窗口压制 + 结束后线性回补；后续可接动态事件源：CS2 更新 / Major / 新箱 / 移箱 / Valve 政策
+6. **模型增强 + 回测**：V2 已完成回归趋势 + 量价确认 + 数据不足保护（baseline-momentum-v2），V3 已加事件窗口价差修正（大促压制 + 回补，v1.4.0 工作区）；
+   下一档：波动率自适应、动态事件源（Major/新箱/移箱/Valve 政策）、真实回测指标 MAE/RMSE/方向准确率/盈利命中率/平均实际折扣（第 24 节）
 7. **离线测试**：verify:c5 目前依赖网络；可加 mock 响应离线用例，保证 CI 可跑
 8. **分发体验**：接入 EAS 或提供 debug 包；或做 Google Play/国内应用市场合规上架评估
 

@@ -19,6 +19,8 @@ export interface RadarInput {
   popular_rank?: number | null;
   /** 历史数据不足（预测仅供参考）：信号封顶 wait、评分封顶 40 */
   data_insufficient?: boolean;
+  /** 事件价差修正（预测 features.event_adjust，如 -0.03）：用于还原未修正 P50 + 评分偏移 */
+  event_adjust?: number;
 }
 
 export interface RadarOutput {
@@ -61,9 +63,14 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
   const liquid = liquidityOf(r.steam_volume);
   const risk = riskLevel(r.volatility ?? 0.05, r.event_risk ?? 0, liquid);
 
-  const p50Sell = r.predicted_p50 ?? r.steam_sell_price;
+  // 事件价差修正：引擎传入的是「还原后的原始 P50/P25」，这里乘回 (1+event_adjust)，
+  // 得到事件修正后的有效预测价（避免双重修正）。无事件时 factor=1，行为与旧版一致。
+  const eventFactor = r.event_adjust != null ? 1 + r.event_adjust : 1;
+  const p50Base = r.predicted_p50 ?? r.steam_sell_price;
+  const p50Sell = p50Base != null ? p50Base * eventFactor : null;
   const expectedRoi = roiOf(p50Sell, r.c5_buy_price, r.seller_receive_ratio ?? 0.8696, r.c5_fee_ratio ?? 0.01);
-  const pessimisticRoi = roiOf(r.predicted_p25 ?? null, r.c5_buy_price, r.seller_receive_ratio ?? 0.8696, r.c5_fee_ratio ?? 0.01);
+  const p25Sell = r.predicted_p25 != null ? r.predicted_p25 * eventFactor : null;
+  const pessimisticRoi = roiOf(p25Sell, r.c5_buy_price, r.seller_receive_ratio ?? 0.8696, r.c5_fee_ratio ?? 0.01);
 
   let signal: 'buy' | 'wait' | 'avoid';
   if (expectedRoi == null) {
@@ -91,6 +98,10 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
     if (r.popular_rank <= 100) score += 3;
     if (r.popular_rank <= 30) score += 3;
   }
+  // 事件价差修正偏移：大促压制期（负修正）买入机会加分，反弹期（正修正）减分（幅度封顶 ±8 分）
+  if (r.event_adjust != null && r.event_adjust !== 0) {
+    score += Math.max(-8, Math.min(8, r.event_adjust * -200));
+  }
   // 历史数据不足：评分封顶 40（避免「看似高分」误导）
   if (r.data_insufficient === true) score = Math.min(score, 40);
   score = Math.max(0, Math.min(100, round(score, 1)));
@@ -106,12 +117,13 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
     details: {
       c5_buy_price: r.c5_buy_price ?? null,
       steam_sell_price: r.steam_sell_price ?? null,
-      predicted_p50: r.predicted_p50 ?? null,
+      predicted_p50: p50Sell != null ? round(p50Sell, 4) : null,
       breakeven_price: r.breakeven_price ?? null,
       volatility: r.volatility ?? 0.05,
       prob_profit: r.prob_profit ?? 0,
       popular_rank: r.popular_rank ?? null,
       data_insufficient: r.data_insufficient === true,
+      event_adjust: r.event_adjust ?? null,
     },
   };
 }

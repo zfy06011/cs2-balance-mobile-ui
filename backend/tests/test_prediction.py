@@ -114,3 +114,87 @@ def test_v2_volume_contradiction_shrinks_p50():
     weak = BaselinePredictorV2().predict("weak", **base, volume=1500.0, volume_history=[4000, 4200, 4500, 4800, 1500])
     assert weak.p50 < up.p50
     assert weak.features["volume_confirm"] == pytest.approx(0.85, abs=1e-9)
+
+# ---------------- 事件日历 + 活动窗口价差修正（v1.4.0） ----------------
+
+def _event_sale():
+    from datetime import date
+    from app.services.prediction import MarketEvent
+
+    return MarketEvent(kind="steam-sale", start=date(2026, 9, 10), end=date(2026, 9, 16), name="Test Sale", pressure=0.03, recovery_days=14)
+
+
+def test_v2_event_window_matches_ts_baseline():
+    """事件窗口命中（target=2026-09-12 在 9/10~9/16 内）：与 TS 侧 baseline 逐项对拍。"""
+    from datetime import datetime
+    from app.services.prediction import BaselinePredictorV2
+
+    b = _baseline()["prediction_v2_event"]
+    pred = BaselinePredictorV2().predict(
+        "V2 Event Case",
+        [10.0, 10.4, 10.8, 11.3, 11.8],
+        breakeven_price=10.1,
+        item_id=1,
+        predicted_at=datetime(2026, 9, 5),
+        volume=6000.0,
+        volume_history=[2000, 2500, 3000, 5000, 6000],
+        popular_rank=12,
+        events=[_event_sale()],
+    )
+    assert pred.model_version == b["model_version"]
+    for q in ("p10", "p25", "p50", "p75", "p90"):
+        assert getattr(pred, q) == pytest.approx(b[q], abs=2e-4)
+    assert pred.prob_profit == pytest.approx(b["prob_profit"], abs=2e-4)
+    assert pred.prob_loss == pytest.approx(b["prob_loss"], abs=2e-4)
+    assert pred.confidence == pytest.approx(b["confidence"], abs=2e-4)
+    assert pred.features["event_active"] is True
+    assert pred.features["event_count"] == 1
+    assert pred.features["event_adjust"] == pytest.approx(-0.03, abs=1e-9)
+    assert pred.features["event_kinds"] == "steam-sale"
+    assert pred.features["event_names"] == "Test Sale"
+
+
+def test_v2_event_recovery_linear():
+    """结束 7 天后（剩余 7/14 回补期）：factor = 1 + 0.03×(1 - 7/14) = 1.015。"""
+    from datetime import date, datetime
+    from app.services.prediction import MarketEvent, compute_event_adjust
+
+    ev = MarketEvent(kind="steam-sale", start=date(2026, 9, 3), end=date(2026, 9, 5), name="Sale")
+    res = compute_event_adjust(datetime(2026, 9, 12), [ev])
+    assert res.factor == pytest.approx(1.015, abs=1e-12)
+    assert res.count == 1
+    assert res.kinds == ["steam-sale"]
+    assert res.names == ["Sale"]
+
+
+def test_v2_event_no_hit_unchanged():
+    """事件未命中时与旧版（无事件参数）完全一致，features 不带 event_*。"""
+    from datetime import date, datetime
+    from app.services.prediction import BaselinePredictorV2, MarketEvent
+
+    b = _baseline()["prediction_v2"]
+    ev = MarketEvent(kind="steam-sale", start=date(2026, 8, 1), end=date(2026, 8, 7), name="Past Sale")
+    pred = BaselinePredictorV2().predict(
+        "V2 No Hit",
+        [10.0, 10.4, 10.8, 11.3, 11.8],
+        breakeven_price=10.1,
+        predicted_at=datetime(2026, 9, 5),
+        volume=6000.0,
+        volume_history=[2000, 2500, 3000, 5000, 6000],
+        popular_rank=12,
+        events=[ev],
+    )
+    assert pred.p50 == pytest.approx(b["p50"], abs=2e-4)
+    assert pred.confidence == pytest.approx(b["confidence"], abs=2e-4)
+    assert "event_active" not in pred.features
+    assert "event_adjust" not in pred.features
+
+
+def test_steam_sale_events_2026_has_four():
+    from app.services.prediction import STEAM_SALE_EVENTS_2026
+
+    assert len(STEAM_SALE_EVENTS_2026) == 4
+    kinds = {ev.kind for ev in STEAM_SALE_EVENTS_2026}
+    assert kinds == {"steam-sale"}
+    starts = [ev.start.isoformat() for ev in STEAM_SALE_EVENTS_2026]
+    assert "2026-06-25" in starts  # 夏促
