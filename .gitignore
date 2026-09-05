@@ -23,4 +23,6 @@ Thumbs.db
 
 # 构建产物 / 安装包
 mobile/scripts/.verify-build/
+mobile/scripts/.verify-c5-build/
 releases/*.apk
+

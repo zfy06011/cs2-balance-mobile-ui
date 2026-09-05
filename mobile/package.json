@@ -1,6 +1,6 @@
 {
   "name": "cs2-balance-mobile",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "verify:core": "node scripts/verify_core.cjs"
+    "verify:core": "node scripts/verify_core.cjs",
+    "verify:c5": "node scripts/verify_c5.cjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
