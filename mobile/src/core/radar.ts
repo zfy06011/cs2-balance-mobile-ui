@@ -15,6 +15,10 @@ export interface RadarInput {
   seller_receive_ratio?: number;
   c5_fee_ratio?: number;
   prob_profit?: number;
+  /** Steam 热门榜排名（1 起）；未提供不加分 */
+  popular_rank?: number | null;
+  /** 历史数据不足（预测仅供参考）：信号封顶 wait、评分封顶 40 */
+  data_insufficient?: boolean;
 }
 
 export interface RadarOutput {
@@ -25,7 +29,7 @@ export interface RadarOutput {
   risk_level: 'low' | 'medium' | 'high';
   liquidity: 'low' | 'medium' | 'high';
   score: number;
-  details: Record<string, number | null>;
+  details: Record<string, number | string | boolean | null>;
 }
 
 function roiOf(
@@ -64,6 +68,9 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
   let signal: 'buy' | 'wait' | 'avoid';
   if (expectedRoi == null) {
     signal = 'wait';
+  } else if (r.data_insufficient === true) {
+    // 历史不足：预测不可信，绝不因预测给 buy；当前价格已明确亏损才 avoid
+    signal = expectedRoi < 0 ? 'avoid' : 'wait';
   } else if (expectedRoi >= 0.05 && pessimisticRoi != null && pessimisticRoi >= -0.02 && risk !== 'high') {
     signal = 'buy';
   } else if (expectedRoi >= 0 || (pessimisticRoi != null && pessimisticRoi >= -0.05)) {
@@ -79,6 +86,13 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
   }
   score += liquid === 'high' ? 15 : liquid === 'medium' ? 8 : 0;
   score -= risk === 'low' ? 0 : risk === 'medium' ? 5 : 15;
+  // 热门榜排名加分：进入 Steam 热门榜（<=100）流动性背书 +3，头部（<=30）再 +3
+  if (r.popular_rank != null && r.popular_rank >= 1) {
+    if (r.popular_rank <= 100) score += 3;
+    if (r.popular_rank <= 30) score += 3;
+  }
+  // 历史数据不足：评分封顶 40（避免「看似高分」误导）
+  if (r.data_insufficient === true) score = Math.min(score, 40);
   score = Math.max(0, Math.min(100, round(score, 1)));
 
   return {
@@ -96,6 +110,8 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
       breakeven_price: r.breakeven_price ?? null,
       volatility: r.volatility ?? 0.05,
       prob_profit: r.prob_profit ?? 0,
+      popular_rank: r.popular_rank ?? null,
+      data_insufficient: r.data_insufficient === true,
     },
   };
 }

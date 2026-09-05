@@ -21,6 +21,8 @@ class RadarInput:
     event_risk: float = 0.0                  # 0~1，事件系统给出
     seller_receive_ratio: float = 0.8696
     c5_fee_ratio: float = 0.01
+    popular_rank: int | None = None       # Steam 热门榜排名（1 起），未提供不加分
+    data_insufficient: bool = False       # 历史不足：信号封顶 wait、评分封顶 40
 
 
 @dataclass
@@ -71,6 +73,9 @@ def evaluate(r: RadarInput) -> RadarOutput:
     # 信号规则
     if expected_roi is None:
         signal = "wait"
+    elif r.data_insufficient:
+        # 历史不足：预测不可信，绝不因预测给 buy；当前价格已明确亏损才 avoid
+        signal = "avoid" if expected_roi < 0 else "wait"
     elif expected_roi >= 0.05 and pessimistic_roi is not None and pessimistic_roi >= -0.02 and risk != "high":
         signal = "buy"
     elif expected_roi >= 0.0 or (pessimistic_roi is not None and pessimistic_roi >= -0.05):
@@ -86,6 +91,15 @@ def evaluate(r: RadarInput) -> RadarOutput:
         score += min(max((r.predicted_p50 / r.breakeven_price - 1.0) * 100, -10), 30)
     score += {"high": 15, "medium": 8, "low": 0}[liquid]
     score -= {"low": 0, "medium": 5, "high": 15}[risk]
+    # 热门榜排名加分：进入 Steam 热门榜（<=100）流动性背书 +3，头部（<=30）再 +3
+    if r.popular_rank is not None and r.popular_rank >= 1:
+        if r.popular_rank <= 100:
+            score += 3
+        if r.popular_rank <= 30:
+            score += 3
+    # 历史数据不足：评分封顶 40（避免「看似高分」误导）
+    if r.data_insufficient:
+        score = min(score, 40.0)
     score = max(0.0, min(100.0, round(score, 1)))
 
     return RadarOutput(
@@ -102,5 +116,7 @@ def evaluate(r: RadarInput) -> RadarOutput:
             "predicted_p50": r.predicted_p50,
             "breakeven_price": r.breakeven_price,
             "volatility": r.volatility,
+            "popular_rank": r.popular_rank,
+            "data_insufficient": r.data_insufficient,
         },
     )

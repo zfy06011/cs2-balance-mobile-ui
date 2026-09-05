@@ -87,6 +87,9 @@ export function RadarScreen({ onOpenDetail }: Props) {
                 <Text style={[styles.tag, { color: riskColors[r.risk_level] ?? colors.textDim }]}>风险 {r.risk_level}</Text>
                 <Text style={[styles.tag, { color: colors.info }]}>流动性 {r.liquidity}</Text>
                 <Text style={[styles.tag, { color: colors.gold }]}>评分 {r.score}</Text>
+                {r.details.data_insufficient === true ? (
+                  <Text style={[styles.tag, { color: colors.warning }]}>历史不足</Text>
+                ) : null}
               </View>
             </Card>
           </TouchableOpacity>

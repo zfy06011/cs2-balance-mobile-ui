@@ -4,11 +4,11 @@
  * 与后端 routes 的产出结构保持一致，UI 无需关心数据来自本地还是后端。
  */
 import {
-  storage, LocalInventoryItem, LOCK_HOURS, LOCK_DAYS,
+  storage, LocalSnapshot, LocalInventoryItem, LOCK_HOURS, LOCK_DAYS,
 } from '../data/storage';
 import { collectCases, collectOne, CollectProgress, CollectStats } from '../data/collector';
 import { ProfitCalculator } from './profit';
-import { BaselinePredictor } from './prediction';
+import { BaselinePredictor, BaselinePredictorV2 } from './prediction';
 import { evaluateRadar } from './radar';
 import { simulate as runSimulation, reverseTarget, SimItemInput, SIM_CONFIG } from './simulation';
 import { checkPurchase, BuyProtection, BuyCheckResult, buildBuySummary } from './buy';
@@ -17,7 +17,7 @@ import type {
   Quote, RadarItem, Prediction, Scenario, InventoryEntry, Simulation, OrderRecord, HistoryPoint,
 } from './types';
 
-const predictor = new BaselinePredictor();
+const predictor = new BaselinePredictorV2();
 const calc = new ProfitCalculator(DEFAULT_FEES.c5_buy_fee_ratio, DEFAULT_FEES.steam_seller_receive_ratio);
 
 export interface AppStatus {
@@ -56,10 +56,12 @@ function toRadarItem(name: string, c5Price: number | null, steamPrice: number, s
     breakeven_price: breakeven,
     volatility: typeof pred.features?.volatility === 'number' ? pred.features.volatility : 0.05,
     prob_profit: pred.prob_profit,
+    popular_rank: typeof pred.features?.popular_rank === 'number' ? pred.features.popular_rank : null,
+    data_insufficient: pred.features?.data_insufficient === true,
   });
   // 预计几折：以 7 天预测 P50 作为卖出价估算（总成本 / 预测净到手）
   let discount: number | null = null;
-  const p50 = rr.details.predicted_p50;
+  const p50 = typeof rr.details.predicted_p50 === 'number' ? rr.details.predicted_p50 : null;
   if (c5Price != null && p50 != null && p50 > 0) {
     discount = calc.expectedDiscount(c5Price, p50 * DEFAULT_FEES.steam_seller_receive_ratio);
   }
@@ -77,12 +79,45 @@ function toRadarItem(name: string, c5Price: number | null, steamPrice: number, s
   };
 }
 
-function buildPrediction(name: string, c5Price: number | null, prices: number[]): Prediction {
+interface PredictExtra {
+  volume?: number | null;
+  volumeHistory?: number[];
+  popularRank?: number | null;
+}
+
+/** 一次性取齐预测所需输入（Steam 最新价 / C5 价 / 价格历史 / 成交量历史 / 热门排名） */
+async function collectPredictInputs(name: string): Promise<{
+  steam: LocalSnapshot | null;
+  c5: LocalSnapshot | null;
+  prices: number[];
+  volumeHistory: number[];
+  volume: number | null;
+  popularRank: number | null;
+}> {
+  const steam = await storage.getLatestSteam(name);
+  const c5 = await storage.getLatestC5(name);
+  const prices = await storage.getSteamPrices(name);
+  const hist = await storage.getSteamHistory(name, 60);
+  const volumeHistory = hist.map((h) => h.volume ?? 0).filter((v) => v > 0);
+  return {
+    steam,
+    c5,
+    prices,
+    volumeHistory,
+    volume: steam?.volume ?? null,
+    popularRank: steam?.popular_rank ?? null,
+  };
+}
+
+function buildPrediction(name: string, c5Price: number | null, prices: number[], extra: PredictExtra = {}): Prediction {
   const breakeven = c5Price != null ? calc.breakevenSellPrice(c5Price) : undefined;
   const pred = predictor.predict({
     marketHashName: name,
     prices,
     breakevenPrice: breakeven,
+    volume: extra.volume ?? null,
+    volumeHistory: extra.volumeHistory,
+    popularRank: extra.popularRank ?? null,
   });
   const scenarios: Scenario[] = [];
   if (c5Price != null) {
@@ -144,12 +179,43 @@ export const engine = {
 
   // ---- 报价（单个） ----
   async quote(name: string): Promise<Quote> {
-    const steam = await storage.getLatestSteam(name);
-    const c5 = await storage.getLatestC5(name);
+    const inp = await collectPredictInputs(name);
+    const steam = inp.steam;
+    const c5 = inp.c5;
     const steamPrice = steam?.price ?? null;
     const c5Price = c5?.price ?? null;
     const result = c5Price != null && steamPrice != null ? calc.calculate(c5Price, steamPrice) : null;
     const expectedDiscount = result != null && c5Price != null ? calc.expectedDiscount(c5Price, result.steam_net_receive) : null;
+    // 信号与雷达页统一口径（综合预测 P50/P25 + 风险 + 流动性），预测失败退回当前价 ROI 信号
+    let signal = signalOf(result?.roi ?? null);
+    let dataInsufficient = false;
+    if (steamPrice != null && inp.prices.length >= 1) {
+      try {
+        const pred = buildPrediction(name, c5Price, inp.prices, {
+          volume: inp.volume,
+          volumeHistory: inp.volumeHistory,
+          popularRank: inp.popularRank,
+        });
+        const breakeven = c5Price != null ? calc.breakevenSellPrice(c5Price) : null;
+        const rr = evaluateRadar({
+          market_hash_name: name,
+          c5_buy_price: c5Price,
+          steam_sell_price: steamPrice,
+          steam_volume: steam?.volume ?? 0,
+          predicted_p50: pred.p50,
+          predicted_p25: pred.p25,
+          breakeven_price: breakeven,
+          volatility: typeof pred.features?.volatility === 'number' ? pred.features.volatility : 0.05,
+          prob_profit: pred.prob_profit,
+          popular_rank: inp.popularRank,
+          data_insufficient: pred.features?.data_insufficient === true,
+        });
+        signal = rr.signal;
+        dataInsufficient = pred.features?.data_insufficient === true;
+      } catch {
+        // 保持 signalOf 兜底
+      }
+    }
     return {
       market_hash_name: name,
       c5_buy_price: c5Price,
@@ -164,7 +230,8 @@ export const engine = {
       roi: result?.roi ?? null,
       expected_discount: expectedDiscount != null ? round(expectedDiscount, 6) : null,
       breakeven_sell_price: result?.breakeven_sell_price ?? null,
-      signal: signalOf(result?.roi ?? null),
+      signal,
+      data_insufficient: dataInsufficient,
     };
   },
 
@@ -195,21 +262,17 @@ export const engine = {
     const names = [...new Set(snaps.map((s) => s.name))];
     const out: RadarItem[] = [];
     for (const name of names) {
-      const steam = await storage.getLatestSteam(name);
+      const inp = await collectPredictInputs(name);
+      const steam = inp.steam;
       if (!steam || steam.price == null) continue;
-      const c5 = await storage.getLatestC5(name);
-      const c5Price = c5?.price ?? null;
-      const prices = await storage.getSteamPrices(name);
-      let usePrices: number[];
-      if (prices.length >= 2) {
-        usePrices = prices;
-      } else if (c5Price != null) {
-        usePrices = [c5Price, steam.price];
-      } else {
-        usePrices = [steam.price, steam.price];
-      }
+      const c5Price = inp.c5?.price ?? null;
       try {
-        const pred = buildPrediction(name, c5Price, usePrices);
+        // 只用真实 Steam 历史预测；不足 4 点时由 V2 标记 data_insufficient，雷达封顶 wait
+        const pred = buildPrediction(name, c5Price, inp.prices, {
+          volume: inp.volume,
+          volumeHistory: inp.volumeHistory,
+          popularRank: inp.popularRank,
+        });
         out.push(toRadarItem(name, c5Price, steam.price, steam.volume ?? 0, pred));
       } catch {
         continue;
@@ -232,13 +295,14 @@ export const engine = {
 
   // ---- 预测 ----
   async prediction(name: string): Promise<Prediction> {
-    const steam = await storage.getLatestSteam(name);
-    if (!steam || steam.price == null) throw new Error('暂无该商品的价格快照，请先刷新采集');
-    const c5 = await storage.getLatestC5(name);
-    const c5Price = c5?.price ?? null;
-    const prices = await storage.getSteamPrices(name);
-    const usePrices = prices.length >= 2 ? prices : c5Price != null ? [c5Price, steam.price] : [steam.price, steam.price];
-    return buildPrediction(name, c5Price, usePrices);
+    const inp = await collectPredictInputs(name);
+    if (!inp.steam || inp.steam.price == null) throw new Error('暂无该商品的价格快照，请先刷新采集');
+    const c5Price = inp.c5?.price ?? null;
+    return buildPrediction(name, c5Price, inp.prices, {
+      volume: inp.volume,
+      volumeHistory: inp.volumeHistory,
+      popularRank: inp.popularRank,
+    });
   },
 
   // ---- 库存 ----

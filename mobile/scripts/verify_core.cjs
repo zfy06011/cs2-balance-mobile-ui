@@ -25,7 +25,7 @@ execSync('npx tsc --ignoreConfig --module commonjs --target es2020 --skipLibChec
 
 const p = (f) => require(path.join(outDir, f));
 const { ProfitCalculator } = p('profit.js');
-const { BaselinePredictor, normalCdf } = p('prediction.js');
+const { BaselinePredictor, BaselinePredictorV2, normalCdf } = p('prediction.js');
 const { evaluateRadar } = p('radar.js');
 const { simulate, reverseTarget } = p('simulation.js');
 const { DEFAULT_FEES } = p('fees.js');
@@ -93,6 +93,47 @@ assert('pred.features.volatility=' + pbb.features.volatility, near(pred.features
 assert('pred.target_at +7d', pred.target_at === '2026-09-12T00:00:00.000Z', pred.target_at);
 assert('pred.model_version', pred.model_version === 'baseline-momentum-v1', pred.model_version);
 
+// ---------- 2b. 预测 V2（回归趋势 + 量价确认 + 数据不足） ----------
+const v2 = new BaselinePredictorV2().predict({
+  marketHashName: 'V2 Test Case',
+  prices: [10, 10.4, 10.8, 11.3, 11.8],
+  breakevenPrice: 10.1,
+  predictedAt: new Date('2026-09-05T00:00:00Z'),
+  volume: 6000,
+  volumeHistory: [2000, 2500, 3000, 5000, 6000],
+  popularRank: 12,
+});
+const pb2 = BASELINE.prediction_v2;
+assert('pred_v2.model_version=' + pb2.model_version, v2.model_version === pb2.model_version, v2.model_version);
+assert('pred_v2.target_at +7d', v2.target_at === pb2.target_at, v2.target_at);
+for (const q of ['p10', 'p25', 'p50', 'p75', 'p90']) {
+  assert('pred_v2.' + q + '=' + pb2[q], near(v2[q], pb2[q], 1e-4), v2[q]);
+}
+assert('pred_v2.prob_profit=' + pb2.prob_profit, near(v2.prob_profit, pb2.prob_profit, 1e-4), v2.prob_profit);
+assert('pred_v2.prob_loss=' + pb2.prob_loss, near(v2.prob_loss, pb2.prob_loss, 1e-4), v2.prob_loss);
+assert('pred_v2.confidence=' + pb2.confidence, near(v2.confidence, pb2.confidence, 1e-4), v2.confidence);
+assert('pred_v2.features.trend_daily=' + pb2.features.trend_daily, near(Number(v2.features.trend_daily), pb2.features.trend_daily, 1e-6), v2.features.trend_daily);
+assert('pred_v2.features.momentum=' + pb2.features.momentum, near(Number(v2.features.momentum), pb2.features.momentum, 1e-6), v2.features.momentum);
+assert('pred_v2.features.volume_confirm=1.15', Number(v2.features.volume_confirm) === 1.15, v2.features.volume_confirm);
+assert('pred_v2.features.volume_ratio=1.92', near(Number(v2.features.volume_ratio), 1.92, 1e-3), v2.features.volume_ratio);
+assert('pred_v2.features.popular_rank=12', Number(v2.features.popular_rank) === 12, v2.features.popular_rank);
+assert('pred_v2.data_insufficient=false', v2.features.data_insufficient === false, v2.features.data_insufficient);
+
+// 数据不足：单点历史不再拼接假装，输出「平盘 + 低置信度 + 标记」
+const v2low = new BaselinePredictorV2().predict({
+  marketHashName: 'V2 Low',
+  prices: [12],
+  breakevenPrice: 10.1,
+  predictedAt: new Date('2026-09-05T00:00:00Z'),
+});
+const pl = BASELINE.prediction_v2_low;
+assert('pred_v2_low.p50=' + pl.p50, near(v2low.p50, pl.p50, 1e-4), v2low.p50);
+assert('pred_v2_low.p25=' + pl.p25, near(v2low.p25, pl.p25, 1e-4), v2low.p25);
+assert('pred_v2_low.confidence=' + pl.confidence, near(v2low.confidence, pl.confidence, 1e-4), v2low.confidence);
+assert('pred_v2_low.prob_profit=' + pl.prob_profit, near(v2low.prob_profit, pl.prob_profit, 1e-4), v2low.prob_profit);
+assert('pred_v2_low.data_insufficient=true', v2low.features.data_insufficient === true, v2low.features.data_insufficient);
+assert('pred_v2_low.trend_daily=0', Number(v2low.features.trend_daily) === 0, v2low.features.trend_daily);
+
 // erf/CDF 合理性（Hermes 无 Math.erf，验证近似精度）
 assert('normalCdf(0)=0.5', near(normalCdf(0), 0.5, 1e-4), normalCdf(0));
 assert('normalCdf(1.96)~0.975', near(normalCdf(1.96), 0.975, 1e-3), normalCdf(1.96));
@@ -123,6 +164,27 @@ const rc = (key, o) => {
 rc('radar_buy', { market_hash_name: 'A', sell: 15, vol: 8000, p50: 16, p25: 14.5, vola: 0.02 });
 rc('radar_wait', { market_hash_name: 'C', sell: 15, vol: 8000, p50: 16, p25: 14.5, vola: 0.03 });
 rc('radar_avoid', { market_hash_name: 'B', sell: 9, vol: 50, p50: 8.5, p25: 7, vola: 0.2 });
+
+// 3b. 雷达-数据不足 + 热门排名：原 buy 场景被封顶为 wait，评分封顶 40
+const rInsuf = evaluateRadar({
+  market_hash_name: 'Insufficient Case A',
+  c5_buy_price: 10,
+  steam_sell_price: 15,
+  steam_volume: 8000,
+  predicted_p50: 16,
+  predicted_p25: 14.5,
+  breakeven_price: 11.6,
+  volatility: 0.02,
+  prob_profit: 0.7,
+  popular_rank: 5,
+  data_insufficient: true,
+});
+const rbI = BASELINE.radar_insufficient;
+assert('radar_insufficient.signal=' + rbI.signal, rInsuf.signal === rbI.signal, rInsuf.signal);
+assert('radar_insufficient.expected_roi=' + rbI.expected_roi, near(rInsuf.expected_roi, rbI.expected_roi, 1e-6), rInsuf.expected_roi);
+assert('radar_insufficient.score=' + rbI.score, near(rInsuf.score, rbI.score, 1e-6), rInsuf.score);
+assert('radar_insufficient.details.data_insufficient', rInsuf.details.data_insufficient === true, String(rInsuf.details.data_insufficient));
+assert('radar_insufficient.details.popular_rank=5', Number(rInsuf.details.popular_rank) === 5, String(rInsuf.details.popular_rank));
 
 // ---------- 4. 模拟 ----------
 const sim = simulate(1000, [

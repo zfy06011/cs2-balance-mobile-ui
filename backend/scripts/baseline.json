@@ -22,7 +22,7 @@
     "pessimistic_roi": 0.248436,
     "risk_level": "medium",
     "liquidity": "high",
-    "score": 80.0
+    "score": 80
   },
   "radar_wait": {
     "signal": "wait",
@@ -30,7 +30,7 @@
     "pessimistic_roi": 0.248436,
     "risk_level": "high",
     "liquidity": "high",
-    "score": 70.0
+    "score": 70
   },
   "radar_avoid": {
     "signal": "avoid",
@@ -38,7 +38,7 @@
     "pessimistic_roi": -0.397307,
     "risk_level": "high",
     "liquidity": "low",
-    "score": 0.0
+    "score": 0
   },
   "simulation": {
     "allocation": "balanced",
@@ -46,7 +46,7 @@
       {
         "name": "K1",
         "qty": 20,
-        "buy_cost": 202.0,
+        "buy_cost": 202,
         "expected_receive": 278.27,
         "expected_roi": 0.3776,
         "prob_loss": 0.1
@@ -62,7 +62,7 @@
       {
         "name": "K3",
         "qty": 5,
-        "buy_cost": 101.0,
+        "buy_cost": 101,
         "expected_receive": 121.74,
         "expected_roi": 0.2054,
         "prob_loss": 0.2
@@ -85,5 +85,53 @@
     "net_profit": 2.944,
     "roi": 0.291485,
     "breakeven_sell_price": 11.6145
+  },
+  "prediction_v2": {
+    "p10": 10.8096,
+    "p25": 12.1935,
+    "p50": 13.9398,
+    "p75": 15.9361,
+    "p90": 17.9763,
+    "prob_profit": 0.9478,
+    "prob_loss": 0.0522,
+    "confidence": 0.3468,
+    "model_version": "baseline-momentum-v2",
+    "target_at": "2026-09-12T00:00:00.000Z",
+    "features": {
+      "latest_price": 11.8,
+      "momentum": 0.165514,
+      "trend_daily": 0.041403,
+      "volatility": 0.075,
+      "history_len": 5,
+      "data_insufficient": false,
+      "trend_clamped": false,
+      "volume_confirm": 1.15,
+      "volume_ratio": 1.92,
+      "popular_rank": 12
+    }
+  },
+  "prediction_v2_low": {
+    "p50": 12,
+    "p25": 10.4967,
+    "p10": 9.3054,
+    "p75": 13.7185,
+    "p90": 15.4749,
+    "prob_profit": 0.8075,
+    "prob_loss": 0.1925,
+    "confidence": 0.25,
+    "features": {
+      "data_insufficient": true,
+      "history_len": 1,
+      "trend_daily": 0,
+      "volume_confirm": 1
+    }
+  },
+  "radar_insufficient": {
+    "signal": "wait",
+    "expected_roi": 0.377584,
+    "pessimistic_roi": 0.248436,
+    "risk_level": "medium",
+    "liquidity": "high",
+    "score": 40
   }
 }

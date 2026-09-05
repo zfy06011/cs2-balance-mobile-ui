@@ -18,6 +18,8 @@ export interface Quote {
   expected_discount: number | null;
   breakeven_sell_price: number | null;
   signal: string;
+  /** 历史数据不足（预测仅供参考，信号已封顶为 wait） */
+  data_insufficient?: boolean;
 }
 
 export interface RadarItem {
@@ -31,7 +33,7 @@ export interface RadarItem {
   liquidity: string;
   signal: string;
   score: number;
-  details: Record<string, number | null>;
+  details: Record<string, number | string | boolean | null>;
 }
 
 export interface Scenario {

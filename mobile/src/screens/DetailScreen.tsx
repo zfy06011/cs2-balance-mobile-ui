@@ -207,6 +207,9 @@ export function DetailScreen({ name, onBack }: Props) {
                 <Text style={[styles.legend, { color: colors.primary }]}>■ 历史真实</Text>
                 <Text style={[styles.legend, { color: colors.gold }]}>▨ 未来预测区</Text>
               </View>
+              {quote.data_insufficient === true ? (
+                <Text style={[styles.predNote, { color: colors.warning }]}>⚠️ 历史数据不足（少于 4 次采集），预测仅供参考，信号已保守处理</Text>
+              ) : null}
               <View style={styles.chart}>
                 <View style={styles.histArea}>
                   {trend.bars.map((b, i) => (
