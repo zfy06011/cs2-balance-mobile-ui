@@ -44,6 +44,7 @@ export const api = {
   inventory: () => engine.inventory() as Promise<InventoryEntry[]>,
   addInventory: (params: { item_name: string; quantity: number; buy_price: number }) =>
     engine.addInventory(params),
+  syncSteamInventory: (steamId: string) => engine.syncSteamInventory(steamId),
   orders: () => engine.orders() as Promise<OrderRecord[]>,
   prepareBuy: (params: { name: string; qty?: number }) => engine.prepareBuy(params) as Promise<BuyPrepareResult>,
   executeBuy: (params: { name: string; qty?: number }) => engine.executeBuy(params) as Promise<BuyExecuteResult>,

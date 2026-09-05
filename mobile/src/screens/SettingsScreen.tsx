@@ -15,6 +15,7 @@ export function SettingsScreen() {
   const [status, setStatus] = useState<HealthResult | null>(null);
   const [c5Key, setC5Key] = useState('');
   const [cookie, setCookie] = useState('');
+  const [steamId, setSteamId] = useState('');
   const [count, setCount] = useState(20);
   const [msg, setMsg] = useState<string | null>(null);
   const [buyMaxPrice, setBuyMaxPrice] = useState('0');
@@ -31,6 +32,7 @@ export function SettingsScreen() {
       const settings = await api.getSettings();
       setC5Key(settings.c5AppKey);
       setCookie(settings.steamCookie);
+      setSteamId(settings.steamId || '');
       setCount(settings.refreshCount);
       setBuyMaxPrice(String(settings.buyMaxPrice));
       setBuyTargetZhe(String(settings.buyTargetZhe));
@@ -50,6 +52,7 @@ export function SettingsScreen() {
       await api.updateSettings({
         c5AppKey: c5Key.trim(),
         steamCookie: cookie.trim(),
+        steamId: steamId.trim(),
         refreshCount: count,
         buyMaxPrice: parseFloat(buyMaxPrice) || 0,
         buyTargetZhe: parseFloat(buyTargetZhe) || 0,
@@ -153,6 +156,16 @@ export function SettingsScreen() {
               value={cookie}
               onChangeText={setCookie}
               placeholder="Steam Cookie（选填）"
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Text style={styles.hint}>SteamID64（/profiles/ 后的 17 位数字）用于库存页「同步 Steam 冷却」，获取真实冷却天数并精确到小时。</Text>
+            <TextInput
+              style={styles.input}
+              value={steamId}
+              onChangeText={setSteamId}
+              placeholder="SteamID64（选填）"
               placeholderTextColor={colors.textDim}
               autoCapitalize="none"
               autoCorrect={false}

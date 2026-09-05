@@ -69,6 +69,14 @@ export interface InventoryEntry {
   source: string;
   unlock_at: string;
   days_left: number;
+  /** Steam 同步后的小时级剩余时间（0 = 可上架）；未同步时为 7 天折算 */
+  hours_left: number;
+  /** 是否经过 Steam 库存同步 */
+  steam_synced: boolean;
+  /** 最近同步是否可交易/可上架（null = 未同步） */
+  steam_tradable: boolean | null;
+  /** 解锁时间来源：steam=Steam 真实冷却；estimate=买入时间+7天估算 */
+  unlock_source: 'steam' | 'estimate';
   current_estimate: number | null;
   net_receive_estimate: number | null;
   net_profit_estimate: number | null;

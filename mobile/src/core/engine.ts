@@ -7,6 +7,7 @@ import {
   storage, LocalSnapshot, LocalInventoryItem, LOCK_HOURS, LOCK_DAYS,
 } from '../data/storage';
 import { collectCases, collectOne, CollectProgress, CollectStats } from '../data/collector';
+import { fetchSteamInventory, SteamInventoryItem } from '../data/steam';
 import { ProfitCalculator } from './profit';
 import { BaselinePredictor, BaselinePredictorV2, STEAM_SALE_EVENTS_2026, type MarketEvent } from './prediction';
 import { evaluateRadar } from './radar';
@@ -333,8 +334,28 @@ export const engine = {
         roi = cost ? netProfit / cost : null;
         discount = calc.expectedDiscount(r.buy_price, netReceive);
       }
-      const unlock = new Date(new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000);
-      const daysLeft = Math.max(0, (unlock.getTime() - Date.now()) / 86400000);
+      const nowTs = Date.now();
+      let unlockTs: number;
+      let unlockSource: 'steam' | 'estimate' = 'estimate';
+      if (r.steam_tradable === true) {
+        // Steam 已确认可交易/可上架
+        unlockTs = nowTs - 1;
+        unlockSource = 'steam';
+      } else if (r.steam_unlock_est_at) {
+        const est = new Date(r.steam_unlock_est_at).getTime();
+        if (Number.isFinite(est)) {
+          unlockTs = Math.max(est, nowTs - 1);
+          unlockSource = 'steam';
+        } else {
+          unlockTs = new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000;
+        }
+      } else {
+        unlockTs = new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000;
+      }
+      const unlock = new Date(unlockTs);
+      const msLeft = Math.max(0, unlockTs - nowTs);
+      const hoursLeft = msLeft / 3600000;
+      const daysLeft = hoursLeft / 24;
       out.push({
         id: r.id,
         item_name: r.item_name,
@@ -344,6 +365,10 @@ export const engine = {
         source: r.source,
         unlock_at: unlock.toISOString(),
         days_left: daysLeft,
+        hours_left: hoursLeft,
+        steam_synced: !!r.steam_synced_at,
+        steam_tradable: r.steam_tradable ?? null,
+        unlock_source: unlockSource,
         current_estimate: current,
         net_receive_estimate: netReceive,
         net_profit_estimate: netProfit,
@@ -365,6 +390,62 @@ export const engine = {
     });
     const unlock = new Date(new Date(entry.buy_at).getTime() + LOCK_HOURS * 3600000);
     return { id: entry.id, unlock_at: unlock.toISOString(), days: LOCK_DAYS };
+  },
+
+  /** 同步 Steam 库存 → 用真实冷却校正本地库存解锁时间（精确到小时） */
+  async syncSteamInventory(steamIdInput: string): Promise<{ matched: number; unlocked: number; notFound: number; at: string }> {
+    const settings = await storage.getSettings();
+    const items = await fetchSteamInventory(steamIdInput, settings.steamCookie || '');
+    const byName = new Map<string, SteamInventoryItem>();
+    for (const it of items) byName.set(it.name, it);
+    const rows = await storage.getInventory();
+    const now = new Date();
+    const nowTs = now.getTime();
+    const updates: Array<{
+      id: number;
+      patch: Pick<LocalInventoryItem, 'steam_synced_at' | 'steam_tradable' | 'steam_unlock_est_at' | 'steam_first_seen_at'>;
+    }> = [];
+    let matched = 0;
+    let unlocked = 0;
+    let notFound = 0;
+    for (const r of rows) {
+      const st = byName.get(r.item_name);
+      if (!st) {
+        notFound++;
+        continue;
+      }
+      matched++;
+      const days = st.tradableRestrictionDays;
+      const firstSeen = r.steam_first_seen_at || now.toISOString();
+      let estAt: string;
+      let tradableNow: boolean;
+      if (st.tradable || days === 0) {
+        // 已解锁：记录「观察到可交易」的时刻（误差 ≤ 两次同步间隔）
+        estAt = now.toISOString();
+        tradableNow = true;
+        unlocked++;
+      } else {
+        // 冷却中：Steam 仅给剩余整数天；以「本次观察时刻 + 剩余整天」为上界，
+        // 与历史估计取 min 单调逼近真实解锁（确保不早于真实解锁）
+        const effDays = days ?? 7;
+        const estThis = nowTs + effDays * 86400000;
+        const prevEstMs = r.steam_unlock_est_at ? new Date(r.steam_unlock_est_at).getTime() : NaN;
+        const hasPrev = Number.isFinite(prevEstMs) && prevEstMs > 0;
+        estAt = new Date(hasPrev ? Math.min(prevEstMs, estThis) : estThis).toISOString();
+        tradableNow = false;
+      }
+      updates.push({
+        id: r.id,
+        patch: {
+          steam_synced_at: now.toISOString(),
+          steam_tradable: tradableNow,
+          steam_unlock_est_at: estAt,
+          steam_first_seen_at: firstSeen,
+        },
+      });
+    }
+    await storage.updateInventoryCooldown(updates);
+    return { matched, unlocked, notFound, at: now.toISOString() };
   },
 
   // ---- 订单 ----

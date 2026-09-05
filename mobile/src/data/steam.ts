@@ -147,3 +147,97 @@ export async function searchCases(count = 100, cookie = ''): Promise<SteamCaseHi
     return searchByVolume(count, cookie);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Steam 库存：真实冷却期同步（精确到小时）
+// steamcommunity.com/inventory/{steamid}/730/2 返回：
+//  - assets[] 的 market_tradable_restriction / market_marketable_restriction
+//    = 距解锁「剩余整数天」（Steam 官方不提供小时级时间戳）
+//  - descriptions[] 提供 market_hash_name（英文唯一键）与中文名
+// 小时级精度由 engine.syncSteamInventory 结合「本地首次观察时间」推算。
+// ---------------------------------------------------------------------------
+
+export interface SteamInventoryItem {
+  /** 英文 MarketHashName（与本地库存 item_name 关联键） */
+  name: string;
+  /** Steam 官方中文名（l=schinese 时返回；无则为 null） */
+  cnName: string | null;
+  amount: number;
+  tradable: boolean;
+  marketable: boolean;
+  /** 距可交易剩余天数（整数；0 或 null 且 tradable=true 表示已解锁） */
+  tradableRestrictionDays: number | null;
+  /** 距可上架剩余天数（整数） */
+  marketableRestrictionDays: number | null;
+}
+
+/** 规整为 SteamID64：支持 17 位数字或 profiles/7656119... 链接 */
+export function normalizeSteamId(input: string): string {
+  const s = (input || '').trim();
+  if (/^\d{17}$/.test(s)) return s;
+  const m = s.match(/profiles\/(\d{17})/);
+  if (m) return m[1];
+  throw new Error('请输入 17 位 SteamID64 或 profiles/7656119… 链接');
+}
+
+function intRestriction(v: unknown): number | null {
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function boolOf(v: unknown, fallback: boolean): boolean {
+  if (v == null) return fallback;
+  return v === true || v === 1 || String(v) === '1' || String(v).toLowerCase() === 'true';
+}
+
+/** 拉取用户 Steam CS2 库存（730/2 = CS2 库存 context），解析冷却信息与官方中文名 */
+export async function fetchSteamInventory(steamIdInput: string, cookie = ''): Promise<SteamInventoryItem[]> {
+  const steamId = normalizeSteamId(steamIdInput);
+  const url = `https://steamcommunity.com/inventory/${steamId}/730/2?l=schinese&count=2000`;
+  const resp = await fetch(url, { headers: headers(cookie) });
+  if (!resp.ok) {
+    const extra = resp.status === 403 ? '（需登录 cookie 或公开库存）' : resp.status === 401 ? '（需登录 cookie）' : '';
+    throw new Error(`Steam 库存接口返回 ${resp.status}${extra}`);
+  }
+  const data = (await resp.json()) as {
+    success?: unknown;
+    assets?: Record<string, unknown>[];
+    descriptions?: Record<string, unknown>[];
+  };
+  if (data.success === false) throw new Error('Steam 库存不可见（请公开库存或填写 Steam cookie）');
+  const descMap = new Map<string, Record<string, unknown>>();
+  for (const d of data.descriptions ?? []) {
+    const key = `${d.classid}|${d.instanceid}`;
+    if (!descMap.has(key)) descMap.set(key, d);
+  }
+  const seen = new Map<string, SteamInventoryItem>();
+  for (const a of data.assets ?? []) {
+    const desc = descMap.get(`${a.classid}|${a.instanceid}`) ?? {};
+    const name = String(desc.market_hash_name ?? a.market_hash_name ?? '');
+    if (!name || !isCaseLikeName(name)) continue;
+    const amount = intRestriction(a.amount) ?? 1;
+    const rawCn = String(desc.market_name ?? desc.name ?? '');
+    const cnName = rawCn && rawCn !== name && /[\u4e00-\u9fff]/.test(rawCn) ? rawCn : null;
+    const tradable = boolOf(desc.tradable, true);
+    const marketable = boolOf(desc.marketable, true);
+    const tradableDays = intRestriction(a.market_tradable_restriction ?? desc.market_tradable_restriction);
+    const marketableDays = intRestriction(a.market_marketable_restriction ?? desc.market_marketable_restriction);
+    const prev = seen.get(name);
+    if (!prev) {
+      seen.set(name, { name, cnName, amount, tradable, marketable, tradableRestrictionDays: tradableDays, marketableRestrictionDays: marketableDays });
+      continue;
+    }
+    // 同类多把：数量累加；可交易取「任一已解锁」；冷却天数取最短（最快解锁的那把）
+    prev.amount += amount;
+    prev.tradable = prev.tradable || tradable;
+    prev.marketable = prev.marketable || marketable;
+    if (tradableDays != null && (prev.tradableRestrictionDays == null || tradableDays < prev.tradableRestrictionDays)) {
+      prev.tradableRestrictionDays = tradableDays;
+    }
+    if (marketableDays != null && (prev.marketableRestrictionDays == null || marketableDays < prev.marketableRestrictionDays)) {
+      prev.marketableRestrictionDays = marketableDays;
+    }
+  }
+  return Array.from(seen.values());
+}

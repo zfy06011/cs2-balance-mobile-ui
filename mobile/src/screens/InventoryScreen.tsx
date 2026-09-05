@@ -16,6 +16,16 @@ function fmtMoney(v: number | null | undefined): string {
   return `¥${v.toFixed(2)}`;
 }
 
+/** 小时级剩余：>=24h 显示「x 天 y 小时」，<24h 显示「x 小时」，<=0 显示可上架 */
+function fmtRemainHours(h: number): string {
+  if (h <= 0) return '可上架';
+  const total = Math.ceil(h);
+  if (total < 24) return `${total} 小时`;
+  const d = Math.floor(total / 24);
+  const hh = total % 24;
+  return hh > 0 ? `${d} 天 ${hh} 小时` : `${d} 天`;
+}
+
 export function InventoryScreen() {
   const [items, setItems] = useState<InventoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +36,9 @@ export function InventoryScreen() {
   const [price, setPrice] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [steamId, setSteamId] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +55,28 @@ export function InventoryScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    api.getSettings().then((s) => setSteamId(s.steamId || '')).catch(() => undefined);
+  }, []);
+
+  const sync = async () => {
+    if (!steamId.trim()) {
+      setSyncMsg('请先填写 SteamID64（个人资料页 /profiles/ 后面的 17 位数字）');
+      return;
+    }
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await api.syncSteamInventory(steamId.trim());
+      setSyncMsg(`同步完成：匹配 ${res.matched} 件，其中可上架 ${res.unlocked} 件，未在 Steam 找到 ${res.notFound} 件`);
+      await load();
+    } catch (e) {
+      setSyncMsg(`同步失败：${e instanceof Error ? e.message : '未知错误'}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const add = async () => {
     if (!name.trim() || !qty.trim() || !price.trim()) return;
@@ -84,6 +119,24 @@ export function InventoryScreen() {
             {savedMsg ? <Text style={styles.saved}>{savedMsg}</Text> : null}
           </Card>
 
+          <Card>
+            <SectionTitle>同步 Steam 冷却（精确到小时）</SectionTitle>
+            <Text style={styles.hint}>填入 SteamID64（个人资料页 /profiles/ 后的 17 位数字），从 Steam 库存拉取真实冷却天数，并按首次观察到的时间推算剩余小时。下拉刷新可重复同步，越接近解锁越准。</Text>
+            <TextInput
+              style={styles.input}
+              value={steamId}
+              onChangeText={setSteamId}
+              placeholder="SteamID64 / profiles/7656119… 链接"
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity style={[styles.addBtn, syncing && { opacity: 0.6 }]} onPress={sync} disabled={syncing}>
+              <Text style={styles.addBtnText}>{syncing ? '同步中…' : '⟳ 同步 Steam 冷却'}</Text>
+            </TouchableOpacity>
+            {syncMsg ? <Text style={styles.saved}>{syncMsg}</Text> : null}
+          </Card>
+
           <SectionTitle>我的库存（{items.length}）</SectionTitle>
           {loading ? <Loading /> : null}
           {!loading && error ? <ErrorView message={error} onRetry={load} /> : null}
@@ -96,13 +149,20 @@ export function InventoryScreen() {
                 <Text style={styles.name} numberOfLines={1}>{displayNameOf(it.item_name)}</Text>
                 <View style={[styles.countdown, it.days_left <= 1 && { borderColor: colors.danger }]}>
                   <Text style={[styles.countdownText, it.days_left <= 1 && { color: colors.danger }]}>
-                    {it.days_left <= 0 ? '可上架' : `解锁倒计时 ${it.days_left.toFixed(1)} 天`}
+                    {it.days_left <= 0 ? '可上架' : `解锁倒计时 ${fmtRemainHours(it.hours_left)}`}
                   </Text>
                 </View>
               </View>
               <Row label="数量 × 买入价" value={`${it.quantity} × ¥${it.buy_price.toFixed(2)}`} />
               <Row label="买入时间" value={new Date(it.buy_at).toLocaleString()} />
               <Row label="预计可卖时间" value={new Date(it.unlock_at).toLocaleString()} />
+              {it.steam_synced ? (
+                <Row
+                  label="冷却来源"
+                  value={it.steam_tradable ? 'Steam：已可上架' : it.unlock_source === 'steam' ? 'Steam 真实冷却（推算）' : 'Steam 估算'}
+                  valueColor={it.steam_tradable ? colors.success : colors.gold}
+                />
+              ) : null}
               <Row label="当前市场估值" value={fmtMoney(it.current_estimate)} />
               <Row label="预计几折（越低越划算）" value={fmtZhe(it.expected_discount_estimate)} valueColor={it.expected_discount_estimate != null && it.expected_discount_estimate <= 0.95 ? colors.success : colors.warning} />
               <Row label="预计可到账（扣费后）" value={fmtMoney(it.net_receive_estimate)} valueColor={colors.success} />
@@ -137,4 +197,5 @@ const styles = StyleSheet.create({
   },
   countdownText: { color: colors.gold, fontSize: 11, fontWeight: '700' },
   empty: { color: colors.textDim, fontSize: 14 },
+  hint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
 });

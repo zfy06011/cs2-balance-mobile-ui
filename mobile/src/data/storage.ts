@@ -24,6 +24,15 @@ export interface LocalInventoryItem {
   buy_price: number;
   buy_at: string;
   source: string;
+  /** ---- Steam 库存同步（可选；「同步 Steam 冷却」填充，用于精确到小时的解锁倒计时） ---- */
+  /** 最近一次 Steam 同步时间 */
+  steam_synced_at?: string | null;
+  /** 最近同步时该物品是否已可交易/可上架 */
+  steam_tradable?: boolean | null;
+  /** 估计可交易时刻（随每次同步 min 累积逼近真实解锁） */
+  steam_unlock_est_at?: string | null;
+  /** 首次在 Steam 库存观察到该物品的时间 */
+  steam_first_seen_at?: string | null;
 }
 
 export interface LocalOrder {
@@ -39,6 +48,8 @@ export interface LocalOrder {
 
 export interface AppSettings {
   c5AppKey: string;
+  /** SteamID64（/profiles/ 后的 17 位数字），用于 Steam 库存冷却同步 */
+  steamId: string;
   refreshCount: number;
   steamCookie: string;
   /** 购买保护：最高买入价（元，0 不限） */
@@ -80,6 +91,7 @@ function num(v: unknown, def: number): number {
 
 const DEFAULT_SETTINGS: AppSettings = {
   c5AppKey: '',
+  steamId: '',
   refreshCount: 20,
   steamCookie: '',
   buyMaxPrice: 0,
@@ -171,6 +183,29 @@ export const storage = {
     all.push(entry);
     await writeJSON(K_INVENTORY, all);
     return entry;
+  },
+
+  /**
+   * 批量更新本地库存的 Steam 冷却字段（一次 Steam 库存同步写一次盘）。
+   * patch 里的字段全部覆盖；未出现在 updates 里的条目保持不变。
+   */
+  async updateInventoryCooldown(
+    updates: Array<{
+      id: number;
+      patch: Pick<LocalInventoryItem, 'steam_synced_at' | 'steam_tradable' | 'steam_unlock_est_at' | 'steam_first_seen_at'>;
+    }>,
+  ): Promise<void> {
+    if (updates.length === 0) return;
+    const all = await this.getInventory();
+    const patchMap = new Map(updates.map((u) => [u.id, u.patch]));
+    let changed = false;
+    const next = all.map((x) => {
+      const p = patchMap.get(x.id);
+      if (!p) return x;
+      changed = true;
+      return { ...x, ...p };
+    });
+    if (changed) await writeJSON(K_INVENTORY, next);
   },
 
   // ---- 订单 ----
