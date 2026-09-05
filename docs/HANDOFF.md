@@ -18,6 +18,7 @@
 | 一级页面 | 首页 / 市场 / 库存 / 雷达 / 我的（资金模拟为首页工具入口，不作一级导航） |
 | 已验证 | typecheck 零错误；引擎交叉验证 **131/131 PASS**（TS==Python 全对拍：v1 71 项 + V2/雷达/事件新增 60 项）；pytest **39 passed** |
 | 工作区引擎 | **baseline-momentum-v2 + 事件日历 V3**（已合入但**未打包**；线上 APK v1.3.1 仍为 v1 引擎，下次打包升级 v1.4.0+） |
+| 工作区新增 | Steam 官方中文名自动缓存（三级回退）+ Steam 库存冷却精确到小时（真实剩余天数 + 首次观察推算，均未打包；见第 2 节） |
 | 核心指标 | **预计几折余额**（低于 1 更划算；如投入 100 元、预计 Steam 净到手 108 元 = 9.26 折） |
 
 ## 2. v2 已完成功能（相对 v1.2.0）
@@ -31,6 +32,12 @@
 - **雷达事件修正**：引擎把**还原后的原始 P50/P25** 传给雷达，雷达内部乘回 (1+event_adjust) 避免双重修正；评分偏移 event_adjust×-200（封顶 ±8，大促压制期买入机会加分）；details 输出 event_adjust 与修正后 predicted_p50
 - 验证：TS==Python 双实现全对拍 **131/131 PASS**；pytest **39 passed**
 
+
+**v1.4.0-plus（2026-09-05 最新两个提交，均在工作区、未打包）**：
+- **Steam 官方中文名自动缓存（`926fe4f`）**：采集时带 `l=schinese` 抓官方中文名入 `src/data/zhNames.ts` 缓存（一次采集覆盖全部箱子）；UI 显示三级回退：手工映射 `cn_names.ts` → 官方缓存 → 英文原名，「暂无中文名」问题已根治；后台仍以 MarketHashName 关联
+- **Steam 库存同步冷却期（`2fecd25`）**：设置页填 SteamID64（支持 17 位或 `profiles/` 链接）→ 库存页「同步 Steam 冷却」→ `fetchSteamInventory` 拉真实冷却（`market_tradable_restriction` 剩余整数天），`engine.syncSteamInventory` 结合本地首次观察时间推算到小时、多轮 min 累积逼近；库存页显示 steam 同步状态、真实可交易时间/剩余小时，替代一刀切的「买入 +7 天」
+- 涉及文件：`src/data/steam.ts` / `src/core/engine.ts#syncSteamInventory` / `src/data/storage.ts#updateInventoryCooldown` / `InventoryScreen.tsx` / `SettingsScreen.tsx`
+
 **v1.3.1（2026-09-05）**：
 - **预测/推荐引擎 V2（工作区已合入、未打包）**：
   - 预测 BaselinePredictorV2：7 点对数价格最小二乘回归趋势（<4 点退化为首末对数收益）、
@@ -41,8 +48,8 @@
   - **修复**：引擎不再拼接 [c5Price, steamPrice] 假历史，只走真实 Steam 历史预测
   - 验证：TS==Python 双实现全对拍，98/98 PASS；pytest 34 passed
 - 详情页新增「C5 卖出参考（求购价）」卡（`fetchC5StatsBulk` stat 接口，免 IP 白名单）
-- 中文名未收录时回退显示英文原名；译名按 C5GAME 商品页对齐（热潮/伽玛/冬季攻势/军火交易/电竞系列）
-- 实测 C5 购买/求购接口权限与余额现状（第 4 节）：接口存在，但需 IP 白名单 + 预充值 + 求购权限
+- 中文名未收录时回退显示英文原名；译名按 C5GAME 商品页对齐（热潮/伽玛/冬季攻势/军火交易/电竞系列）
+- 实测 C5 购买/求购接口权限与余额现状（第 4 节）：接口存在，但需 IP 白名单 + 预充值 + 求购权限
 
 - **预计几折成为首页第一指标**：`profit.expectedDiscount(c5BuyPrice, steamNetReceive)`；
   quote / radar / inventory 全部带 `expected_discount`，UI 统一 `fmtZhe()`（0.926 → "9.26 折"）
@@ -129,6 +136,10 @@ Steam 卖出价是**收入**（到账比例 0.8696，即扣 13%）。单位统�
 - 热门榜 query 用**原始字符串**拼在 `steam.ts searchPopular()`（`category_730_Type[]=...` 中括号
   会被 URLSearchParams 转义，勿改回 URLSearchParams）
 - **本机访问不稳定**：曾 20s 超时。采集失败/超时 ≠ 代码错误，先重试
+- **Steam 库存冷却同步（2026-09-05 新增）**：`inventory/{steamid}/730/2?l=schinese&count=2000` 无需 key；
+  需公开库存或登录 cookie（403/401 有中文提示）；`market_tradable_restriction` 只给**剩余整数天**，
+  小时级精度由引擎用「本次观察时刻 + 剩余整天」上界 + 历史 min 单调逼近；同类多把数量累加、冷却取最短；
+  已解锁记录「观察到」时刻（误差 ≤ 两次同步间隔）
 - 文档缓存：`%TEMP%\c5doc.html`、`c5_price.html`、`c5_batch.html`、`c5_maxprice.html`（可离线解析）
 
 ## 5. 构建 / 验证命令（Windows PowerShell，环境变量每条命令都要重新设置）
@@ -141,7 +152,7 @@ $env:C5_APP_KEY='<用户的key>'; npm run verify:c5   # C5 在线冒烟（可选
 
 # 打包（android/ 被 gitignore，需手动改版本）
 # 版本升级：mobile\package.json + mobile\app.json 的 version；mobile\android\app\build.gradle
-#   versionCode +1（当前 4）、versionName "1.3.0" → 下一版
+#   versionCode +1（当前 5 / v1.3.1）、versionName "1.3.1" → 下一版（预计 v1.4.0 / versionCode 6）
 cd D:\Codex\cs2-balance-mobile\mobile\android
 $env:JAVA_HOME="D:\dev\jdk17\jdk-17.0.20.1+1"; $env:ANDROID_HOME="D:\Android\Sdk"
 & "D:\dev\gradle-9.3.1\gradle-9.3.1\bin\gradle.bat" assembleRelease --no-daemon
@@ -162,15 +173,15 @@ $env:JAVA_HOME="D:\dev\jdk17\jdk-17.0.20.1+1"; $env:ANDROID_HOME="D:\Android\Sdk
 - app-key 为**用户个人凭证**：只存 AsyncStorage / `$env:C5_APP_KEY`，**绝不写进代码/README/仓库/日志**
 - 一键买入目前是**本地记账**（写库存 + 订单流水），不自动下单；待官方开放确认可用的下单接口后再接
 - Hermes 引擎：勿用 `Array.prototype.at` 等新 API；TS 目标 es2020
-- 新增箱子若无中文映射，UI **回退显示英文原名**（避免出现「暂无中文名」）；
-  可继续在 `cn_names.ts` 补充 C5GAME 译名
+- 中文名已根治：采集自动带 `l=schinese` 抓官方中文名入缓存（`zhNames.ts`），UI 三级回退：手工映射 → 官方缓存 → 英文原名；新箱子仍可在 `cn_names.ts` 补充 C5GAME 译名
+- Steam 库存冷却同步依赖用户 SteamID64 与**公开库存 / 登录 cookie**；非公开库存会提示错误；小时级精度依赖多次同步收敛（min 逼近），单次同步只有整天粒度
 
 ## 7. 建议改进路线（按优先级，供下一位接手者挑选）
 
 1. **~~max-price 求购最高价接入~~ → 已完成（v1.3.1）**：详情页「C5 卖出参考」展示求购最高价
    （`fetchC5StatsBulk`，stat 接口）；后续可做「采集时自动批量查询求购价并入库」
 2. **采集频率调度**：默认每 30 分钟自动采集（当前仅手动一键扫描），可配置
-3. **自采集提醒**：限制期结束本地通知（需 expo-notifications，注意权限与国内厂商后台限制）
+3. **自采集提醒**：限制期结束本地通知（需 expo-notifications，注意权限与国内厂商后台限制；冷却已精确到小时，可直接用 `steam_unlock_est_at` 触发）
 4. **智能拆单**：预算较大时按风险/数量限制分散到多个箱子（HANDOFF v2 第 9 节）
 5. **~~市场事件数据库~~ → 部分完成（v1.4.0 工作区）**：Steam 2026 大促日历内置 `STEAM_SALE_EVENTS_2026`，
    预测器 V3 对 targetAt 做窗口压制 + 结束后线性回补；后续可接动态事件源：CS2 更新 / Major / 新箱 / 移箱 / Valve 政策
@@ -178,12 +189,14 @@ $env:JAVA_HOME="D:\dev\jdk17\jdk-17.0.20.1+1"; $env:ANDROID_HOME="D:\Android\Sdk
    下一档：波动率自适应、动态事件源（Major/新箱/移箱/Valve 政策）、真实回测指标 MAE/RMSE/方向准确率/盈利命中率/平均实际折扣（第 24 节）
 7. **离线测试**：verify:c5 目前依赖网络；可加 mock 响应离线用例，保证 CI 可跑
 8. **分发体验**：接入 EAS 或提供 debug 包；或做 Google Play/国内应用市场合规上架评估
+9. **库存同步增强**：`syncSteamInventory` 目前手动触发；可定时自动同步 + 解锁时刻到点自动刷新（通知/徽标），并提示「Steam 有但本地没有」的新箱子
+10. **中文名覆盖度**：`zhNames.ts` 已一次采集覆盖全部箱子；新箱出现后可自动抓官方中文名入库，避免依赖手工 `cn_names.ts`
 
 ## 8. 接手后的标准动作
 
 1. `git status` 确认干净；`git log --oneline -5` 看历史
 2. `npm run typecheck && npm run verify:core` 确认基线绿
-3. 改动后必须重跑上述验证；涉及 C5 改动时用真实 key 跑 `verify:c5`
-4. 用户相关 App 升级时：版本号三处（package.json / app.json / build.gradle）同步 +1，重打包，
+3. 改动后必须重跑上述验证；涉及 C5 改动时用真实 key 跑 `verify:c5`；涉及引擎/库存冷却逻辑请在 `verify_core.cjs` 补 TS==Python 对拍或逻辑断言
+4. 用户相关 App 升级时：版本号三处（package.json / app.json / build.gradle）同步 +1（当前 v1.3.1 / versionCode 5 → 下一版 v1.4.0 / 6），重打包，
    归档替换 releases 与桌面副本（用 python pathlib，勿用 Remove-Item -Recurse）
 5. 所有用户可读输出用简体中文；不输出内部思维链，只给简短的结论与验证结果
