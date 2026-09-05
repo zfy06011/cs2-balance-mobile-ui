@@ -67,7 +67,7 @@ export function RadarScreen({ onOpenDetail }: Props) {
         {loading ? <Loading /> : null}
         {!loading && error ? <ErrorView message={error} onRetry={load} /> : null}
         {!loading && !error && shown.length === 0 ? (
-          <Card><Text style={styles.empty}>该分类下暂无武器箱。请先启动后端完成采集。</Text></Card>
+          <Card><Text style={styles.empty}>暂无数据。先到「首页」或「设置」页点击「一键采集」拉取行情，采集后自动生成雷达信号。</Text></Card>
         ) : null}
         {shown.map((r) => (
           <TouchableOpacity key={r.market_hash_name} onPress={() => onOpenDetail(r.market_hash_name)}>
@@ -112,3 +112,4 @@ const styles = StyleSheet.create({
   tag: { fontSize: 12 },
   empty: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
 });
+

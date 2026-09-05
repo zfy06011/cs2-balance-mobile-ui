@@ -1,0 +1,89 @@
+{
+  "prediction": {
+    "p10": 11.3968,
+    "p25": 12.8558,
+    "p50": 14.6969,
+    "p75": 16.8017,
+    "p90": 18.9527,
+    "prob_profit": 0.9706,
+    "prob_loss": 0.0294,
+    "confidence": 0.4047,
+    "features": {
+      "latest_price": 12,
+      "momentum": 0.405465,
+      "volatility": 0.075,
+      "history_len": 5,
+      "input_reduced": true
+    }
+  },
+  "radar_buy": {
+    "signal": "buy",
+    "expected_roi": 0.377584,
+    "pessimistic_roi": 0.248436,
+    "risk_level": "medium",
+    "liquidity": "high",
+    "score": 80.0
+  },
+  "radar_wait": {
+    "signal": "wait",
+    "expected_roi": 0.377584,
+    "pessimistic_roi": 0.248436,
+    "risk_level": "high",
+    "liquidity": "high",
+    "score": 70.0
+  },
+  "radar_avoid": {
+    "signal": "avoid",
+    "expected_roi": -0.268158,
+    "pessimistic_roi": -0.397307,
+    "risk_level": "high",
+    "liquidity": "low",
+    "score": 0.0
+  },
+  "simulation": {
+    "allocation": "balanced",
+    "items": [
+      {
+        "name": "K1",
+        "qty": 20,
+        "buy_cost": 202.0,
+        "expected_receive": 278.27,
+        "expected_roi": 0.3776,
+        "prob_loss": 0.1
+      },
+      {
+        "name": "K2",
+        "qty": 24,
+        "buy_cost": 193.92,
+        "expected_receive": 250.44,
+        "expected_roi": 0.2915,
+        "prob_loss": 0.15
+      },
+      {
+        "name": "K3",
+        "qty": 5,
+        "buy_cost": 101.0,
+        "expected_receive": 121.74,
+        "expected_roi": 0.2054,
+        "prob_loss": 0.2
+      }
+    ],
+    "total_buy_cost": 496.92,
+    "expected_steam_receive": 650.45,
+    "expected_net_profit": 153.53,
+    "expected_roi": 0.309,
+    "weighted_loss_prob": 0.1398
+  },
+  "reverse_target": {
+    "target_balance": 1000,
+    "assumed_roi": 0.03,
+    "required_budget": 970.87,
+    "expected_profit": 29.13
+  },
+  "profit": {
+    "steam_net_receive": 13.044,
+    "net_profit": 2.944,
+    "roi": 0.291485,
+    "breakeven_sell_price": 11.6145
+  }
+}

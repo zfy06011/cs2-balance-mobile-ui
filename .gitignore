@@ -20,3 +20,7 @@ mobile/ios/
 .DS_Store
 Thumbs.db
 *.log
+
+# 构建产物 / 安装包
+mobile/scripts/.verify-build/
+releases/*.apk

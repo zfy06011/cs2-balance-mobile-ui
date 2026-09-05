@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, RadarItem } from '../api/client';
+import type { CollectProgress } from '../data/collector';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
@@ -38,6 +39,9 @@ export function HomeScreen({ onOpenRadar, onOpenSimulate, onOpenDetail }: Props)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [collecting, setCollecting] = useState(false);
+  const [progress, setProgress] = useState<CollectProgress | null>(null);
+  const [collectCount, setCollectCount] = useState(20);
 
   const load = useCallback(async () => {
     try {
@@ -54,7 +58,22 @@ export function HomeScreen({ onOpenRadar, onOpenSimulate, onOpenDetail }: Props)
 
   useEffect(() => {
     load();
+    api.getSettings().then((s) => setCollectCount(s.refreshCount)).catch(() => undefined);
   }, [load]);
+
+  const startCollect = async () => {
+    setCollecting(true);
+    setProgress(null);
+    try {
+      await api.refresh({ count: collectCount, onProgress: setProgress });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '采集失败');
+    } finally {
+      setCollecting(false);
+      setRefreshing(false);
+    }
+  };
 
   const top = radar.slice(0, 5);
   const buyCount = radar.filter((r) => r.signal === 'buy').length;
@@ -73,12 +92,32 @@ export function HomeScreen({ onOpenRadar, onOpenSimulate, onOpenDetail }: Props)
         <Text style={styles.title}>CS2 余额助手</Text>
         <Text style={styles.subtitle}>C5GAME 买入 → 7 天限制期 → Steam 市场卖出</Text>
 
+        {collecting ? (
+          <Card style={styles.collectCard}>
+            <Text style={styles.collectTitle}>📡 正在采集行情…</Text>
+            <Text style={styles.collectDesc}>
+              {progress
+                ? progress.stage === 'listing'
+                  ? progress.message
+                  : `${progress.done}/${progress.total} ${progress.currentName || ''} · 成功 ${progress.success} 失败 ${progress.failed}`
+                : '准备中…'}
+            </Text>
+          </Card>
+        ) : (
+          <TouchableOpacity onPress={startCollect}>
+            <Card style={styles.collectCard}>
+              <Text style={styles.collectTitle}>📡 一键采集最新行情</Text>
+              <Text style={styles.collectDesc}>从 Steam 拉取成交量 Top {collectCount} 个武器箱价格，本地完成分析与预测（无需电脑）</Text>
+            </Card>
+          </TouchableOpacity>
+        )}
+
         {loading ? <Loading msg="正在获取市场分析…" /> : null}
         {!loading && error ? <ErrorView message={error} onRetry={load} /> : null}
 
         {!loading && !error && radar.length === 0 ? (
           <Card>
-            <Text style={styles.empty}>暂无数据。请先启动后端并完成至少一轮采集，或稍后下拉刷新。</Text>
+            <Text style={styles.empty}>暂无本地行情数据。点击上方「一键采集」拉取最新武器箱价格，或到「设置」页配置采集数量。</Text>
           </Card>
         ) : null}
 
@@ -173,7 +212,11 @@ const styles = StyleSheet.create({
   bigText: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 4 },
   empty: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
   note: { color: colors.textDim, fontSize: 12, marginTop: 8, lineHeight: 17 },
+  collectCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary },
+  collectTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  collectDesc: { color: colors.textDim, fontSize: 13, marginTop: 6, lineHeight: 18 },
   simCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary },
   simTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   simDesc: { color: colors.textDim, fontSize: 13, marginTop: 6, lineHeight: 18 },
 });
+

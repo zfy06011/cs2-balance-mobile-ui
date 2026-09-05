@@ -2,7 +2,7 @@
   "expo": {
     "name": "CS2余额助手",
     "slug": "cs2-balance-mobile",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,

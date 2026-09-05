@@ -1,7 +1,7 @@
-/** 武器箱详情：跨市场报价 + 7 天预测区间 + 三情景收益 */
+/** 武器箱详情：跨市场报价 + 7 天预测区间 + 三情景收益 + 数据维护（本地版） */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  RefreshControl, ScrollView, StyleSheet, Text, View,
+  RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Prediction, Quote } from '../api/client';
@@ -30,6 +30,9 @@ export function DetailScreen({ name, onBack }: Props) {
   const [pred, setPred] = useState<Prediction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [c5Input, setC5Input] = useState('');
+  const [c5Msg, setC5Msg] = useState<string | null>(null);
+  const [refreshingOne, setRefreshingOne] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,6 +41,7 @@ export function DetailScreen({ name, onBack }: Props) {
       const [q, p] = await Promise.all([api.quote(name), api.prediction(name)]);
       setQuote(q);
       setPred(p);
+      setC5Input(q.c5_buy_price != null ? String(q.c5_buy_price) : '');
     } catch (e) {
       setError(e instanceof Error ? e.message : '加载失败');
     } finally {
@@ -48,6 +52,34 @@ export function DetailScreen({ name, onBack }: Props) {
   useEffect(() => {
     load();
   }, [load]);
+
+  const saveC5 = async () => {
+    const v = parseFloat(c5Input);
+    if (!Number.isFinite(v) || v <= 0) {
+      setC5Msg('请输入有效的 C5 买入价');
+      return;
+    }
+    try {
+      await api.setC5Price(name, v);
+      setC5Msg(`已保存 C5 买入价 ¥${v.toFixed(2)} ✅`);
+      await load();
+    } catch (e) {
+      setC5Msg(`保存失败：${e instanceof Error ? e.message : '未知错误'}`);
+    }
+  };
+
+  const refreshOne = async () => {
+    setRefreshingOne(true);
+    try {
+      const stats = await api.collectOne(name);
+      setC5Msg(stats.success > 0 ? '已刷新 Steam 价格 ✅' : '刷新失败，请稍后重试');
+      await load();
+    } catch (e) {
+      setC5Msg(`刷新失败：${e instanceof Error ? e.message : '未知错误'}`);
+    } finally {
+      setRefreshingOne(false);
+    }
+  };
 
   const quantiles = pred
     ? ([
@@ -89,6 +121,31 @@ export function DetailScreen({ name, onBack }: Props) {
               <Row label="净利润" value={fmt(quote.net_profit)} valueColor={quote.net_profit != null && quote.net_profit >= 0 ? colors.success : colors.danger} />
               <Row label="ROI" value={fmtPct(quote.roi)} valueColor={quote.roi != null && quote.roi >= 0 ? colors.success : colors.danger} />
               <Row label="盈亏平衡卖出价" value={fmt(quote.breakeven_sell_price)} valueColor={colors.warning} />
+            </Card>
+            <SectionTitle>数据维护</SectionTitle>
+            <Card>
+              <Text style={styles.hint}>未配置 C5 app-key 时可手动录入买入价；Steam 价格可实时刷新。</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  value={c5Input}
+                  onChangeText={setC5Input}
+                  placeholder="C5 买入价 ¥（选填）"
+                  placeholderTextColor={colors.textDim}
+                  keyboardType="decimal-pad"
+                />
+                <TouchableOpacity style={styles.smallBtn} onPress={saveC5}>
+                  <Text style={styles.smallBtnText}>保存 C5 价</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.btnGhost, refreshingOne && { opacity: 0.6 }]}
+                onPress={refreshOne}
+                disabled={refreshingOne}
+              >
+                <Text style={styles.btnGhostText}>{refreshingOne ? '刷新中…' : '📡 刷新此商品 Steam 价格'}</Text>
+              </TouchableOpacity>
+              {c5Msg ? <Text style={styles.c5Msg}>{c5Msg}</Text> : null}
             </Card>
           </>
         ) : null}
@@ -139,7 +196,7 @@ export function DetailScreen({ name, onBack }: Props) {
         ) : null}
 
         <Text style={styles.disclaimer}>
-          数据来源：Steam Community Market / C5GAME 快照。预测为统计基线模型输出，仅供参考，不构成投资建议。
+          数据来源：Steam Community Market / C5GAME 快照（本地直连，无需电脑）。预测为统计基线模型输出，仅供参考，不构成投资建议。
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -158,6 +215,23 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   name: { color: colors.text, fontSize: 17, fontWeight: '800', flex: 1, marginRight: 8 },
   target: { color: colors.textDim, fontSize: 13, marginBottom: 10 },
+  hint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
+  inputRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  input: {
+    backgroundColor: colors.cardAlt, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+    color: colors.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+  },
+  smallBtn: {
+    backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  smallBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  btnGhost: {
+    backgroundColor: colors.cardAlt, borderRadius: 10, paddingVertical: 11, alignItems: 'center',
+    borderWidth: 1, borderColor: colors.primary,
+  },
+  btnGhostText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  c5Msg: { color: colors.info, fontSize: 12, marginTop: 10 },
   quantileRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   quantileLabel: { color: colors.textDim, fontSize: 12, width: 72 },
   barWrap: { flex: 1, height: 14, backgroundColor: colors.cardAlt, borderRadius: 7, overflow: 'hidden', marginHorizontal: 8 },
