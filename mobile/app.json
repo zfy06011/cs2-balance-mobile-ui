@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "CS2余额助手",
+    "slug": "cs2-balance-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cs2balance.assistant"
+    },
+    "android": {
+      "package": "com.cs2balance.assistant",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1220"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

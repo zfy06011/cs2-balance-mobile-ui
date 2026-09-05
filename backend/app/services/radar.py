@@ -1,0 +1,106 @@
+"""radar：机会雷达（文档第八节）。
+
+综合 C5 买入价、Steam 卖出价、双方成本、7 天预测净 ROI、流动性、风险等，
+输出信号：🟢 买入候选 / 🟡 等待 / 🔴 不建议。
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass
+class RadarInput:
+    market_hash_name: str
+    c5_buy_price: float | None
+    steam_sell_price: float | None
+    steam_volume: int = 0
+    predicted_p50: float | None = None       # 7 天后预测中位价
+    predicted_p25: float | None = None
+    breakeven_price: float | None = None
+    volatility: float = 0.05
+    event_risk: float = 0.0                  # 0~1，事件系统给出
+    seller_receive_ratio: float = 0.8696
+    c5_fee_ratio: float = 0.01
+
+
+@dataclass
+class RadarOutput:
+    market_hash_name: str
+    signal: str                 # buy / wait / avoid
+    expected_roi: float | None  # 按预测 P50 计算的 7 日预期 ROI
+    pessimistic_roi: float | None  # 按 P25 计算的 ROI
+    risk_level: str             # low / medium / high
+    liquidity: str              # low / medium / high
+    score: float
+    details: dict
+
+
+def _roi_of(sell_price: float | None, buy_price: float | None, receive_ratio: float, fee: float) -> float | None:
+    if sell_price is None or buy_price is None or buy_price <= 0:
+        return None
+    total_cost = buy_price * (1 + fee)
+    net = sell_price * receive_ratio - total_cost
+    return net / total_cost
+
+
+def _risk_level(volatility: float, event_risk: float, liquid: str) -> str:
+    score = volatility * 100 + event_risk * 3.0 + (1.0 if liquid == "low" else 0.0)
+    if score >= 3.0:
+        return "high"
+    if score >= 1.5:
+        return "medium"
+    return "low"
+
+
+def _liquidity(volume: int) -> str:
+    if volume >= 5000:
+        return "high"
+    if volume >= 1000:
+        return "medium"
+    return "low"
+
+
+def evaluate(r: RadarInput) -> RadarOutput:
+    liquid = _liquidity(r.steam_volume)
+    risk = _risk_level(r.volatility, r.event_risk, liquid)
+
+    p50_sell = r.predicted_p50 or r.steam_sell_price
+    expected_roi = _roi_of(p50_sell, r.c5_buy_price, r.seller_receive_ratio, r.c5_fee_ratio)
+    pessimistic_roi = _roi_of(r.predicted_p25, r.c5_buy_price, r.seller_receive_ratio, r.c5_fee_ratio)
+
+    # 信号规则
+    if expected_roi is None:
+        signal = "wait"
+    elif expected_roi >= 0.05 and pessimistic_roi is not None and pessimistic_roi >= -0.02 and risk != "high":
+        signal = "buy"
+    elif expected_roi >= 0.0 or (pessimistic_roi is not None and pessimistic_roi >= -0.05):
+        signal = "wait"
+    else:
+        signal = "avoid"
+
+    # 综合评分 0~100
+    score = 0.0
+    if expected_roi is not None:
+        score += min(max(expected_roi * 200, -20), 40)
+    if r.breakeven_price and r.predicted_p50:
+        score += min(max((r.predicted_p50 / r.breakeven_price - 1.0) * 100, -10), 30)
+    score += {"high": 15, "medium": 8, "low": 0}[liquid]
+    score -= {"low": 0, "medium": 5, "high": 15}[risk]
+    score = max(0.0, min(100.0, round(score, 1)))
+
+    return RadarOutput(
+        market_hash_name=r.market_hash_name,
+        signal=signal,
+        expected_roi=round(expected_roi, 6) if expected_roi is not None else None,
+        pessimistic_roi=round(pessimistic_roi, 6) if pessimistic_roi is not None else None,
+        risk_level=risk,
+        liquidity=liquid,
+        score=score,
+        details={
+            "c5_buy_price": r.c5_buy_price,
+            "steam_sell_price": r.steam_sell_price,
+            "predicted_p50": r.predicted_p50,
+            "breakeven_price": r.breakeven_price,
+            "volatility": r.volatility,
+        },
+    )

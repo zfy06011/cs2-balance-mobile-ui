@@ -1,0 +1,22 @@
+# 后端
+backend/.venv/
+backend/.env
+__pycache__/
+*.pyc
+backend/data/
+backend/uvicorn_test.log
+backend/uvicorn_err.log
+.pytest_cache/
+
+# 移动端
+mobile/node_modules/
+mobile/dist/
+mobile/.expo/
+mobile/dist-test/
+mobile/android/
+mobile/ios/
+
+# 通用
+.DS_Store
+Thumbs.db
+*.log

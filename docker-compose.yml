@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/cs2_balance.db
+      - ENVIRONMENT=production
+      - C5_APP_KEY=${C5_APP_KEY:-}
+      - STEAM_COOKIE=${STEAM_COOKIE:-}
+    volumes:
+      - backend_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  backend_data:
