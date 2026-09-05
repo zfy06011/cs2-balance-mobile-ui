@@ -9,7 +9,7 @@ import type { CollectProgress } from '../data/collector';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { colors } from '../theme/colors';
 
-const COUNT_OPTIONS = [10, 20, 50];
+const COUNT_OPTIONS = [12, 20, 50];
 
 export function SettingsScreen() {
   const [status, setStatus] = useState<HealthResult | null>(null);
@@ -17,6 +17,10 @@ export function SettingsScreen() {
   const [cookie, setCookie] = useState('');
   const [count, setCount] = useState(20);
   const [msg, setMsg] = useState<string | null>(null);
+  const [buyMaxPrice, setBuyMaxPrice] = useState('0');
+  const [buyTargetZhe, setBuyTargetZhe] = useState('0');
+  const [buyMaxBudget, setBuyMaxBudget] = useState('0');
+  const [radarTargetZhe, setRadarTargetZhe] = useState('7');
   const [collecting, setCollecting] = useState(false);
   const [progress, setProgress] = useState<CollectProgress | null>(null);
 
@@ -28,6 +32,10 @@ export function SettingsScreen() {
       setC5Key(settings.c5AppKey);
       setCookie(settings.steamCookie);
       setCount(settings.refreshCount);
+      setBuyMaxPrice(String(settings.buyMaxPrice));
+      setBuyTargetZhe(String(settings.buyTargetZhe));
+      setBuyMaxBudget(String(settings.buyMaxBudget));
+      setRadarTargetZhe(String(settings.radarTargetZhe));
     } catch {
       // ignore
     }
@@ -39,7 +47,15 @@ export function SettingsScreen() {
 
   const saveSettings = async () => {
     try {
-      await api.updateSettings({ c5AppKey: c5Key.trim(), steamCookie: cookie.trim(), refreshCount: count });
+      await api.updateSettings({
+        c5AppKey: c5Key.trim(),
+        steamCookie: cookie.trim(),
+        refreshCount: count,
+        buyMaxPrice: parseFloat(buyMaxPrice) || 0,
+        buyTargetZhe: parseFloat(buyTargetZhe) || 0,
+        buyMaxBudget: parseFloat(buyMaxBudget) || 0,
+        radarTargetZhe: parseFloat(radarTargetZhe) || 0,
+      });
       setMsg('设置已保存 ✅');
       loadStatus();
     } catch (e) {
@@ -101,7 +117,7 @@ export function SettingsScreen() {
 
           <Card>
             <SectionTitle>一键采集</SectionTitle>
-            <Text style={styles.hint}>从 Steam 拉取成交量 Top 武器箱价格并存入手机本地。采集数量越大耗时越长（每个约 2 秒）。</Text>
+            <Text style={styles.hint}>从 Steam「热门物品 → 武器箱」拉取价格并存入手机本地，配置 C5 app-key 时同时批量获取买入价。采集数量越大耗时越长（每个约 2 秒）。</Text>
             <View style={styles.countRow}>
               {COUNT_OPTIONS.map((c) => (
                 <TouchableOpacity key={c} style={[styles.countBtn, count === c && styles.countActive]} onPress={() => setCount(c)}>
@@ -114,7 +130,7 @@ export function SettingsScreen() {
             </TouchableOpacity>
             {progress ? (
               <Text style={styles.progress}>
-                {progress.stage === 'listing' ? progress.message : `${progress.done}/${progress.total} · ${progress.message}`}
+                {progress.stage === 'listing' ? '拉取热门武器箱榜单…' : `已采集 ${progress.done} / ${progress.total} 个`}
               </Text>
             ) : null}
           </Card>
@@ -152,6 +168,46 @@ export function SettingsScreen() {
           </Card>
 
           <Card>
+            <SectionTitle>购买保护与目标折扣</SectionTitle>
+            <Text style={styles.hint}>0 表示不限制。一键买入前自动核验：超过限价/预算、未达到目标折扣会直接拦截；异常波动会二次确认。雷达目标折扣：预计折扣低于该值才提醒。</Text>
+            <TextInput
+              style={styles.input}
+              value={buyMaxPrice}
+              onChangeText={setBuyMaxPrice}
+              placeholder="最高买入价 ¥（0 = 不限）"
+              placeholderTextColor={colors.textDim}
+              keyboardType="decimal-pad"
+            />
+            <TextInput
+              style={styles.input}
+              value={buyTargetZhe}
+              onChangeText={setBuyTargetZhe}
+              placeholder="最低目标折扣 折数（如 9.5，0 = 不限）"
+              placeholderTextColor={colors.textDim}
+              keyboardType="decimal-pad"
+            />
+            <TextInput
+              style={styles.input}
+              value={buyMaxBudget}
+              onChangeText={setBuyMaxBudget}
+              placeholder="单笔预算上限 ¥（0 = 不限）"
+              placeholderTextColor={colors.textDim}
+              keyboardType="decimal-pad"
+            />
+            <TextInput
+              style={styles.input}
+              value={radarTargetZhe}
+              onChangeText={setRadarTargetZhe}
+              placeholder="雷达目标折扣 折数（如 7）"
+              placeholderTextColor={colors.textDim}
+              keyboardType="decimal-pad"
+            />
+            <TouchableOpacity style={[styles.btnPrimary]} onPress={saveSettings}>
+              <Text style={styles.btnPrimaryText}>保存设置</Text>
+            </TouchableOpacity>
+          </Card>
+
+          <Card>
             <SectionTitle>业务规则</SectionTitle>
             <Row label="7 天限制期" value="购买 +168 小时精确计时" />
             <Row label="Steam 卖出费率" value="约 15%（卖家实得 86.96%）" />
@@ -164,7 +220,7 @@ export function SettingsScreen() {
           </TouchableOpacity>
 
           {msg ? <Text style={styles.msg}>{msg}</Text> : null}
-          <Text style={styles.footer}>CS2 余额助手 v1.1.0（纯手机版）· 仅供学习研究，不构成投资建议</Text>
+          <Text style={styles.footer}>CS2 余额助手 v1.3.0（纯手机版）· 仅供学习研究，不构成投资建议</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

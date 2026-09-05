@@ -1,20 +1,22 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, signalColors } from '../theme/colors';
+import { SIGNAL_TEXT } from '../utils/format';
 
-const SIGNAL_TEXT: Record<string, string> = {
-  buy: '🟢 买入候选',
-  wait: '🟡 等待',
-  waiting: '🟡 等待',
-  avoid: '🔴 不建议',
+const SIGNAL_ICON: Record<string, string> = {
+  buy: '🟢',
+  wait: '🟡',
+  waiting: '⏳',
+  avoid: '🔴',
 };
 
 export function SignalBadge({ signal }: { signal: string }) {
   const color = signalColors[signal] ?? colors.textDim;
   const text = SIGNAL_TEXT[signal] ?? signal;
+  const icon = SIGNAL_ICON[signal] ?? '•';
   return (
     <View style={[styles.badge, { backgroundColor: color + '22', borderColor: color }]}>
-      <Text style={[styles.text, { color }]}>{text}</Text>
+      <Text style={[styles.text, { color }]}>{icon} {text}</Text>
     </View>
   );
 }

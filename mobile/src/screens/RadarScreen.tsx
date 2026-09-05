@@ -9,6 +9,7 @@ import { Card, Row } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
 import { colors, riskColors } from '../theme/colors';
+import { displayNameOf, fmtMoney, fmtZhe, SIGNAL_TEXT } from '../utils/format';
 
 interface Props {
   onOpenDetail: (name: string) => void;
@@ -55,7 +56,7 @@ export function RadarScreen({ onOpenDetail }: Props) {
             onPress={() => setFilter(k)}
           >
             <Text style={[styles.tabText, filter === k && styles.tabTextActive]}>
-              {k === 'all' ? '全部' : k === 'buy' ? '买入候选' : k === 'wait' ? '等待' : '不建议'}{' '}{counts[k]}
+              {k === 'all' ? '全部' : SIGNAL_TEXT[k]}{' '}{counts[k]}
             </Text>
           </TouchableOpacity>
         ))}
@@ -67,19 +68,20 @@ export function RadarScreen({ onOpenDetail }: Props) {
         {loading ? <Loading /> : null}
         {!loading && error ? <ErrorView message={error} onRetry={load} /> : null}
         {!loading && !error && shown.length === 0 ? (
-          <Card><Text style={styles.empty}>暂无数据。先到「首页」或「设置」页点击「一键采集」拉取行情，采集后自动生成雷达信号。</Text></Card>
+          <Card><Text style={styles.empty}>暂无数据。先到「首页」点击「一键扫描」拉取行情，采集后自动生成雷达信号。</Text></Card>
         ) : null}
         {shown.map((r) => (
           <TouchableOpacity key={r.market_hash_name} onPress={() => onOpenDetail(r.market_hash_name)}>
             <Card>
               <View style={styles.itemHeader}>
-                <Text style={styles.name} numberOfLines={1}>{r.market_hash_name}</Text>
+                <Text style={styles.name} numberOfLines={1}>{displayNameOf(r.market_hash_name)}</Text>
                 <SignalBadge signal={r.signal} />
               </View>
-              <Row label="预期 ROI (7日)" value={r.expected_roi != null ? `${(r.expected_roi * 100).toFixed(1)}%` : '--'} valueColor={r.expected_roi != null && r.expected_roi >= 0 ? colors.success : colors.danger} />
+              <Row label="预计几折（越低越划算）" value={fmtZhe(r.expected_discount)} valueColor={r.expected_discount != null && r.expected_discount <= 0.95 ? colors.success : colors.warning} />
+              <Row label="预计回报 (7日)" value={r.expected_roi != null ? `${(r.expected_roi * 100).toFixed(1)}%` : '--'} valueColor={r.expected_roi != null && r.expected_roi >= 0 ? colors.success : colors.danger} />
               <Row
-                label="C5 买入 / Steam 卖"
-                value={`${r.c5_buy_price != null ? `¥${r.c5_buy_price.toFixed(2)}` : '--'} / ${r.steam_sell_price != null ? `¥${r.steam_sell_price.toFixed(2)}` : '--'}`}
+                label="C5 买入 / Steam 到手"
+                value={`${r.c5_buy_price != null ? fmtMoney(r.c5_buy_price) : '--'} / ${r.steam_sell_price != null ? fmtMoney(r.steam_sell_price) : '--'}`}
               />
               <View style={styles.tagsRow}>
                 <Text style={[styles.tag, { color: riskColors[r.risk_level] ?? colors.textDim }]}>风险 {r.risk_level}</Text>

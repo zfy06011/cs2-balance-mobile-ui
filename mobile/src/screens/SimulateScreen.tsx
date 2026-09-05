@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Simulation } from '../api/client';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { colors } from '../theme/colors';
+import { displayNameOf } from '../utils/format';
 
 const ALLOCATIONS = [
   { key: 'conservative', label: '稳健', desc: '最多 3 个、低风险高流动性' },
@@ -19,7 +20,11 @@ function fmtMoney(v: number | null | undefined): string {
   return `¥${v.toFixed(2)}`;
 }
 
-export function SimulateScreen() {
+interface Props {
+  onBack?: () => void;
+}
+
+export function SimulateScreen({ onBack }: Props) {
   const [budget, setBudget] = useState('1000');
   const [allocation, setAllocation] = useState<string>('balanced');
   const [result, setResult] = useState<Simulation | null>(null);
@@ -59,7 +64,14 @@ export function SimulateScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Text style={styles.header}>资金模拟</Text>
+      <View style={styles.headerRow}>
+        {onBack ? (
+          <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+            <Text style={styles.backBtnText}>← 返回</Text>
+          </TouchableOpacity>
+        ) : null}
+        <Text style={styles.header}>资金模拟</Text>
+      </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content}>
           <Card>
@@ -95,10 +107,10 @@ export function SimulateScreen() {
               <SectionTitle>模拟结果（{result.allocation}）</SectionTitle>
               {result.items.map((it, idx) => (
                 <View key={`${it.name}-${idx}`} style={styles.resultItem}>
-                  <Text style={styles.resultName} numberOfLines={1}>{it.qty} × {it.name}</Text>
+                  <Text style={styles.resultName} numberOfLines={1}>{it.qty} × {displayNameOf(it.name)}</Text>
                   <Row label="投入" value={fmtMoney(it.buy_cost)} />
                   <Row label="预计 7 天到账" value={fmtMoney(it.expected_receive)} valueColor={colors.success} />
-                  <Row label="ROI" value={`${(it.expected_roi * 100).toFixed(1)}%`} valueColor={it.expected_roi >= 0 ? colors.success : colors.danger} />
+                  <Row label="预计回报" value={`${(it.expected_roi * 100).toFixed(1)}%`} valueColor={it.expected_roi >= 0 ? colors.success : colors.danger} />
                   <Row label="亏损概率" value={`${(it.prob_loss * 100).toFixed(1)}%`} />
                 </View>
               ))}
@@ -106,7 +118,7 @@ export function SimulateScreen() {
               <Row label="总投入" value={fmtMoney(result.total_buy_cost)} />
               <Row label="预计 Steam 到账" value={fmtMoney(result.expected_steam_receive)} valueColor={colors.success} />
               <Row label="预计净利润" value={fmtMoney(result.expected_net_profit)} valueColor={result.expected_net_profit >= 0 ? colors.success : colors.danger} />
-              <Row label="组合预期 ROI" value={`${(result.expected_roi * 100).toFixed(1)}%`} />
+              <Row label="组合预计回报" value={`${(result.expected_roi * 100).toFixed(1)}%`} />
               <Row label="加权亏损概率" value={`${(result.weighted_loss_prob * 100).toFixed(1)}%`} />
             </Card>
           ) : null}
@@ -141,7 +153,10 @@ export function SimulateScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  header: { color: colors.text, fontSize: 22, fontWeight: '800', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 8 },
+  backBtn: { marginRight: 10, paddingVertical: 6 },
+  backBtnText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
+  header: { color: colors.text, fontSize: 22, fontWeight: '800', paddingBottom: 8, flex: 1 },
   content: { padding: 14, paddingBottom: 40 },
   input: {
     backgroundColor: colors.cardAlt, borderRadius: 10, borderWidth: 1, borderColor: colors.border,

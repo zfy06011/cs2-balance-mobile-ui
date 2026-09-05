@@ -9,6 +9,7 @@ import { api, InventoryEntry } from '../api/client';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { colors } from '../theme/colors';
+import { displayNameOf, fmtZhe } from '../utils/format';
 
 function fmtMoney(v: number | null | undefined): string {
   if (v === null || v === undefined) return '--';
@@ -92,7 +93,7 @@ export function InventoryScreen() {
           {items.map((it) => (
             <Card key={it.id}>
               <View style={styles.itemHeader}>
-                <Text style={styles.name} numberOfLines={1}>{it.item_name}</Text>
+                <Text style={styles.name} numberOfLines={1}>{displayNameOf(it.item_name)}</Text>
                 <View style={[styles.countdown, it.days_left <= 1 && { borderColor: colors.danger }]}>
                   <Text style={[styles.countdownText, it.days_left <= 1 && { color: colors.danger }]}>
                     {it.days_left <= 0 ? '可上架' : `解锁倒计时 ${it.days_left.toFixed(1)} 天`}
@@ -103,8 +104,9 @@ export function InventoryScreen() {
               <Row label="买入时间" value={new Date(it.buy_at).toLocaleString()} />
               <Row label="预计可卖时间" value={new Date(it.unlock_at).toLocaleString()} />
               <Row label="当前市场估值" value={fmtMoney(it.current_estimate)} />
+              <Row label="预计几折（越低越划算）" value={fmtZhe(it.expected_discount_estimate)} valueColor={it.expected_discount_estimate != null && it.expected_discount_estimate <= 0.95 ? colors.success : colors.warning} />
               <Row label="预计可到账（扣费后）" value={fmtMoney(it.net_receive_estimate)} valueColor={colors.success} />
-              <Row label="预计净利 / ROI" value={`${fmtMoney(it.net_profit_estimate)} / ${it.roi_estimate != null ? `${(it.roi_estimate * 100).toFixed(1)}%` : '--'}`} valueColor={it.net_profit_estimate != null && it.net_profit_estimate >= 0 ? colors.success : colors.danger} />
+              <Row label="预计净利 / 回报率" value={`${fmtMoney(it.net_profit_estimate)} / ${it.roi_estimate != null ? `${(it.roi_estimate * 100).toFixed(1)}%` : '--'}`} valueColor={it.net_profit_estimate != null && it.net_profit_estimate >= 0 ? colors.success : colors.danger} />
             </Card>
           ))}
         </ScrollView>
