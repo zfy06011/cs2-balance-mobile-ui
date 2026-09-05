@@ -19,7 +19,7 @@ export function fmtZhe(discountNum: number | null | undefined, digits = 2): stri
   return `${(discountNum * 10).toFixed(digits)} 折`;
 }
 
-/** 中文显示名（后台仍用 MarketHashName 关联） */
+/** 中文显示名；未收录时回退显示英文原名（后台仍用 MarketHashName 关联） */
 export function displayNameOf(name: string): string {
   if (!name) return UNKNOWN_CN_NAME;
   return displayName(name);

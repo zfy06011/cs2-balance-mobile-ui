@@ -17,7 +17,7 @@ execSync('npx tsc --ignoreConfig --module commonjs --target es2020 --skipLibChec
   cwd: root, stdio: 'pipe', shell: true,
 });
 
-const { fetchC5Price } = require(path.join(outDir, 'data', 'c5.js'));
+const { fetchC5Price, fetchC5StatsBulk } = require(path.join(outDir, 'data', 'c5.js'));
 const { ProfitCalculator } = require(path.join(outDir, 'core', 'profit.js'));
 
 const KEY = process.env.C5_APP_KEY || '';
@@ -36,6 +36,19 @@ async function main() {
   const name = 'AK-47 | Redline (Field-Tested)';
   // 1) 空 key 必须返回 null（手动录入兜底分支）
   assert('空 key 返回 null', (await fetchC5Price(name, '')) === null);
+
+
+  // 1.5) stat 求购统计（stat 接口，无需 IP 白名单）
+  let st = null;
+  try {
+    st = (await fetchC5StatsBulk(['AK-47 | Redline (Field-Tested)'], KEY))['AK-47 | Redline (Field-Tested)'];
+  } catch (e) {
+    assert('C5 stat 请求无异常', false, String(e));
+  }
+  assert('C5 stat 返回对象', st == null || (typeof st === 'object' && 'purchaseMaxPrice' in st), JSON.stringify(st));
+  if (st && st.purchaseMaxPrice != null) {
+    console.log('C5 ' + name + ' 求购最高价 = ' + st.purchaseMaxPrice + ' 元（可秒出参考）');
+  }
 
   // 2) 真实 app-key 拉取在售最低价（单位：元）
   let price = null;

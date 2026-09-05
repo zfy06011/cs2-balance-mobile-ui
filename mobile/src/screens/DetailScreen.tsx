@@ -4,7 +4,7 @@ import {
   RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, Prediction, Quote, HistoryPoint } from '../api/client';
+import { api, Prediction, Quote, HistoryPoint, C5StatsResult } from '../api/client';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
@@ -38,6 +38,9 @@ export function DetailScreen({ name, onBack }: Props) {
   const [refreshingOne, setRefreshingOne] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [buying, setBuying] = useState(false);
+  const [c5Stats, setC5Stats] = useState<C5StatsResult | null>(null);
+  const [c5StatsMsg, setC5StatsMsg] = useState<string | null>(null);
+  const [c5StatsLoading, setC5StatsLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +87,26 @@ export function DetailScreen({ name, onBack }: Props) {
       setC5Msg(`刷新失败：${e instanceof Error ? e.message : '未知错误'}`);
     } finally {
       setRefreshingOne(false);
+    }
+  };
+
+
+  const queryC5Stats = async () => {
+    setC5StatsLoading(true);
+    setC5StatsMsg(null);
+    try {
+      const st = await api.fetchC5Stats(name);
+      if (!st) {
+        setC5Stats(null);
+        setC5StatsMsg('未配置 C5 app-key 或暂无数据，请在「我的 → 设置」填写 app-key');
+        return;
+      }
+      setC5Stats(st);
+      setC5StatsMsg(st.purchaseMaxPrice != null ? '已获取 C5 求购参考价 ✅' : '该商品暂无求购数据');
+    } catch (e) {
+      setC5StatsMsg(`查询失败：${e instanceof Error ? e.message : '未知错误'}`);
+    } finally {
+      setC5StatsLoading(false);
     }
   };
 
@@ -151,7 +174,33 @@ export function DetailScreen({ name, onBack }: Props) {
               <Row label="限制期" value={`约 ${quote.lock_days} 天（168 小时）`} />
             </Card>
 
+
+            {/* C5 卖出参考（求购价） */}
+            <SectionTitle>C5 卖出参考（求购价）</SectionTitle>
+            <Card>
+              <TouchableOpacity
+                style={[styles.btnGhost, c5StatsLoading && { opacity: 0.6 }]}
+                onPress={queryC5Stats}
+                disabled={c5StatsLoading}
+              >
+                <Text style={styles.btnGhostText}>
+                  {c5StatsLoading ? '查询中…' : c5Stats ? '重新查询 C5 求购价' : '查询 C5 求购参考价'}
+                </Text>
+              </TouchableOpacity>
+              {c5Stats ? (
+                <>
+                  <Row label="求购最高价（可秒出）" value={fmtMoney(c5Stats.purchaseMaxPrice)} valueColor={colors.success} />
+                  <Row label="在售最低价" value={fmtMoney(c5Stats.sellPrice)} />
+                  <Row label="在售数量" value={c5Stats.sellCount != null ? String(c5Stats.sellCount) : '--'} />
+                  <Row label="求购数量" value={c5Stats.purchaseCount != null ? String(c5Stats.purchaseCount) : '--'} />
+                  <Text style={styles.hint}>C5 求购价仅供参考（卖家「可秒出」的参考），与买入成本无关，不计入收益计算。</Text>
+                </>
+              ) : null}
+              {c5StatsMsg ? <Text style={styles.c5Msg}>{c5StatsMsg}</Text> : null}
+            </Card>
+
             {/* 简单 7 天趋势 */}
+
             <SectionTitle>7 天趋势（历史 vs 预测）</SectionTitle>
             <Card>
               <View style={styles.legendRow}>

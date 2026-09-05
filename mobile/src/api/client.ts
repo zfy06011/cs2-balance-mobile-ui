@@ -5,9 +5,11 @@
  */
 import { engine, BuyPrepareResult, BuyExecuteResult } from '../core/engine';
 import { storage } from '../data/storage';
+import { fetchC5StatsBulk, C5StatsResult } from '../data/c5';
 import type { CollectProgress, CollectStats } from '../data/collector';
 export type { Quote, RadarItem, Scenario, Prediction, InventoryEntry, Simulation, SimulationItem, OrderRecord, HistoryPoint } from '../core/types';
 export type { BuyPrepareResult, BuyExecuteResult } from '../core/engine';
+export type { C5StatsResult } from '../data/c5';
 import type { Quote, RadarItem, Prediction, InventoryEntry, Simulation, OrderRecord, HistoryPoint } from '../core/types';
 
 // 为兼容旧签名保留（本地模式无后端地址概念）
@@ -53,6 +55,14 @@ export const api = {
     engine.refresh({ count: opts.count, onProgress: opts.onProgress }),
   collectOne: (name: string) => engine.collectOne(name),
   setC5Price: (name: string, price: number) => storage.setC5Price(name, price),
+  /** C5 求购统计（求购最高价 = 可秒出参考价）；未配 key 或失败返回 null */
+  fetchC5Stats: async (name: string): Promise<C5StatsResult | null> => {
+    const settings = await storage.getSettings();
+    const key = (settings.c5AppKey || '').trim();
+    if (!key) return null;
+    const map = await fetchC5StatsBulk([name], key);
+    return map[name] ?? null;
+  },
   getSettings: () => storage.getSettings(),
   updateSettings: (patch: Parameters<typeof storage.updateSettings>[0]) => storage.updateSettings(patch),
   clearAllData: () => storage.clearAllData(),

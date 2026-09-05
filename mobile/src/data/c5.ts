@@ -84,3 +84,94 @@ export async function fetchC5Price(name: string, appKey: string): Promise<number
   const r = await fetchC5PricesBulk([name], appKey, 1);
   return r[name] ?? null;
 }
+
+/**
+ * 求购/出售统计（HANDOFF 实测：POST /merchant/market/v2/item/stat/hash/name）。
+ * 返回每件商品的 itemId、在售最低价、在售数量、求购最高价、求购数量；
+ * 无需 IP 白名单即可访问（与 products/search 不同）。
+ * 求购最高价仅供「卖出参考」，勿与买入成本混用。
+ */
+export interface C5StatsResult {
+  itemId: string | null;
+  /** 在售最低价（元） */
+  sellPrice: number | null;
+  sellCount: number | null;
+  /** 求购最高价（元），即「可秒出」的参考价 */
+  purchaseMaxPrice: number | null;
+  purchaseCount: number | null;
+}
+
+interface C5StatsRawItem {
+  marketHashName?: string;
+  itemId?: string | number;
+  sellPrice?: number | string;
+  sellCount?: number | string;
+  purchaseMaxPrice?: number | string;
+  purchaseCount?: number | string;
+}
+
+interface C5StatsResponse {
+  success?: boolean;
+  data?: C5StatsRawItem[] | Record<string, C5StatsRawItem> | null;
+  errorCode?: number;
+  errorMsg?: string | null;
+}
+
+function toCount(v: unknown): number | null {
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : parseFloat(String(v));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function statsOf(item: C5StatsRawItem, name: string): C5StatsResult {
+  return {
+    itemId: item.itemId != null ? String(item.itemId) : null,
+    sellPrice: toNumber(item.sellPrice),
+    sellCount: toCount(item.sellCount),
+    purchaseMaxPrice: toNumber(item.purchaseMaxPrice),
+    purchaseCount: toCount(item.purchaseCount),
+  };
+}
+
+/** 批量查询求购/出售统计；自动分批，单条失败置 null（不阻塞整批）。 */
+export async function fetchC5StatsBulk(
+  names: string[],
+  appKey: string,
+): Promise<Record<string, C5StatsResult | null>> {
+  const out: Record<string, C5StatsResult | null> = {};
+  if (!appKey || !appKey.trim() || names.length === 0) return out;
+  const key = appKey.trim();
+  const uniq = [...new Set(names)].filter((n) => !!n);
+
+  for (let i = 0; i < uniq.length; i += C5_BULK_CHUNK) {
+    const chunk = uniq.slice(i, i + C5_BULK_CHUNK);
+    try {
+      const resp = await fetch(`${C5_API_BASE}/merchant/market/v2/item/stat/hash/name?app-key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ appId: C5_APP_ID, marketHashNames: chunk }),
+      });
+      if (resp.ok) {
+        const data = (await resp.json()) as C5StatsResponse;
+        if (data && data.success === true && data.data) {
+          if (Array.isArray(data.data)) {
+            for (const item of data.data) {
+              const n = item.marketHashName || '';
+              if (n) out[n] = statsOf(item, n);
+            }
+          } else {
+            for (const n of chunk) {
+              const item = data.data[n];
+              out[n] = item ? statsOf(item, n) : null;
+            }
+          }
+        }
+      }
+    } catch {
+      // 网络异常：该批视为无数据
+    }
+    for (const n of chunk) if (!(n in out)) out[n] = null;
+  }
+  return out;
+}
+

@@ -13,23 +13,30 @@
 
 | 项目 | 值 |
 |---|---|
-| 最新版本 | **v1.3.0**（versionCode 4，包名 `com.cs2balance.assistant`，minSdk 24） |
-| 安装包 | `releases\CS2余额助手-v1.3.0.apk`（桌面副本 `C:\Users\Administrator\Desktop\CS2余额助手-v1.3.0.apk`） |
+| 最新版本 | **v1.3.1**（versionCode 5，包名 `com.cs2balance.assistant`，minSdk 24） |
+| 安装包 | `releases\CS2余额助手-v1.3.1.apk`（桌面副本 `C:\Users\Administrator\Desktop\CS2余额助手-v1.3.1.apk`） |
 | 一级页面 | 首页 / 市场 / 库存 / 雷达 / 我的（资金模拟为首页工具入口，不作一级导航） |
 | 已验证 | typecheck 零错误；引擎交叉验证 **71/71 PASS** |
 | 核心指标 | **预计几折余额**（低于 1 更划算；如投入 100 元、预计 Steam 净到手 108 元 = 9.26 折） |
 
 ## 2. v2 已完成功能（相对 v1.2.0）
 
+**v1.3.1（2026-09-05）**：
+- 详情页新增「C5 卖出参考（求购价）」卡（`fetchC5StatsBulk` stat 接口，免 IP 白名单）
+- 中文名未收录时回退显示英文原名；译名按 C5GAME 商品页对齐（热潮/伽玛/冬季攻势/军火交易/电竞系列）
+- 实测 C5 购买/求购接口权限与余额现状（第 4 节）：接口存在，但需 IP 白名单 + 预充值 + 求购权限
+
 - **预计几折成为首页第一指标**：`profit.expectedDiscount(c5BuyPrice, steamNetReceive)`；
   quote / radar / inventory 全部带 `expected_discount`，UI 统一 `fmtZhe()`（0.926 → "9.26 折"）
 - **Steam 热门榜采集**：`steam.searchCases` 优先 `sort_column=popular` + 原始 query 字符串
   `category_730_Type[]=tag_CSGO_Type_WeaponCase`，失败回退成交量榜；热门排名落库
-- **C5 真正批量**：`c5.fetchC5PricesBulk` 每批 30 个 MarketHashName（配套端
+- **C5 真正批量 + 求购参考**：`c5.fetchC5PricesBulk` 每批 30 个 MarketHashName（配套端
   `POST https://openapi.c5game.com/merchant/product/price/batch?app-key=<key>`，
-  body `{appId:"730", marketHashNames:[...]}`，价格单位元）
+  body `{appId:"730", marketHashNames:[...]}`，价格单位元）；另接入 `fetchC5StatsBulk`
+  （stat 接口），详情页「C5 卖出参考」展示求购最高价（可秒出），不计入成本
 - **中文名称映射**：`src/data/cn_names.ts`（`displayName()`）；后台仍以 MarketHashName 关联，
-  UI 统一显示中文（`utils/format.displayNameOf`）
+  UI 统一显示中文（`utils/format.displayNameOf`）；译名以 C5GAME 商品页为准，
+  未收录的箱子**回退显示英文原名**（不再显示「暂无中文名称」）
 - **采集数量 Bug 修复**：设置选项 12 / 20 / 50，数量来自设置、collector 不再写死 10；
   进度显示「已采集 X / Y 个」
 - **C5GAME 一键买入 = 购买保护核验 + 确认 + 本地记账**（`core/buy.ts` + `utils/buyFlow.ts`）：
@@ -77,12 +84,27 @@ Steam 卖出价是**收入**（到账比例 0.8696，即扣 13%）。单位统�
   `POST https://openapi.c5game.com/merchant/product/price/batch?app-key=<key>`
   请求体 `{"appId":"730","marketHashNames":["M4A4 | Temukau (Minimal Wear)"]}`（`fetchC5PricesBulk` 每批 30）
   响应 `{success, data:{ "<MarketHashName>": {itemId, marketHashName, price(元), count, website} }, errorCode, errorMsg}`
-- **已实测可用但未接入**「求购最高价」：
+- **已接入**「根据 hashName 批量查询统计信息」：
+  `POST https://openapi.c5game.com/merchant/market/v2/item/stat/hash/name?app-key=<key>`
+  响应 `{success, data:[{marketHashName, itemId, sellPrice, sellCount, purchaseMaxPrice, purchaseCount}]}`；
+  `fetchC5StatsBulk` 返回 `{itemId, sellPrice, sellCount, purchaseMaxPrice, purchaseCount}`；
+  详情页「C5 卖出参考（求购价）」展示求购最高价（可秒出参考价），**不计入成本**。
+  实测**无需 IP 白名单**即可访问（与 products/search 不同）。
+- **已实测但未接入**「求购最高价」：
   `GET https://openapi.c5game.com/merchant/purchase/v1/max-price?itemId=<itemId>&styleId=0&app-key=<key>`
   响应 `{success, data:{maxPrice:"372.0"(字符串，元)}}`；itemId 由批量接口返回
+- **购买/下单实测结论（2026-09-05）**：
+  - `POST /merchant/trade/v2/normal-buy`（普通购买）**接口存在**：缺参返回「参数错误」，
+    要求 `productId` + `outTradeNo` 非空；填入虚假 productId 后返回「交易链接错误(trade Url format error)」
+  - `POST /merchant/market/v2/products/search`（在售列表搜索）实测返回 errorCode **499103**
+    「未设置ip白名单或ip不在白名单中」：需在 C5GAME 商户后台配置当前出口 IP 白名单后才能用
+  - `POST /merchant/purchase/v1/create`（发起求购）实测返回 errorCode **830001**「您尚未开通求购权限，请联系客服」
+  - `GET /merchant/account/v1/balance` 可访问：当前账户余额 **0.01 元**，无法真实购买；
+    文档明确购买需**预充值**账户余额
+  - **结论：一键买入保持「核验 + 确认 + 本地记账」，不自动下单**；用户开通权限 / 充值 /
+    配置 IP 白名单后再评估接入真实下单
 - **注意**：文档中的 `GET /price/info`（价格查询）实测返回 **404，已下线，勿用**
 - 服务端要求 Accept-Encoding 头（curl 需 `--compressed`；RN fetch 自动处理）
-- **无确认可用的下单/买入执行接口——一键买入 = 核验 + 确认 + 本地记账，不要臆造下单 API**
 
 ### Steam Community Market（公共接口，无需密钥）
 - `priceoverview`（当前价/成交量，currency=23 CNY）、`search/render`（按成交量 / 热门榜排序）
@@ -122,11 +144,13 @@ $env:JAVA_HOME="D:\dev\jdk17\jdk-17.0.20.1+1"; $env:ANDROID_HOME="D:\Android\Sdk
 - app-key 为**用户个人凭证**：只存 AsyncStorage / `$env:C5_APP_KEY`，**绝不写进代码/README/仓库/日志**
 - 一键买入目前是**本地记账**（写库存 + 订单流水），不自动下单；待官方开放确认可用的下单接口后再接
 - Hermes 引擎：勿用 `Array.prototype.at` 等新 API；TS 目标 es2020
-- 新增箱子若无中文映射会显示「暂无中文名称」，需在 `cn_names.ts` 补充
+- 新增箱子若无中文映射，UI **回退显示英文原名**（避免出现「暂无中文名」）；
+  可继续在 `cn_names.ts` 补充 C5GAME 译名
 
 ## 7. 建议改进路线（按优先级，供下一位接手者挑选）
 
-1. **max-price 求购最高价接入**：详情页展示 C5「可秒出求购价」作卖出参考（勿与买入成本混用）
+1. **~~max-price 求购最高价接入~~ → 已完成（v1.3.1）**：详情页「C5 卖出参考」展示求购最高价
+   （`fetchC5StatsBulk`，stat 接口）；后续可做「采集时自动批量查询求购价并入库」
 2. **采集频率调度**：默认每 30 分钟自动采集（当前仅手动一键扫描），可配置
 3. **自采集提醒**：限制期结束本地通知（需 expo-notifications，注意权限与国内厂商后台限制）
 4. **智能拆单**：预算较大时按风险/数量限制分散到多个箱子（HANDOFF v2 第 9 节）
