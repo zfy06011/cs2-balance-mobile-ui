@@ -1,17 +1,20 @@
 /**
  * engine：本地分析引擎（组合层）。
- * 完全在手机内完成：快照 → 预测 → 收益 → 雷达 → 模拟 → 库存估值。
+ * 完全在手机内完成：快照 → 预测 → 收益 → 雷达 → 模拟 → 库存估值 → 购买核验。
  * 与后端 routes 的产出结构保持一致，UI 无需关心数据来自本地还是后端。
  */
-import { storage, LocalInventoryItem, LOCK_HOURS, LOCK_DAYS } from '../data/storage';
+import {
+  storage, LocalInventoryItem, LOCK_HOURS, LOCK_DAYS,
+} from '../data/storage';
 import { collectCases, collectOne, CollectProgress, CollectStats } from '../data/collector';
 import { ProfitCalculator } from './profit';
 import { BaselinePredictor } from './prediction';
 import { evaluateRadar } from './radar';
 import { simulate as runSimulation, reverseTarget, SimItemInput, SIM_CONFIG } from './simulation';
+import { checkPurchase, BuyProtection, BuyCheckResult, buildBuySummary } from './buy';
 import { DEFAULT_FEES } from './fees';
 import type {
-  Quote, RadarItem, Prediction, Scenario, InventoryEntry, Simulation,
+  Quote, RadarItem, Prediction, Scenario, InventoryEntry, Simulation, OrderRecord, HistoryPoint,
 } from './types';
 
 const predictor = new BaselinePredictor();
@@ -27,6 +30,20 @@ export interface AppStatus {
   lastUpdated: string | null;
 }
 
+export interface BuyPrepareResult extends BuyCheckResult {
+  name: string;
+  displayName: string;
+  qty: number;
+  lockDays: number;
+}
+
+export interface BuyExecuteResult {
+  ok: boolean;
+  message: string;
+  order?: OrderRecord;
+  unlockAt?: string;
+}
+
 function toRadarItem(name: string, c5Price: number | null, steamPrice: number, steamVolume: number, pred: Prediction): RadarItem {
   const breakeven = c5Price != null ? calc.breakevenSellPrice(c5Price) : null;
   const rr = evaluateRadar({
@@ -40,11 +57,18 @@ function toRadarItem(name: string, c5Price: number | null, steamPrice: number, s
     volatility: typeof pred.features?.volatility === 'number' ? pred.features.volatility : 0.05,
     prob_profit: pred.prob_profit,
   });
+  // 预计几折：以 7 天预测 P50 作为卖出价估算（总成本 / 预测净到手）
+  let discount: number | null = null;
+  const p50 = rr.details.predicted_p50;
+  if (c5Price != null && p50 != null && p50 > 0) {
+    discount = calc.expectedDiscount(c5Price, p50 * DEFAULT_FEES.steam_seller_receive_ratio);
+  }
   return {
     market_hash_name: name,
     c5_buy_price: c5Price,
     steam_sell_price: steamPrice,
     expected_roi: rr.expected_roi,
+    expected_discount: discount != null ? round(discount, 6) : null,
     risk_level: rr.risk_level,
     liquidity: rr.liquidity,
     signal: rr.signal,
@@ -89,6 +113,13 @@ function buildPrediction(name: string, c5Price: number | null, prices: number[])
   };
 }
 
+function signalOf(roi: number | null): string {
+  if (roi == null) return 'waiting';
+  if (roi >= 0.05) return 'buy';
+  if (roi >= 0) return 'wait';
+  return 'avoid';
+}
+
 export const engine = {
   // ---- 状态 ----
   async status(): Promise<AppStatus> {
@@ -110,6 +141,53 @@ export const engine = {
   // ---- 采集 ----
   refresh: collectCases,
   collectOne,
+
+  // ---- 报价（单个） ----
+  async quote(name: string): Promise<Quote> {
+    const steam = await storage.getLatestSteam(name);
+    const c5 = await storage.getLatestC5(name);
+    const steamPrice = steam?.price ?? null;
+    const c5Price = c5?.price ?? null;
+    const result = c5Price != null && steamPrice != null ? calc.calculate(c5Price, steamPrice) : null;
+    const expectedDiscount = result != null && c5Price != null ? calc.expectedDiscount(c5Price, result.steam_net_receive) : null;
+    return {
+      market_hash_name: name,
+      c5_buy_price: c5Price,
+      steam_sell_price: steamPrice,
+      steam_volume: steam?.volume ?? null,
+      popular_rank: steam?.popular_rank ?? null,
+      c5_fee_ratio: DEFAULT_FEES.c5_buy_fee_ratio,
+      steam_seller_receive_ratio: DEFAULT_FEES.steam_seller_receive_ratio,
+      lock_days: LOCK_DAYS,
+      steam_net_receive: result?.steam_net_receive ?? null,
+      net_profit: result?.net_profit ?? null,
+      roi: result?.roi ?? null,
+      expected_discount: expectedDiscount != null ? round(expectedDiscount, 6) : null,
+      breakeven_sell_price: result?.breakeven_sell_price ?? null,
+      signal: signalOf(result?.roi ?? null),
+    };
+  },
+
+  // ---- 市场（全部报价，预计几折从低到高） ----
+  async markets(): Promise<Quote[]> {
+    const snaps = await storage.getSnapshots();
+    const names = [...new Set(snaps.map((s) => s.name))];
+    const out: Quote[] = [];
+    for (const name of names) {
+      try {
+        out.push(await this.quote(name));
+      } catch {
+        continue;
+      }
+    }
+    out.sort((a, b) => {
+      const da = a.expected_discount == null ? Infinity : a.expected_discount;
+      const db = b.expected_discount == null ? Infinity : b.expected_discount;
+      if (da !== db) return da - db;
+      return a.market_hash_name.localeCompare(b.market_hash_name);
+    });
+    return out;
+  },
 
   // ---- 雷达 ----
   async radar(): Promise<RadarItem[]> {
@@ -137,35 +215,19 @@ export const engine = {
         continue;
       }
     }
-    out.sort((a, b) => b.score - a.score);
+    out.sort((a, b) => {
+      const da = a.expected_discount == null ? Infinity : a.expected_discount;
+      const db = b.expected_discount == null ? Infinity : b.expected_discount;
+      if (da !== db) return da - db;
+      return b.score - a.score;
+    });
     return out;
   },
 
-  // ---- 报价 ----
-  async quote(name: string): Promise<Quote> {
-    const steam = await storage.getLatestSteam(name);
-    const c5 = await storage.getLatestC5(name);
-    const steamPrice = steam?.price ?? null;
-    const c5Price = c5?.price ?? null;
-    const result = c5Price != null && steamPrice != null ? calc.calculate(c5Price, steamPrice) : null;
-    let signal = 'waiting';
-    if (result != null) {
-      signal = result.roi >= 0.05 ? 'buy' : result.roi >= 0 ? 'wait' : 'avoid';
-    }
-    return {
-      market_hash_name: name,
-      c5_buy_price: c5Price,
-      steam_sell_price: steamPrice,
-      steam_volume: steam?.volume ?? null,
-      c5_fee_ratio: DEFAULT_FEES.c5_buy_fee_ratio,
-      steam_seller_receive_ratio: DEFAULT_FEES.steam_seller_receive_ratio,
-      lock_days: LOCK_DAYS,
-      steam_net_receive: result?.steam_net_receive ?? null,
-      net_profit: result?.net_profit ?? null,
-      roi: result?.roi ?? null,
-      breakeven_sell_price: result?.breakeven_sell_price ?? null,
-      signal,
-    };
+  // ---- 历史（简单趋势用） ----
+  async history(name: string, limit = 7): Promise<HistoryPoint[]> {
+    const rows = await storage.getSteamHistory(name, limit);
+    return rows.map((r) => ({ price: r.price, fetchedAt: r.fetchedAt }));
   },
 
   // ---- 预测 ----
@@ -189,11 +251,13 @@ export const engine = {
       let netReceive: number | null = null;
       let netProfit: number | null = null;
       let roi: number | null = null;
+      let discount: number | null = null;
       if (current != null) {
         netReceive = current * DEFAULT_FEES.steam_seller_receive_ratio;
         const cost = r.buy_price * (1 + DEFAULT_FEES.c5_buy_fee_ratio);
         netProfit = netReceive - cost;
         roi = cost ? netProfit / cost : null;
+        discount = calc.expectedDiscount(r.buy_price, netReceive);
       }
       const unlock = new Date(new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000);
       const daysLeft = Math.max(0, (unlock.getTime() - Date.now()) / 86400000);
@@ -210,6 +274,7 @@ export const engine = {
         net_receive_estimate: netReceive,
         net_profit_estimate: netProfit,
         roi_estimate: roi,
+        expected_discount_estimate: discount != null ? round(discount, 6) : null,
       });
     }
     out.sort((a, b) => a.unlock_at.localeCompare(b.unlock_at));
@@ -228,11 +293,81 @@ export const engine = {
     return { id: entry.id, unlock_at: unlock.toISOString(), days: LOCK_DAYS };
   },
 
+  // ---- 订单 ----
+  orders: async (): Promise<OrderRecord[]> => {
+    const rows = await storage.getOrders();
+    rows.sort((a, b) => b.buy_at.localeCompare(a.buy_at));
+    return rows;
+  },
+
+  // ---- 一键买入：购买前核验 ----
+  async prepareBuy(params: { name: string; qty?: number }): Promise<BuyPrepareResult> {
+    const qty = Math.max(1, Math.min(999, Math.floor(params.qty ?? 1)));
+    const q = await this.quote(params.name);
+    const settings = await storage.getSettings();
+    const protection: BuyProtection = {
+      maxBuyPrice: settings.buyMaxPrice,
+      minTargetDiscount: settings.buyTargetZhe,
+      maxBudget: settings.buyMaxBudget,
+    };
+    const check = checkPurchase({
+      buyPrice: q.c5_buy_price ?? 0,
+      qty,
+      steamNetReceivePerUnit: q.steam_net_receive,
+      protection,
+    });
+    // 异常价格二次确认：C5 买入价明显高于本地最近一次快照时提示
+    const latestC5 = await storage.getLatestC5(params.name);
+    if (q.c5_buy_price != null && latestC5 && latestC5.price > 0 && q.c5_buy_price > latestC5.price * 1.3) {
+      check.warnings.push(`C5 买入价从 ¥${latestC5.price.toFixed(2)} 上涨到 ¥${q.c5_buy_price.toFixed(2)}（+${Math.round((q.c5_buy_price / latestC5.price - 1) * 100)}%），请确认是否仍要买入`);
+    }
+    return {
+      ...check,
+      name: params.name,
+      displayName: params.name,
+      qty,
+      lockDays: LOCK_DAYS,
+    };
+  },
+
+  // ---- 一键买入：确认后写入库存 + 订单 ----
+  async executeBuy(params: { name: string; qty?: number }): Promise<BuyExecuteResult> {
+    const pre = await this.prepareBuy(params);
+    if (!pre.ok) {
+      return { ok: false, message: pre.errors.join('；') || '购买条件不满足' };
+    }
+    const buyPrice = pre.summary.buyPrice;
+    const qty = pre.qty;
+    const entry = await storage.addInventory({
+      item_name: params.name,
+      quantity: qty,
+      buy_price: buyPrice,
+      buy_at: new Date().toISOString(),
+      source: 'c5game',
+    });
+    const order = await storage.addOrder({
+      item_name: params.name,
+      quantity: qty,
+      buy_price: buyPrice,
+      buy_at: new Date().toISOString(),
+      source: 'c5game',
+      expected_discount: pre.summary.discountNum,
+      budget_used: pre.summary.totalCost,
+    });
+    const unlock = new Date(new Date(entry.buy_at).getTime() + LOCK_HOURS * 3600000);
+    return {
+      ok: true,
+      message: `已记录买入 ${qty} × ¥${buyPrice.toFixed(2)}，预计 ${unlock.toLocaleString()} 解锁`,
+      order,
+      unlockAt: unlock.toISOString(),
+    };
+  },
+
   // ---- 模拟 ----
   async simulate(budget: number, allocation = 'balanced'): Promise<Simulation> {
     const radar = await this.radar();
     const simItems: SimItemInput[] = [];
-    for (const r of radar.slice(0, 20)) {
+    for (const r of radar) {
       const vol = r.liquidity === 'high' ? 5000 : r.liquidity === 'medium' ? 1200 : 300;
       const risk = (['low', 'medium', 'high'] as const).includes(r.risk_level as never) ? (r.risk_level as 'low' | 'medium' | 'high') : 'medium';
       const liquid = (['low', 'medium', 'high'] as const).includes(r.liquidity as never) ? (r.liquidity as 'low' | 'medium' | 'high') : 'medium';
@@ -265,9 +400,15 @@ export const engine = {
     const r = reverseTarget(target, roi);
     return { target_balance: r.target_balance, required_budget: r.required_budget, expected_profit: r.expected_profit };
   },
+
+  buildBuySummary,
 };
 
 export function getSimConfig() {
   return SIM_CONFIG;
 }
 
+function round(v: number, digits: number): number {
+  const p = Math.pow(10, digits);
+  return Math.round(v * p) / p;
+}

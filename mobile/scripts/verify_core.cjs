@@ -14,7 +14,7 @@ const baselinePath = path.resolve(root, '..', 'backend', 'scripts', 'baseline.js
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 
-const tscArgs = ['profit.ts', 'prediction.ts', 'radar.ts', 'simulation.ts', 'fees.ts', 'types.ts']
+const tscArgs = ['profit.ts', 'prediction.ts', 'radar.ts', 'simulation.ts', 'fees.ts', 'types.ts', 'buy.ts']
   .map((f) => JSON.stringify(path.join(coreDir, f)))
   .join(' ');
 execSync('npx tsc --ignoreConfig --module commonjs --target es2020 --skipLibCheck --outDir ' + JSON.stringify(outDir) + ' ' + tscArgs, {
@@ -29,6 +29,7 @@ const { BaselinePredictor, normalCdf } = p('prediction.js');
 const { evaluateRadar } = p('radar.js');
 const { simulate, reverseTarget } = p('simulation.js');
 const { DEFAULT_FEES } = p('fees.js');
+const { checkPurchase, buildBuySummary } = p('buy.js');
 
 const BASELINE = JSON.parse(fs.readFileSync(baselinePath, 'utf-8'));
 let failed = 0;
@@ -47,6 +48,31 @@ assert('profit.steam_net_receive=' + bp.steam_net_receive, near(pr.steam_net_rec
 assert('profit.net_profit=' + bp.net_profit, near(pr.net_profit, bp.net_profit, 1e-4), pr.net_profit);
 assert('profit.roi=' + bp.roi, near(pr.roi, bp.roi, 1e-6), pr.roi);
 assert('profit.breakeven=' + bp.breakeven_sell_price, near(pr.breakeven_sell_price, bp.breakeven_sell_price, 1e-4), pr.breakeven_sell_price);
+
+// ---------- 1b. 预计几折余额 ----------
+// 成本 100（含 1% 费用 = 101）→ 预计 Steam 净到手 108 → 101/108 = 0.935185...
+const disc = calc.expectedDiscount(100, 108);
+assert('profit.expected_discount=101/108', near(disc, 101 / 108, 1e-9), disc);
+assert('profit.expected_discount.null_price', calc.expectedDiscount(0, 108) === null && calc.expectedDiscount(-1, 108) === null);
+assert('profit.expected_discount.null_receive', calc.expectedDiscount(100, 0) === null && calc.expectedDiscount(100, -5) === null);
+
+// ---------- 1c. 购买保护 ----------
+const buyOk = checkPurchase({ buyPrice: 100, qty: 1, steamNetReceivePerUnit: 108 });
+assert('buy.ok=true', buyOk.ok === true, JSON.stringify(buyOk.errors));
+assert('buy.summary.discount=' + (101 / 108).toFixed(6), near(buyOk.summary.discountNum, 101 / 108, 1e-9), buyOk.summary.discountNum);
+assert('buy.summary.discountZhe=9.3518', near(buyOk.summary.discountZhe, (101 / 108) * 10, 1e-6), buyOk.summary.discountZhe);
+assert('buy.summary.totalCost=101', near(buyOk.summary.totalCost, 101, 1e-9), buyOk.summary.totalCost);
+assert('buy.summary.receive=108', near(buyOk.summary.netReceive, 108, 1e-9), buyOk.summary.netReceive);
+const buyMax = checkPurchase({ buyPrice: 150, qty: 1, steamNetReceivePerUnit: 108, protection: { maxBuyPrice: 120 } });
+assert('buy.maxBuyPrice.blocked', buyMax.ok === false && buyMax.errors.length === 1, JSON.stringify(buyMax.errors));
+const buyTarget = checkPurchase({ buyPrice: 100, qty: 1, steamNetReceivePerUnit: 108, protection: { minTargetDiscount: 9.5 } });
+assert('buy.minTargetDiscount.ok', buyTarget.ok === true, JSON.stringify(buyTarget.errors));
+const buyTarget2 = checkPurchase({ buyPrice: 100, qty: 1, steamNetReceivePerUnit: 108, protection: { minTargetDiscount: 9 } });
+assert('buy.minTargetDiscount.blocked', buyTarget2.ok === false, JSON.stringify(buyTarget2.errors));
+const buyBudget = checkPurchase({ buyPrice: 100, qty: 3, steamNetReceivePerUnit: 108, protection: { maxBudget: 250 } });
+assert('buy.maxBudget.blocked', buyBudget.ok === false, JSON.stringify(buyBudget.errors));
+const buyWarn = checkPurchase({ buyPrice: 100, qty: 1, steamNetReceivePerUnit: 70 });
+assert('buy.lossWarning.present', buyWarn.ok === true && buyWarn.warnings.length > 0, JSON.stringify(buyWarn.warnings));
 
 // ---------- 2. 预测 ----------
 const pred = new BaselinePredictor().predict({

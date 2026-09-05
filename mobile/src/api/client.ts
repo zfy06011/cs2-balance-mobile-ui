@@ -3,11 +3,12 @@
  * 对外接口与旧版保持一致（screens 无需大改），内部全部由本地引擎完成：
  * 直连 Steam/C5GAME + 手机内计算，不再依赖电脑后端。
  */
-import { engine } from '../core/engine';
+import { engine, BuyPrepareResult, BuyExecuteResult } from '../core/engine';
 import { storage } from '../data/storage';
 import type { CollectProgress, CollectStats } from '../data/collector';
-export type { Quote, RadarItem, Scenario, Prediction, InventoryEntry, Simulation, SimulationItem } from '../core/types';
-import type { Quote, RadarItem, Prediction, InventoryEntry, Simulation } from '../core/types';
+export type { Quote, RadarItem, Scenario, Prediction, InventoryEntry, Simulation, SimulationItem, OrderRecord, HistoryPoint } from '../core/types';
+export type { BuyPrepareResult, BuyExecuteResult } from '../core/engine';
+import type { Quote, RadarItem, Prediction, InventoryEntry, Simulation, OrderRecord, HistoryPoint } from '../core/types';
 
 // 为兼容旧签名保留（本地模式无后端地址概念）
 export const STORAGE_KEY = '@cs2balance/api_base';
@@ -34,11 +35,16 @@ export interface HealthResult {
 export const api = {
   health: () => engine.status() as Promise<HealthResult>,
   radar: () => engine.radar() as Promise<RadarItem[]>,
+  markets: () => engine.markets() as Promise<Quote[]>,
   quote: (name: string) => engine.quote(name) as Promise<Quote>,
   prediction: (name: string) => engine.prediction(name) as Promise<Prediction>,
+  history: (name: string, limit = 7) => engine.history(name, limit) as Promise<HistoryPoint[]>,
   inventory: () => engine.inventory() as Promise<InventoryEntry[]>,
   addInventory: (params: { item_name: string; quantity: number; buy_price: number }) =>
     engine.addInventory(params),
+  orders: () => engine.orders() as Promise<OrderRecord[]>,
+  prepareBuy: (params: { name: string; qty?: number }) => engine.prepareBuy(params) as Promise<BuyPrepareResult>,
+  executeBuy: (params: { name: string; qty?: number }) => engine.executeBuy(params) as Promise<BuyExecuteResult>,
   simulate: (budget: number, allocation: string) => engine.simulate(budget, allocation),
   simulateReverse: (target: number, roi = 0.03) => engine.simulateReverse(target, roi),
 

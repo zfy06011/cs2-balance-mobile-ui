@@ -35,6 +35,17 @@ export class ProfitCalculator {
     return this.c5TotalCost(c5BuyPrice) / this.steam_seller_receive_ratio;
   }
 
+  /**
+   * 预计几折余额：总成本 / 预计 Steam 净到手。
+   * 例：成本 100 元、净到手 108 元 → 100/(108) = 0.9259 ≈ 9.26 折。
+   * 折扣数越低越划算（花钱越少换到同样的 Steam 余额）。
+   * 任一输入缺失/非正返回 null（禁止臆造）。
+   */
+  expectedDiscount(c5BuyPrice: number, steamNetReceive: number): number | null {
+    if (c5BuyPrice == null || c5BuyPrice <= 0 || steamNetReceive == null || steamNetReceive <= 0) return null;
+    return this.c5TotalCost(c5BuyPrice) / steamNetReceive;
+  }
+
   calculate(c5BuyPrice: number, steamSellPrice: number): ProfitResult {
     const totalCost = this.c5TotalCost(c5BuyPrice);
     const netReceive = this.steamNetReceive(steamSellPrice);

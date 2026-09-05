@@ -6,12 +6,16 @@ export interface Quote {
   c5_buy_price: number | null;
   steam_sell_price: number | null;
   steam_volume: number | null;
+  /** Steam 热门榜排名（1 起；回退采集时为 null） */
+  popular_rank: number | null;
   c5_fee_ratio: number;
   steam_seller_receive_ratio: number;
   lock_days: number;
   steam_net_receive: number | null;
   net_profit: number | null;
   roi: number | null;
+  /** 预计几折余额：总成本 / 预计 Steam 净到手（0.926 = 9.26 折，越低越划算） */
+  expected_discount: number | null;
   breakeven_sell_price: number | null;
   signal: string;
 }
@@ -21,6 +25,8 @@ export interface RadarItem {
   c5_buy_price: number | null;
   steam_sell_price: number | null;
   expected_roi: number | null;
+  /** 预计几折（0.926 = 9.26 折，越低越划算） */
+  expected_discount: number | null;
   risk_level: string;
   liquidity: string;
   signal: string;
@@ -65,6 +71,24 @@ export interface InventoryEntry {
   net_receive_estimate: number | null;
   net_profit_estimate: number | null;
   roi_estimate: number | null;
+  expected_discount_estimate: number | null;
+}
+
+/** 本地购买记录（一键买入成功后写入，随订单留存） */
+export interface OrderRecord {
+  id: number;
+  item_name: string;
+  quantity: number;
+  buy_price: number;
+  buy_at: string;
+  source: string;
+  expected_discount: number | null;
+  budget_used: number;
+}
+
+export interface HistoryPoint {
+  price: number;
+  fetchedAt: string;
 }
 
 export interface Simulation {
