@@ -4,8 +4,12 @@
  * - 中文名以 C5GAME 商品页/市场分类使用的译名为准（用户买入时看到的名字），
  *   与 Steam 官方译名不一致时优先 C5GAME 叫法（如 Fever→热潮、Gamma→伽玛、
  *   Winter Offensive→冬季攻势、CS:GO Weapon Case→军火交易）。
- * - 未收录映射的箱子回退显示英文原名（永不显示「暂无中文名称」）。
+ * - 未收录映射的箱子优先查本地「Steam 官方中文名」缓存（zhNames：采集时
+ *   带 l=schinese 自动获取，覆盖 Steam 全部箱子），仍无则回退英文原名。
+ * - 「Sealed Dead Hand Terminal」等 C5GAME 译名与 Steam 官方译名不一致时，
+ *   在此手工覆盖（优先级高于 Steam 官方中文名缓存）。
  */
+import { zhNameOf } from './zhNames';
 export const CN_CASE_NAMES: Record<string, string> = {
   // CS2 时代 / 武库
   'Kilowatt Case': '千瓦武器箱',
@@ -57,12 +61,14 @@ export const CN_CASE_NAMES: Record<string, string> = {
   'Winter Offensive Weapon Case': '冬季攻势武器箱',
   // 收藏包
   'Anubis Collection Package': '阿努比斯收藏包',
+  // 终端机系列（C5GAME 译名，2026-03）
+  'Sealed Dead Hand Terminal': '封装的毁灭之手终端机',
 };
 
 export const UNKNOWN_CN_NAME = '未收录中文名';
 
-/** 取中文显示名；未收录时回退显示英文原名（后台仍用原 MarketHashName 关联）。 */
+/** 取中文显示名：手工映射 → Steam 官方中文名缓存 → 回退英文原名。 */
 export function displayName(marketHashName: string): string {
   if (!marketHashName) return UNKNOWN_CN_NAME;
-  return CN_CASE_NAMES[marketHashName] ?? marketHashName;
+  return CN_CASE_NAMES[marketHashName] ?? zhNameOf(marketHashName) ?? marketHashName;
 }

@@ -8,6 +8,7 @@
 import { storage } from './storage';
 import { fetchSteamPrice, searchCases, STEAM_DELAY_MS, SteamCaseHit } from './steam';
 import { fetchC5PricesBulk } from './c5';
+import { mergeZhNames } from './zhNames';
 
 export interface CollectProgress {
   stage: 'listing' | 'c5' | 'prices' | 'done';
@@ -46,8 +47,20 @@ export async function collectCases(opts: {
     message: '正在拉取 Steam 热门武器箱榜单…',
   });
 
-  // 热门榜一次最多 100，多拉一些再截断到设置数量
-  const hits = await searchCases(Math.min(Math.max(want * 2, 50), 100), cookie);
+  // 热门榜一次最多 100：拉满以覆盖「Steam 全部在售箱子的官方中文名」，价格只采前 want 个
+  const hits = await searchCases(100, cookie);
+  // 把 Steam 官方中文名（l=schinese）写入本地缓存：覆盖所有箱子，无需逐条手工映射
+  const zhMap: Record<string, string> = {};
+  for (const h of hits) {
+    if (h.cnName) zhMap[h.name] = h.cnName;
+  }
+  if (Object.keys(zhMap).length > 0) {
+    try {
+      await mergeZhNames(zhMap);
+    } catch {
+      // 中文名缓存失败不阻断采集主流程
+    }
+  }
   const target: SteamCaseHit[] = hits.slice(0, want);
   if (target.length === 0) {
     report({ stage: 'done', done: 0, total: 0, currentName: '', success: 0, failed: 0, message: '未找到武器箱，请稍后重试' });

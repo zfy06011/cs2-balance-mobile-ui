@@ -14,7 +14,10 @@ export interface SteamPriceResult {
 }
 
 export interface SteamCaseHit {
+  /** 英文 MarketHashName：后台唯一关联键（priceoverview/C5 查询都用它） */
   name: string;
+  /** Steam 官方中文名（search/render 带 l=schinese 时返回）；未命中为 null */
+  cnName: string | null;
   volume: number;
   sell_price: number | null;
   sell_listings: number | null;
@@ -76,11 +79,15 @@ function parseResults(data: { results?: Record<string, unknown>[] }, offset: num
   const hits: SteamCaseHit[] = [];
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
-    const name = String(r.name ?? '');
+    // hash_name 恒为英文 MarketHashName；name 受 l=schinese 影响为中文
+    const name = String(r.hash_name ?? r.name ?? '');
+    const rawName = r.name != null ? String(r.name) : '';
+    const cnName = rawName && rawName !== name && /[\u4e00-\u9fff]/.test(rawName) ? rawName : null;
     const listings = typeof r.sell_listings === 'number' ? r.sell_listings : 0;
     const cents = typeof r.sell_price === 'number' ? r.sell_price : typeof r.sale_price === 'number' ? r.sale_price : null;
     hits.push({
       name,
+      cnName,
       volume: listings,
       sell_price: cents != null && Number.isFinite(cents) ? cents / 100 : null,
       sell_listings: listings,
@@ -92,7 +99,7 @@ function parseResults(data: { results?: Record<string, unknown>[] }, offset: num
 
 /** 武器箱/收藏包类名称的宽松判断（回退模式过滤用） */
 function isCaseLikeName(name: string): boolean {
-  return /case/i.test(name) || name.includes('武器箱') || name.includes('胶囊') || /package/i.test(name);
+  return /case/i.test(name) || /package/i.test(name) || name.includes('武器箱') || name.includes('胶囊') || name.includes('收藏包');
 }
 
 /**
@@ -100,7 +107,7 @@ function isCaseLikeName(name: string): boolean {
  * category_730_Type[] 需要保留原始方括号，手动拼 query string（URLSearchParams 会转义成 %5B%5D）。
  */
 async function searchPopular(count: number, cookie: string): Promise<SteamCaseHit[]> {
-  const qs = `appid=${APPID}&norender=1&query=&start=0&count=${Math.min(count, 100)}&sort_column=popular&sort_dir=desc&category_730_Type[]=tag_CSGO_Type_WeaponCase`;
+  const qs = `appid=${APPID}&norender=1&query=&start=0&count=${Math.min(count, 100)}&sort_column=popular&sort_dir=desc&category_730_Type[]=tag_CSGO_Type_WeaponCase&l=schinese`;
   const resp = await fetch(`${MARKET_BASE}/search/render/?${qs}`, { headers: headers(cookie) });
   if (!resp.ok) throw new Error(`Steam 热门榜返回 ${resp.status}`);
   const data = (await resp.json()) as { results?: Record<string, unknown>[] };
@@ -117,6 +124,7 @@ async function searchByVolume(count: number, cookie: string): Promise<SteamCaseH
     count: String(Math.min(count, 100)),
     sort_column: 'volume',
     sort_dir: 'desc',
+    l: 'schinese',
   });
   const resp = await fetch(`${MARKET_BASE}/search/render/?${params.toString()}`, {
     headers: headers(cookie),

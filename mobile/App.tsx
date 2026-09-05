@@ -3,11 +3,12 @@
  * 底部 Tab（HANDOFF v2.0 第 14 节）：首页 / 市场 / 库存 / 雷达 / 我的。
  * 资金模拟不作为一级导航，作为工具入口（从首页进入，全屏覆盖）。
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from './src/theme/colors';
+import { warmZhNames } from './src/data/zhNames';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
 import { RadarScreen } from './src/screens/RadarScreen';
@@ -30,6 +31,11 @@ export default function App() {
   const [tab, setTab] = useState<TabKey>('home');
   const [detailName, setDetailName] = useState<string | null>(null);
   const [simOpen, setSimOpen] = useState(false);
+
+  // 启动即预热 Steam 官方中文名缓存（采集后会自动更新）
+  useEffect(() => {
+    warmZhNames().catch(() => undefined);
+  }, []);
 
   if (detailName) {
     return (
