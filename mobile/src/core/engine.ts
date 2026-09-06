@@ -568,7 +568,28 @@ export const engine = {
     if (items.length === 0) {
       // 用户库存全在保护期时，context 2 天然为空；若 context 16 也失败则保护箱整体缺失——优先显形。
       // 附带 context 2/16 各自 report 的总数 + SteamID 昵称，用于区分「ID 填错」与「Valve 不返回保护期物品」。
-      const reason = buildEmptySyncReason({ ctx16Error, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, ctx2Raw, ctx16Raw });
+      // v1.5.8：结合本地库存统计「保护中」条数与最早解锁日，空库存文案给出「解锁后重新同步自动显示」的准确提示
+      // （v1.5.7 用户实测双通道均返回 {"response":{}}，证明是 Steam Web API 不返回保护期物品，而非解析/Key/ID 问题）。
+      const nowMs = Date.now();
+      const rows = await storage.getInventory();
+      let localProtectedCount = 0;
+      let localEarliestUnlockAt: string | null = null;
+      for (const r of rows) {
+        if (r.steam_tradable === true) continue; // 已确认可交易/可上架，不在保护期
+        let estMs: number;
+        if (r.steam_unlock_est_at) {
+          const est = new Date(r.steam_unlock_est_at).getTime();
+          if (!Number.isFinite(est)) continue;
+          estMs = est;
+        } else {
+          estMs = new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000;
+        }
+        if (estMs <= nowMs) continue; // 预计已解锁
+        localProtectedCount++;
+        const estIso = new Date(estMs).toISOString();
+        if (localEarliestUnlockAt === null || estIso < localEarliestUnlockAt) localEarliestUnlockAt = estIso;
+      }
+      const reason = buildEmptySyncReason({ ctx16Error, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, ctx2Raw, ctx16Raw, localProtectedCount, localEarliestUnlockAt });
       return { matched: 0, unlocked: 0, imported: 0, notFound: 0, steamId, empty: true, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, source: 'steam_webapi', reason, ctx16Error, ctx2Raw, ctx16Raw, at: now.toISOString() };
     }
     const rows = await storage.getInventory();

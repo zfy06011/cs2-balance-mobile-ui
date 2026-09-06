@@ -2,7 +2,7 @@
   "expo": {
     "name": "宇额助手",
     "slug": "cs2-balance-mobile",
-    "version": "1.5.7",
+    "version": "1.5.8",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,

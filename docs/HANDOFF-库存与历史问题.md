@@ -1,9 +1,23 @@
 # HANDOFF 专项 —— 库存与历史两个未解决问题（2026-09-07）
 
 > 写给下一位接手者。主文档 `docs/HANDOFF.md` 是全量状态；本文只聚焦两个**曾未解决**的问题，
-> 汇总已验证事实、已试过的方案、以及按优先级排列的下一步。App 当前版本 v1.5.7（已打包，versionCode 23）。
+> 汇总已验证事实、已试过的方案、以及按优先级排列的下一步。App 当前版本 v1.5.8（已打包，versionCode 24）。
 
+> **2026-09-07 更新（v1.5.8 已打包，versionCode 24 —— 空库存文案据实定论：Steam Web API 不返回保护期物品，已实锤）**：
+> - ✅ **用户 v1.5.7 同步后发回完整文案（决定性证据）**：context 2/16 均返回 **`{"response":{}}`**（连 `total_inventory_count`/`assets` 都没返回），
+>   昵称「言念如一」可查（`GetPlayerSummaries` 通）、key/SteamID/网络全通 → **排除：装错旧包（文案含 v1.5.7 新增片段）、解析 bug（解包后仍空）、key/SteamID/网络错误**。
+> - ✅ **真根因确认：Steam Web API 对处于交易保护期的账号不返回任何库存数据（第三方 key 视角不可见）**。
+>   对照研究报告：用户 Steam 网页/手机端能看 14 件箱子（3× Dreams & Nightmares + 11× CS:GO Weapon Case）、C5 服务端高权限通道能看到 status=4，
+>   而官方 Web API 双 context 均返回空对象 → **等首批 14 件箱子解锁后（约 7 天）在本页重新同步即自动显示**。v1.5.6「解析 bug」结论**已推翻**（见下方该块标注）。
+> - ✅ **v1.5.8 改动**：`steamSync.ts#isEmptyResponseRaw` 识别空响应对象（`{}`/`{"response":{}}`/`{"result":{}}`/仅 success 空对象；截断片段 `…` 结尾不误判）；
+>   `buildEmptySyncReason` 空库存分支改为准确提示——双通道均为空对象时明确「已排除 Key、SteamID 与网络错误；若箱子正处 7 天交易保护期，解锁后在本页重新同步即可自动显示」，
+>   不再引导「Steam 登录会话同步」；`engine.ts#syncSteamInventorySmart` 空分支统计本地保护中条数（`localProtectedCount`）与最早解锁日（`localEarliestUnlockAt`），
+>   文案追加「本地已记录 X 件保护中箱子，最早约 YYYY-MM-DD 解锁」。
+> - ✅ 验证：verify:core 更新 all_zero_hint + 新增 protection_hint_full/zero 2 项，**240/240 PASS**；typecheck 零错误；APK 已打包并同步桌面。
+> - ⏭ 下一步：用户等 7 天保护期结束后用 v1.5.8 再次同步，预期开始返回 items（首批约 14 件）；若解锁后仍 `{"response":{}}` 再来排查。
+>
 > **2026-09-07 更新（v1.5.7 已打包，versionCode 23 —— 空库存诊断一锤定音 v2：透出 Steam 原始返回 + success=0 显式报错）**：
+> - 📌 **（历史记录）本块「待用户发回原文」的取证已由 v1.5.8 完成：用户发回 `{"response":{}}` 实锤，根因=Steam Web API 不返回保护期物品，见上方 v1.5.8 块。**
 > - 🔴 **v1.5.6 修复 response 包装后，用户官方接口复测仍然显示「context 2 报 ? 件、context 16 报 ? 件」**：
 >   若手机装的确实是 v1.5.6（让用户在设置页确认页脚版本号），说明连 `total_inventory_count`/`assets` 都解析不到
 >   → Steam 实际返回可能与 `{"response":{...}}` 包装不一致；另一种高概率是**手机装的是旧 APK**（历史 bug：
@@ -20,6 +34,9 @@
 >   （contextid=16 再来一次），把原始 JSON 全文或 App 同步文案发回。
 >
 > **2026-09-07 更新（v1.5.6 已打包，versionCode 22 —— Steam 官方库存同步根因修复）**：
+> - ⚠ **【结论已推翻】** 本块把根因定为「代码解析 bug、不是 Steam 不返回保护期物品」，**已被 v1.5.7 用户实测推翻**：
+>    修复 response 解包后（v1.5.6/1.5.7 均含此修复）双 context 仍返回 `{"response":{}}` → 真根因是 **Steam Web API 对保护期物品不返回任何数据**（v1.5.8 已实锤）。
+>    response 解包修复本身作为健壮性改进保留（`obj.response ?? obj.result ?? obj` 三态兼容，对合法有库存账号仍是必需）。
 > - 🔴 **「同步完成但未找到武器箱（总量 0）Steam 库存为空：该账号 CS2 库存里没有任何物品（context 2 报 ? 件、context 16 报 ? 件；昵称「言念如一」）」——根因是代码解析 bug，不是 Steam 不返回保护期物品**：
 >   官方 `GetInventoryItemsWithDescriptions`（IEconService）与 `GetPlayerSummaries` 一样返回 `{"response":{...}}` 包装，
 >   而 `fetchContext` 只取 `obj.result ?? obj` → `root.assets/descriptions/total_inventory_count` 全 undefined
@@ -110,6 +127,7 @@ Steam 手机 App / 网页正常显示 14 件箱子，但 App 所有库存同步�
 | Web API `IEconService/GetInventoryItemsWithDescriptions`（用户自己的 Key，双 Context 2+16） | 用户报「试了也不行」（具体报错未提供） | **v1.5.2 已增强：错误带 Steam 原始返回片段 + context 16 失败显形** |
 | 页面直抓 `g_rgAssets`（v1.4.7 新增） | 未实测 | **v1.5.x 已移除**（INV_SCRIPT 合并格式 bug，会话拉取改走 Web API 双 Context） |
 
+> 📌 **（2026-09-07 v1.5.8 已实锤定论，本节旧中间结论仅作历史参考）**：真根因 = **Steam Web API 对处于交易保护期的账号不返回任何库存数据**（用户 v1.5.7 实测双 context 均返回 `{"response":{}}`，连 total_inventory_count/assets 都没有）；「数据同步/缓存问题、地区限制、JSON 与页面两条链路」均非本案例根因。等保护期结束解锁后同步即自动返回物品。
 ### 关键判断
 - Steam 的库存 **JSON 服务**对该账号/网络环境返回空，但**页面渲染正常**（走源码内嵌
   `g_rgAssets`，与 JSON 接口是两条链路）→ 与隐私设置/cookie 无关，疑似 Steam 侧
@@ -117,18 +135,13 @@ Steam 手机 App / 网页正常显示 14 件箱子，但 App 所有库存同步�
 - 交易保护箱「社区接口漏掉」的社区共识（r/SteamBot、SteamWebAPI 专门产品）只解释部分；
   本例是**整个 730 库存 JSON 为空**，更极端
 
-### 下一步（按优先级，2026-09-06 更新）
-1. **✅ 已完成：库存通道收敛为 Steam Web API 双 Context**（用户拍板「库存只用 SteamWebAPI」）
-2. **✅ v1.5.3 已加空库存诊断**：同步消息带 `context 2 报 X 件、context 16 报 Y 件` + SteamID 昵称。
-   用户装 v1.5.3 后点「⟳ 同步 Steam 库存」，把完成消息**原文**发回来：
-   - 昵称不是「言念如一」→ SteamID 填错，直接换 ID
-   - 昵称正确且双 context 仍 0 → Valve 侧对第三方不返回保护期资产（与 C5 对比已确认 C5 服务端可见 status=4），
-     库存双通道方案需要与用户重新对齐（会话登录态同步 / C5 OpenAPI 库存 / 手动录入三选一）
-   - context 16 报错误 → 按错误原文排查（403 key 无效 / 429 限流 / 网络）
-3. 若确认 context 16 也正常返回且仍空：换 VPN 节点重试（`api.steampowered.com` 与
-   `steamcommunity.com` 是不同主机，需分别验证可达性）；再不行联系 Steam 客服修账号数据，
-   或用户手动录入库存（现有功能）
-
+### 下一步（2026-09-07 更新 —— 问题一已实锤定论，收尾只差等解锁）
+1. **✅ 已完成：库存通道收敛为 Steam Web API 双 Context**（用户拍板「库存只用 SteamWebAPI」；C5 仅作历史/价格通道）
+2. **✅ 已实锤（v1.5.7 取证 + v1.5.8 定论）**：用户装 v1.5.7 同步后发回完整文案，context 2/16 均返回 `{"response":{}}`（连 total_inventory_count/assets 都没有），
+   昵称「言念如一」正确 → **SteamID 没填错、key/网络没问题**；双 context 全部为空对象 → **Valve 对第三方不返回交易保护期物品**（与 C5 服务端 status=4 可见对照一致）。
+   库存通道维持「仅 Steam Web API」，无需再做会话登录态 / C5 库存 / 手动录入三选一。
+3. **⏭ 收尾**：等首批 14 件箱子 7 天保护期结束，用 v1.5.8 再次同步（空库存文案会显示本地保护中件数与最早解锁日），预期开始返回 items；
+   若解锁后仍 `{"response":{}}` 再回来排查（换 VPN 节点 / 联系 Steam 客服 / 手动录入兜底）。
 ## 2. 问题二：历史导入全通道 0 成功（部分解决）
 
 ### 现象
@@ -170,7 +183,7 @@ pricehistory 与库存 JSON 同属 steamcommunity 的服务，**在该环境整�
 | 快速补历史（backfill 模式 + 剩余统计） | `scanService.quickBackfill` + `collector` mode:'backfill' |
 | Skinport 成交统计 | `skinport.ts` + `engine.skinportStats`（10 分钟缓存） |
 | 历史导入失败原因显形 | collector `histFailReason` + 完成消息/首页提示 |
-| 验证 | verify_core **230** 项（含 webapi/skinport/rss/steam_sync/empty_reason 断言）；pytest 39 |
+| 验证 | verify_core **240** 项（含 webapi/skinport/rss/steam_sync/empty_reason 断言）；pytest 39 |
 
 ## 4. 对用户的既有承诺/说明（保持口径一致）
 

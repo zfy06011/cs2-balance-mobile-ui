@@ -604,13 +604,19 @@ assert('steam_sync.est_default_7d', estimateCooldown({ tradable: false, tradable
 // 空库存诊断（v1.5.3）：context 2/16 各自 report 总数 + SteamID 昵称，区分「ID 填错」与「Valve 不返回保护期物品」
 assert('empty_reason.ctx16_error', buildEmptySyncReason({ ctx16Error: 'HTTP 429', assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: null, playerName: '言念如一' }).includes('context 16）失败：HTTP 429') && buildEmptySyncReason({ ctx16Error: 'HTTP 429', assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: null, playerName: '言念如一' }).includes('context 2 报 0 件、context 16 报 ? 件'));
 assert('empty_reason.all_zero', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('该账号 CS2 库存里没有任何物品') && buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('昵称「言念如一」'));
-assert('empty_reason.all_zero_hint', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('请用 Steam 登录后的会话同步验证'));
+assert('empty_reason.all_zero_hint', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('解锁后在本页重新同步即可自动显示') && buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('本地已记录') === false && buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('请用 Steam 登录后的会话同步验证') === false);
 assert('empty_reason.nickname_missing', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: null }).includes('无法取得该 SteamID 昵称'));
 assert('empty_reason.has_asset_no_case', buildEmptySyncReason({ assetCount: 2, totalInventoryCount: 2, ctx2Total: 2, ctx16Total: 0, playerName: '言念如一' }).includes('Steam 库存可见 2 件物品，但没有武器箱'));
 assert('empty_reason.weird_empty', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 5, ctx2Total: 5, ctx16Total: 0, playerName: null }).includes('报告共 5 件但列表为空'));
 // v1.5.7：空库存文案携带 Steam 原始返回片段（用户直接发回即可核对 Steam 实际返回形状）
 assert('empty_reason.raw_snippet', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: null, ctx16Total: null, playerName: '言念如一', ctx2Raw: '{"response":{}}', ctx16Raw: '{"response":{}}' }).includes('Steam 原始返回片段：{"response":{}} || {"response":{}}'));
 assert('empty_reason.raw_omitted_when_none', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: 'x' }).includes('Steam 原始返回片段') === false);
+// v1.5.8：双通道均为空响应对象 + 本地保护期记录 → 断言「不返回保护期物品」结论与本地保护期提示
+assert('empty_reason.protection_hint_full', (() => {
+  const r = buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: null, ctx16Total: null, playerName: '言念如一', ctx2Raw: '{"response":{}}', ctx16Raw: '{"response":{}}', localProtectedCount: 14, localEarliestUnlockAt: '2026-09-12T04:00:00.000Z' });
+  return r.includes('已排除 Key、SteamID 与网络错误') && r.includes('本地已记录 14 件保护中箱子') && r.includes('最早约 ') && r.includes('解锁后在本页重新同步即可自动显示') && r.includes('Steam 原始返回片段：{"response":{}} || {"response":{}}');
+})());
+assert('empty_reason.protection_hint_zero', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: null, ctx16Total: null, playerName: '言念如一', ctx2Raw: '{"response":{}}', ctx16Raw: '{"response":{}}', localProtectedCount: 0 }).includes('本地已记录') === false);
 
 // ---------- 12d. v1.5.6：端到端 mock Steam Web API（response 包装） ----------
 // 直接驱动 fetchSteamInventoryWebApi：context 2/16 + GetPlayerSummaries 全部返回
