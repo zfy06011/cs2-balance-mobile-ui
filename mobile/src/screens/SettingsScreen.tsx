@@ -1,29 +1,36 @@
-/** 设置：本地数据源配置、一键采集、数据状态（纯手机版，无需后端地址） */
+/** 设置：本地数据源配置、采集数量、数据状态（纯手机版，无需后端地址） */
 import React, { useEffect, useState } from 'react';
 import {
-  Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { api, HealthResult } from '../api/client';
-import type { CollectProgress } from '../data/collector';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { colors } from '../theme/colors';
+import type { CookieLoginKind } from './CookieLoginScreen';
 
-const COUNT_OPTIONS = [12, 20, 50];
+interface Props {
+  /** 打开 App 内一键登录（Steam / C5） */
+  onCookieLogin?: (kind: CookieLoginKind) => void;
+}
 
-export function SettingsScreen() {
+export function SettingsScreen({ onCookieLogin }: Props) {
   const [status, setStatus] = useState<HealthResult | null>(null);
   const [c5Key, setC5Key] = useState('');
+  const [c5Cookie, setC5Cookie] = useState('');
   const [cookie, setCookie] = useState('');
   const [steamId, setSteamId] = useState('');
+  const [steamApiKey, setSteamApiKey] = useState('');
   const [count, setCount] = useState(20);
   const [msg, setMsg] = useState<string | null>(null);
   const [buyMaxPrice, setBuyMaxPrice] = useState('0');
   const [buyTargetZhe, setBuyTargetZhe] = useState('0');
   const [buyMaxBudget, setBuyMaxBudget] = useState('0');
   const [radarTargetZhe, setRadarTargetZhe] = useState('7');
-  const [collecting, setCollecting] = useState(false);
-  const [progress, setProgress] = useState<CollectProgress | null>(null);
+  const [clearModal, setClearModal] = useState(false);
+  const [clearSel, setClearSel] = useState({ snapshots: true, inventory: true, orders: true });
 
   const loadStatus = async () => {
     try {
@@ -31,8 +38,10 @@ export function SettingsScreen() {
       setStatus(s);
       const settings = await api.getSettings();
       setC5Key(settings.c5AppKey);
+      setC5Cookie(settings.c5Cookie || '');
       setCookie(settings.steamCookie);
       setSteamId(settings.steamId || '');
+      setSteamApiKey(settings.steamApiKey || '');
       setCount(settings.refreshCount);
       setBuyMaxPrice(String(settings.buyMaxPrice));
       setBuyTargetZhe(String(settings.buyTargetZhe));
@@ -51,8 +60,10 @@ export function SettingsScreen() {
     try {
       await api.updateSettings({
         c5AppKey: c5Key.trim(),
+        c5Cookie: c5Cookie.trim(),
         steamCookie: cookie.trim(),
         steamId: steamId.trim(),
+        steamApiKey: steamApiKey.trim(),
         refreshCount: count,
         buyMaxPrice: parseFloat(buyMaxPrice) || 0,
         buyTargetZhe: parseFloat(buyTargetZhe) || 0,
@@ -77,31 +88,23 @@ export function SettingsScreen() {
     }
   };
 
-  const startCollect = async () => {
-    setCollecting(true);
-    setProgress(null);
-    try {
-      const stats = await api.refresh({ count, onProgress: setProgress });
-      setMsg(`采集完成：成功 ${stats.success} / ${stats.total}，失败 ${stats.failed}（耗时 ${stats.elapsedSec}s）`);
-    } catch (e) {
-      setMsg(`采集失败：${e instanceof Error ? e.message : '未知错误'}`);
-    } finally {
-      setCollecting(false);
-      loadStatus();
-    }
+  const clearData = () => {
+    setClearModal(true);
   };
 
-  const clearData = () => {
-    Alert.alert('确认清空', '将删除全部本地快照、库存与设置，确定？', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '清空', style: 'destructive', onPress: async () => {
-          await api.clearAllData();
-          setMsg('已清空本地数据');
-          loadStatus();
-        },
-      },
-    ]);
+  const clearConfirm = async () => {
+    const parts = { snapshots: clearSel.snapshots, inventory: clearSel.inventory, orders: clearSel.orders };
+    if (!parts.snapshots && !parts.inventory && !parts.orders) return;
+    await api.clearAllData(parts);
+    setClearModal(false);
+    const cleared = [
+      parts.snapshots ? '价格快照' : '',
+      parts.inventory ? '库存记录' : '',
+      parts.orders ? '订单流水' : '',
+    ].filter(Boolean).join('、');
+    Alert.alert('已清除', `已删除：${cleared}（设置与登录凭证保留）`);
+    setMsg(`已清除：${cleared}`);
+    loadStatus();
   };
 
   return (
@@ -119,23 +122,30 @@ export function SettingsScreen() {
           </Card>
 
           <Card>
-            <SectionTitle>一键采集</SectionTitle>
-            <Text style={styles.hint}>从 Steam「热门物品 → 武器箱」拉取价格并存入手机本地，配置 C5 app-key 时同时批量获取买入价。采集数量越大耗时越长（每个约 2 秒）。</Text>
-            <View style={styles.countRow}>
-              {COUNT_OPTIONS.map((c) => (
-                <TouchableOpacity key={c} style={[styles.countBtn, count === c && styles.countActive]} onPress={() => setCount(c)}>
-                  <Text style={[styles.countText, count === c && styles.countTextActive]}>{c} 个</Text>
-                </TouchableOpacity>
-              ))}
+            <SectionTitle>扫描数量</SectionTitle>
+            <Text style={styles.hint}>首页「📡 一键扫描」每次扫描的武器箱数量，拖动即改、即时生效（1-100 个）。数量越大耗时越长（每个约 2 秒）；中断后重扫只补缺的。</Text>
+            <Text style={styles.countValue}>{count} 个</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={1}
+              maximumValue={100}
+              step={1}
+              value={count}
+              minimumTrackTintColor={colors.primary}
+              maximumTrackTintColor={colors.border}
+              thumbTintColor={colors.primary}
+              onValueChange={(v) => setCount(Math.round(v))}
+              onSlidingComplete={(v) => {
+                const c = Math.round(v);
+                setCount(c);
+                api.updateSettings({ refreshCount: c }).catch(() => undefined);
+              }}
+            />
+            <View style={styles.sliderScale}>
+              <Text style={styles.sliderScaleText}>1</Text>
+              <Text style={styles.sliderScaleText}>50</Text>
+              <Text style={styles.sliderScaleText}>100</Text>
             </View>
-            <TouchableOpacity style={[styles.btnPrimary, collecting && { opacity: 0.6 }]} onPress={startCollect} disabled={collecting}>
-              <Text style={styles.btnPrimaryText}>{collecting ? '采集中…' : '📡 开始采集'}</Text>
-            </TouchableOpacity>
-            {progress ? (
-              <Text style={styles.progress}>
-                {progress.stage === 'listing' ? '拉取热门武器箱榜单…' : `已采集 ${progress.done} / ${progress.total} 个`}
-              </Text>
-            ) : null}
           </Card>
 
           <Card>
@@ -150,22 +160,49 @@ export function SettingsScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Text style={styles.hint}>Steam cookie 可选：登录 Steam 后在浏览器复制 Cookie 填入，可提高价格接口稳定性。</Text>
+            <Text style={styles.hint}>推荐用「一键登录」：App 内登录一次，凭证自动保存——Steam 登录供库存会话兜底，C5 登录供首页「快速导入历史」（官方趋势）与买入参考使用。手填 Cookie 仅作备用（浏览器 F12 复制整行 Cookie）。</Text>
+            <View style={styles.countRow}>
+              <TouchableOpacity style={[styles.btnPrimary, styles.halfBtn]} onPress={() => onCookieLogin?.('steam')}>
+                <Text style={styles.btnPrimaryText}>🔐 Steam 一键登录</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btnPrimary, styles.halfBtn]} onPress={() => onCookieLogin?.('c5')}>
+                <Text style={styles.btnPrimaryText}>🔐 C5 一键登录</Text>
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={styles.input}
               value={cookie}
               onChangeText={setCookie}
-              placeholder="Steam Cookie（选填）"
+              placeholder="Steam Cookie（备用，可留空）"
               placeholderTextColor={colors.textDim}
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Text style={styles.hint}>SteamID64（/profiles/ 后的 17 位数字）用于库存页「同步 Steam 冷却」，获取真实冷却天数并精确到小时。</Text>
+            <TextInput
+              style={styles.input}
+              value={c5Cookie}
+              onChangeText={setC5Cookie}
+              placeholder="C5 Cookie（备用，可留空）"
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Text style={styles.hint}>Steam Web API Key（推荐）：电脑浏览器打开 steamcommunity.com/dev/apikey，登录后注册一个 Key（域名随便填），粘贴到这里。库存同步将走官方接口——能看到交易保护中的箱子（社区接口看不到），保护期也精确到时刻。</Text>
+            <TextInput
+              style={styles.input}
+              value={steamApiKey}
+              onChangeText={setSteamApiKey}
+              placeholder="Steam Web API Key（32 位十六进制，选填）"
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Text style={styles.hint}>SteamID64（资料页 /profiles/ 后的 17 位数字，或自定义 URL 如 steamcommunity.com/id/xxx）：配合上面的 Web API Key 即可同步库存，无需 Steam 登录。已「一键登录」过的会自动识别，此项可留空。</Text>
             <TextInput
               style={styles.input}
               value={steamId}
               onChangeText={setSteamId}
-              placeholder="SteamID64（选填）"
+              placeholder="SteamID64 或自定义 URL（选填）"
               placeholderTextColor={colors.textDim}
               autoCapitalize="none"
               autoCorrect={false}
@@ -229,13 +266,52 @@ export function SettingsScreen() {
           </Card>
 
           <TouchableOpacity style={styles.btnDanger} onPress={clearData}>
-            <Text style={styles.btnDangerText}>清空本地数据</Text>
+            <Text style={styles.btnDangerText}>清除本地数据（可按板块选择）</Text>
           </TouchableOpacity>
 
           {msg ? <Text style={styles.msg}>{msg}</Text> : null}
-          <Text style={styles.footer}>CS2 余额助手 v1.3.0（纯手机版）· 仅供学习研究，不构成投资建议</Text>
+          <Text style={styles.footer}>宇额助手 v{Constants.expoConfig?.version ?? '未知'}（纯手机版）· 仅供学习研究，不构成投资建议</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 分板块清除弹窗 */}
+      <Modal visible={clearModal} transparent animationType="fade" onRequestClose={() => setClearModal(false)}>
+        <View style={styles.modalMask}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>清除本地数据</Text>
+            <Text style={styles.modalHint}>勾选要删除的板块（设置、C5 app-key、登录凭证始终保留）：</Text>
+            {([
+              { key: 'snapshots', title: '价格快照', desc: 'Steam/C5 历史、官方历史导入数据；清除后需重新扫描' },
+              { key: 'inventory', title: '库存记录', desc: '购买记录与冷却倒计时；Steam 导入的箱子也会删除' },
+              { key: 'orders', title: '订单流水', desc: '一键买入的订单历史' },
+            ] as const).map((row) => (
+              <TouchableOpacity
+                key={row.key}
+                style={styles.modalRow}
+                onPress={() => setClearSel((s) => ({ ...s, [row.key]: !s[row.key] }))}
+              >
+                <Text style={[styles.modalCheck, clearSel[row.key] && styles.modalCheckOn]}>{clearSel[row.key] ? '☑' : '☐'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalRowTitle}>{row.title}</Text>
+                  <Text style={styles.modalRowDesc}>{row.desc}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            <View style={styles.btnRow}>
+              <TouchableOpacity style={[styles.btnGhost, { flex: 1 }]} onPress={() => setClearModal(false)}>
+                <Text style={styles.btnGhostText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnDanger, { flex: 1 }, !clearSel.snapshots && !clearSel.inventory && !clearSel.orders && { opacity: 0.4 }]}
+                disabled={!clearSel.snapshots && !clearSel.inventory && !clearSel.orders}
+                onPress={clearConfirm}
+              >
+                <Text style={styles.btnDangerText}>确认清除</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -250,13 +326,22 @@ const styles = StyleSheet.create({
     color: colors.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 10,
   },
   countRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  countBtn: {
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
-    backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border,
+  halfBtn: { flex: 1, paddingVertical: 12 },
+  modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  modalBox: {
+    backgroundColor: colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border,
   },
-  countActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  countText: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
-  countTextActive: { color: '#FFFFFF' },
+  modalTitle: { color: colors.text, fontSize: 17, fontWeight: '800', marginBottom: 6 },
+  modalHint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
+  modalRow: { flexDirection: 'row', gap: 10, paddingVertical: 8, alignItems: 'flex-start' },
+  modalCheck: { color: colors.primary, fontSize: 20, lineHeight: 24 },
+  modalCheckOn: { color: colors.primary },
+  modalRowTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  modalRowDesc: { color: colors.textDim, fontSize: 11, marginTop: 2, lineHeight: 15 },
+  countValue: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 4 },
+  slider: { width: '100%', height: 40 },
+  sliderScale: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  sliderScaleText: { color: colors.textDim, fontSize: 11 },
   btnPrimary: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnPrimaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 2 },

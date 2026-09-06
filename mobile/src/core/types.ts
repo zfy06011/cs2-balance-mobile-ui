@@ -82,6 +82,9 @@ export interface InventoryEntry {
   net_profit_estimate: number | null;
   roi_estimate: number | null;
   expected_discount_estimate: number | null;
+  /** 最佳卖出时机建议（结合活动窗口） */
+  sell_advice_code?: 'sell_now' | 'sell_at_unlock' | 'wait_recovery' | 'wait_event_pass';
+  sell_advice_text?: string;
 }
 
 /** 本地购买记录（一键买入成功后写入，随订单留存） */

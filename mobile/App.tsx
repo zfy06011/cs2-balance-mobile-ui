@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from './src/theme/colors';
 import { warmZhNames } from './src/data/zhNames';
+import { attachScanLifecycle, scanService } from './src/data/scanService';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
 import { RadarScreen } from './src/screens/RadarScreen';
@@ -16,6 +17,7 @@ import { DetailScreen } from './src/screens/DetailScreen';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { SimulateScreen } from './src/screens/SimulateScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { CookieLoginScreen, CookieLoginKind } from './src/screens/CookieLoginScreen';
 
 type TabKey = 'home' | 'market' | 'inventory' | 'radar' | 'settings';
 
@@ -31,10 +33,16 @@ export default function App() {
   const [tab, setTab] = useState<TabKey>('home');
   const [detailName, setDetailName] = useState<string | null>(null);
   const [simOpen, setSimOpen] = useState(false);
+  const [cookieLogin, setCookieLogin] = useState<CookieLoginKind | null>(null);
+  const [histPull, setHistPull] = useState(false);
+  // 登录弹窗关闭后强制重挂载设置页，让 cookie 方框立即刷新为已保存值
+  const [settingsTick, setSettingsTick] = useState(0);
 
   // 启动即预热 Steam 官方中文名缓存（采集后会自动更新）
   useEffect(() => {
     warmZhNames().catch(() => undefined);
+    scanService.restoreAndResume().catch(() => undefined);
+    return attachScanLifecycle();
   }, []);
 
   if (detailName) {
@@ -59,12 +67,13 @@ export default function App() {
               onOpenRadar={() => setTab('radar')}
               onOpenSimulate={() => setSimOpen(true)}
               onOpenDetail={openDetail}
+              onOpenHistImport={() => setHistPull(true)}
             />
           ) : null}
           {tab === 'market' ? <MarketScreen onOpenDetail={openDetail} /> : null}
           {tab === 'radar' ? <RadarScreen onOpenDetail={openDetail} /> : null}
           {tab === 'inventory' ? <InventoryScreen /> : null}
-          {tab === 'settings' ? <SettingsScreen /> : null}
+          {tab === 'settings' ? <SettingsScreen key={settingsTick} onCookieLogin={setCookieLogin} /> : null}
         </View>
         <View style={styles.tabBar}>
           {TABS.map((t) => (
@@ -77,6 +86,22 @@ export default function App() {
         {simOpen ? (
           <View style={styles.overlay}>
             <SimulateScreen onBack={() => setSimOpen(false)} />
+          </View>
+        ) : null}
+        {cookieLogin ? (
+          <View style={styles.overlay}>
+            <CookieLoginScreen
+              kind={cookieLogin}
+              onClose={() => {
+                setCookieLogin(null);
+                setSettingsTick((t) => t + 1);
+              }}
+            />
+          </View>
+        ) : null}
+        {histPull ? (
+          <View style={styles.overlay}>
+            <CookieLoginScreen kind="steam-hist" onClose={() => setHistPull(false)} />
           </View>
         ) : null}
       </View>

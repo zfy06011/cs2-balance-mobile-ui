@@ -25,4 +25,11 @@ Thumbs.db
 mobile/scripts/.verify-build/
 mobile/scripts/.verify-c5-build/
 releases/*.apk
+# 本地工具/缓存（不提交）
+.zcode/
+mobile/_*.py
 
+# verify 编译输出
+mobile/scripts/.verify-c5/
+mobile/scripts/.verify-skinport/
+mobile/scripts/.verify-steam/

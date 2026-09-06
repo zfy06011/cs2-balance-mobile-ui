@@ -4,21 +4,27 @@
  * 与后端 routes 的产出结构保持一致，UI 无需关心数据来自本地还是后端。
  */
 import {
-  storage, LocalSnapshot, LocalInventoryItem, LOCK_HOURS, LOCK_DAYS,
+  storage, LocalSnapshot, LOCK_HOURS, LOCK_DAYS,
 } from '../data/storage';
 import { collectCases, collectOne, CollectProgress, CollectStats } from '../data/collector';
-import { fetchSteamInventory, SteamInventoryItem } from '../data/steam';
+import { fetchSteamInventoryWebApi, parseWebApiInventory, parsePriceHistory, resolveOwnSteamId, resolveSteamIdViaWebApi } from '../data/steam';
+import { fetchSkinportHistory, SkinportStats } from '../data/skinport';
+import { fetchC5StatsBulk, fetchC5PriceTrend, fetchC5ItemIdViaWeb } from '../data/c5';
+
+let skinportCache: Map<string, { t: number; v: SkinportStats | null }> | null = null;
 import { ProfitCalculator } from './profit';
-import { BaselinePredictor, BaselinePredictorV2, STEAM_SALE_EVENTS_2026, type MarketEvent } from './prediction';
+import { BaselinePredictor, BaselinePredictorV3, MARKET_EVENTS, type MarketEvent } from './prediction';
 import { evaluateRadar } from './radar';
 import { simulate as runSimulation, reverseTarget, SimItemInput, SIM_CONFIG } from './simulation';
 import { checkPurchase, BuyProtection, BuyCheckResult, buildBuySummary } from './buy';
+import { planSteamSync, buildEmptySyncReason } from './steamSync';
+import { buildSellAdvice, buildC5BuyAdvice, AdvicePoint } from './advice';
 import { DEFAULT_FEES } from './fees';
 import type {
   Quote, RadarItem, Prediction, Scenario, InventoryEntry, Simulation, OrderRecord, HistoryPoint,
 } from './types';
 
-const predictor = new BaselinePredictorV2();
+const predictor = new BaselinePredictorV3();
 const calc = new ProfitCalculator(DEFAULT_FEES.c5_buy_fee_ratio, DEFAULT_FEES.steam_seller_receive_ratio);
 
 export interface AppStatus {
@@ -125,7 +131,7 @@ function buildPrediction(name: string, c5Price: number | null, prices: number[],
     volume: extra.volume ?? null,
     volumeHistory: extra.volumeHistory,
     popularRank: extra.popularRank ?? null,
-    events: extra.events ?? STEAM_SALE_EVENTS_2026,
+    events: extra.events ?? MARKET_EVENTS,
   });
   const scenarios: Scenario[] = [];
   if (c5Price != null) {
@@ -356,6 +362,7 @@ export const engine = {
       const msLeft = Math.max(0, unlockTs - nowTs);
       const hoursLeft = msLeft / 3600000;
       const daysLeft = hoursLeft / 24;
+      const advice = buildSellAdvice(unlock.toISOString(), r.steam_tradable === true, MARKET_EVENTS);
       out.push({
         id: r.id,
         item_name: r.item_name,
@@ -374,10 +381,39 @@ export const engine = {
         net_profit_estimate: netProfit,
         roi_estimate: roi,
         expected_discount_estimate: discount != null ? round(discount, 6) : null,
+        sell_advice_code: advice.code,
+        sell_advice_text: advice.text,
       });
     }
     out.sort((a, b) => a.unlock_at.localeCompare(b.unlock_at));
     return out;
+  },
+
+  /** Skinport 实际成交统计（免 Key 免登录；10 分钟内存缓存） */
+  async skinportStats(name: string): Promise<SkinportStats | null> {
+    if (!skinportCache) skinportCache = new Map();
+    const hit = skinportCache.get(name);
+    if (hit && Date.now() - hit.t < 10 * 60 * 1000) return hit.v;
+    try {
+      const map = await fetchSkinportHistory([name]);
+      const v = map[name] ?? null;
+      skinportCache.set(name, { t: Date.now(), v });
+      return v;
+    } catch {
+      return null;
+    }
+  },
+
+  /** C5 买入时机参考：近 7/30 天 C5 统计 + 长周期 Steam 日线（波动率/90 天低位/长趋势）→ 买入建议 */
+  async c5BuyAdvice(name: string) {
+    const [hist, steamLong] = await Promise.all([
+      storage.getC5History(name, 40),
+      storage.getSteamHistory(name, 120),
+    ]);
+    const latestC5 = await storage.getLatestC5(name);
+    const points: AdvicePoint[] = hist.map((s) => ({ t: new Date(s.fetchedAt).getTime(), price: s.price }));
+    const long: AdvicePoint[] = steamLong.map((s) => ({ t: new Date(s.fetchedAt).getTime(), price: s.price }));
+    return buildC5BuyAdvice(points, latestC5?.price ?? null, Date.now(), { longHistory: long });
   },
 
   async addInventory(params: { item_name: string; quantity: number; buy_price: number }): Promise<{ id: number; unlock_at: string; days: number }> {
@@ -393,59 +429,206 @@ export const engine = {
   },
 
   /** 同步 Steam 库存 → 用真实冷却校正本地库存解锁时间（精确到小时） */
-  async syncSteamInventory(steamIdInput: string): Promise<{ matched: number; unlocked: number; notFound: number; at: string }> {
+  /** 会话导入历史的目标清单：Steam 价格点不足 14 的名字优先（升序），供网页内导入 */
+  async listHistoryTargets(limit = 60): Promise<string[]> {
+    const snaps = await storage.getSnapshots();
+    const counts = new Map<string, number>();
+    for (const s of snaps) {
+      if (s.source !== 'steam' || s.price <= 0) continue;
+      counts.set(s.name, (counts.get(s.name) ?? 0) + 1);
+    }
+    const names = [...counts.entries()]
+      .filter(([, c]) => c < 14)
+      .sort((a, b) => a[1] - b[1])
+      .map(([n]) => n);
+    if (names.length > 0) return names.slice(0, limit);
+    return [...counts.keys()].slice(0, limit);
+  },
+
+  /** 网页会话抓到的 pricehistory.prices 解析入库，返回新增点数 */
+  async importSteamPriceHistoryRaw(name: string, prices: unknown): Promise<{ added: number }> {
+    const pts = parsePriceHistory(prices, 120);
+    if (pts.length === 0) return { added: 0 };
+    const added = await storage.mergeSteamHistory(name, pts);
+    return { added };
+  },
+
+  /** C5 历史导入目标清单：Steam / C5 历史点不足 14 的名字优先（升序），供 C5 快速通道 */
+  async c5HistoryTargets(limit = 60): Promise<string[]> {
+    const snaps = await storage.getSnapshots();
+    const counts = new Map<string, number>();
+    for (const s of snaps) {
+      if ((s.source !== 'steam' && s.source !== 'c5_hist') || s.price <= 0) continue;
+      counts.set(s.name, (counts.get(s.name) ?? 0) + 1);
+    }
+    const names = [...counts.entries()]
+      .filter(([, c]) => c < 14)
+      .sort((a, b) => a[1] - b[1])
+      .map(([n]) => n);
+    if (names.length > 0) return names.slice(0, limit);
+    return [...counts.keys()].slice(0, limit);
+  },
+
+  /** C5 快速导入（借鉴 C5 网页趋势接口）：itemId → price-trend/chart → c5_hist 入库。
+   *  任一件失败即停止返回（UI 据此询问「跳过继续 / 停止」，不再静默跳过）。 */
+  async importC5Histories(
+    names: string[],
+    opts: { c5AppKey: string; c5Cookie: string },
+    onItem?: (done: number, total: number, name: string, added: number) => void,
+    startIdx = 0,
+  ): Promise<{
+    ok: number; skip: number; fail: number;
+    failedIdx: number | null; failedName: string | null; failedReason: string | null;
+  }> {
+    const key = (opts.c5AppKey || '').trim();
+    const cookie = (opts.c5Cookie || '').trim();
+    let ok = 0;
+    let skip = 0;
+    let fail = 0;
+    for (let i = startIdx; i < names.length; i++) {
+      const name = names[i];
+      try {
+        let itemId = '';
+        if (key) {
+          try {
+            const stats = await fetchC5StatsBulk([name], key);
+            itemId = stats[name]?.itemId ?? '';
+          } catch {
+            itemId = '';
+          }
+        }
+        if (!itemId) {
+          itemId = await fetchC5ItemIdViaWeb(name, cookie);
+        }
+        if (!itemId) {
+          throw new Error('未查到 C5 itemId（需有效 C5 app-key 或已登录的 C5 Cookie）');
+        }
+        if (!cookie) {
+          throw new Error('未配置 C5 Cookie，无法拉取趋势');
+        }
+        const pts = await fetchC5PriceTrend(itemId, cookie, '90', 120);
+        if (pts.length === 0) {
+          throw new Error('C5 趋势接口无数据（Cookie 可能已失效）');
+        }
+        const added = await storage.mergeC5History(name, pts);
+        onItem?.(i + 1, names.length, name, added);
+        if (added > 0) ok++;
+        else skip++;
+      } catch (e) {
+        fail++;
+        onItem?.(i + 1, names.length, name, 0);
+        return {
+          ok, skip, fail,
+          failedIdx: i, failedName: name,
+          failedReason: e instanceof Error ? e.message : String(e),
+        };
+      }
+    }
+    return { ok, skip, fail, failedIdx: null, failedName: null, failedReason: null };
+  },
+
+  /** 库存同步唯一入口：Steam Web API + 双 Context（context 2 普通 + context 16 交易保护）。
+   *  需配置 Steam Web API Key（免费，steamcommunity.com/dev/apikey 申请）；
+   *  交易保护期物品在 context 16，context 16 失败会直接导致保护箱缺失——原因必须透出。 */
+  async syncSteamInventorySmart(): Promise<{
+    matched: number; unlocked: number; imported: number; notFound: number;
+    steamId: string; empty: boolean; assetCount: number; totalInventoryCount: number | null;
+    ctx2Total: number | null; ctx16Total: number | null; playerName: string | null;
+    source: 'steam_webapi'; reason?: string; ctx16Error?: string; at: string;
+  }> {
     const settings = await storage.getSettings();
-    const items = await fetchSteamInventory(steamIdInput, settings.steamCookie || '');
-    const byName = new Map<string, SteamInventoryItem>();
-    for (const it of items) byName.set(it.name, it);
+    const cookie = (settings.steamCookie || '').trim();
+    const apiKey = (settings.steamApiKey || '').trim();
+    let steamId = (settings.steamId || '').trim();
+    if (cookie) {
+      try {
+        const sid = await resolveOwnSteamId(cookie);
+        steamId = sid;
+        await storage.updateSettings({ steamId: sid });
+      } catch {
+        // cookie 失效时回退已存 steamId；两者皆无则走下方精准提示
+      }
+    }
+    if (!apiKey) {
+      throw new Error('请先到「设置」页配置 Steam Web API Key（免费，steamcommunity.com/dev/apikey 申请）。官方接口含交易保护箱（context 16）。');
+    }
+    if (!steamId) {
+      throw new Error('请到「设置」页填写你的 SteamID64（资料页 /profiles/ 后的 17 位数字，或自定义 URL 如 steamcommunity.com/id/xxx），配合 Web API Key 即可同步，无需 Steam 登录');
+    }
+    // 自定义 URL / vanity：仅凭 Key 即可解析为 17 位数字，无需 Cookie 登录
+    if (!/^\d{17}$/.test(steamId) && !/profiles\/\d{17}/.test(steamId)) {
+      const resolved = await resolveSteamIdViaWebApi(apiKey, steamId);
+      await storage.updateSettings({ steamId: resolved });
+      steamId = resolved;
+    }
+    const fetched = await fetchSteamInventoryWebApi(apiKey, steamId);
+    const { items, assetCount, totalInventoryCount, ctx16Error, ctx2Total, ctx16Total, playerName } = fetched;
+    const now = new Date();
+    if (items.length === 0) {
+      // 用户库存全在保护期时，context 2 天然为空；若 context 16 也失败则保护箱整体缺失——优先显形。
+      // 附带 context 2/16 各自 report 的总数 + SteamID 昵称，用于区分「ID 填错」与「Valve 不返回保护期物品」。
+      const reason = buildEmptySyncReason({ ctx16Error, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName });
+      return { matched: 0, unlocked: 0, imported: 0, notFound: 0, steamId, empty: true, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, source: 'steam_webapi', reason, ctx16Error, at: now.toISOString() };
+    }
+    const rows = await storage.getInventory();
+    const plan = planSteamSync(rows, items, now);
+    await storage.updateInventoryCooldown(plan.updates);
+    await storage.addInventoryBulk(plan.newEntries);
+    return {
+      matched: plan.matched,
+      unlocked: plan.unlocked,
+      imported: plan.imported,
+      notFound: plan.notFound,
+      steamId,
+      empty: false,
+      assetCount,
+      totalInventoryCount,
+      ctx2Total,
+      ctx16Total,
+      playerName,
+      source: 'steam_webapi',
+      ctx16Error,
+      at: now.toISOString(),
+    };
+  },
+
+  /** 会话拉取：解析 WebView 内（完整登录态）抓到的库存 JSON 并入库。
+   *  交易保护期内的箱子不在经典接口的匿名返回里，但在登录会话视角可见，此入口即为此设计。 */
+  async importSteamInventoryRaw(raw: string): Promise<{
+    matched: number; unlocked: number; imported: number; notFound: number;
+    assetCount: number; totalInventoryCount: number | null; at: string;
+  }> {
+    let data: Parameters<typeof parseWebApiInventory>[0];
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error('拉取到的不是有效 JSON（可能未登录或页面异常），请确认已登录 Steam 后重试');
+    }
+    // parseWebApiInventory 兼容 assets/descriptions 形状，且支持 cache_expiration（保护期精算）
+    const { items, assetCount, totalInventoryCount } = parseWebApiInventory(data);
     const rows = await storage.getInventory();
     const now = new Date();
-    const nowTs = now.getTime();
-    const updates: Array<{
-      id: number;
-      patch: Pick<LocalInventoryItem, 'steam_synced_at' | 'steam_tradable' | 'steam_unlock_est_at' | 'steam_first_seen_at'>;
-    }> = [];
-    let matched = 0;
-    let unlocked = 0;
-    let notFound = 0;
-    for (const r of rows) {
-      const st = byName.get(r.item_name);
-      if (!st) {
-        notFound++;
-        continue;
-      }
-      matched++;
-      const days = st.tradableRestrictionDays;
-      const firstSeen = r.steam_first_seen_at || now.toISOString();
-      let estAt: string;
-      let tradableNow: boolean;
-      if (st.tradable || days === 0) {
-        // 已解锁：记录「观察到可交易」的时刻（误差 ≤ 两次同步间隔）
-        estAt = now.toISOString();
-        tradableNow = true;
-        unlocked++;
-      } else {
-        // 冷却中：Steam 仅给剩余整数天；以「本次观察时刻 + 剩余整天」为上界，
-        // 与历史估计取 min 单调逼近真实解锁（确保不早于真实解锁）
-        const effDays = days ?? 7;
-        const estThis = nowTs + effDays * 86400000;
-        const prevEstMs = r.steam_unlock_est_at ? new Date(r.steam_unlock_est_at).getTime() : NaN;
-        const hasPrev = Number.isFinite(prevEstMs) && prevEstMs > 0;
-        estAt = new Date(hasPrev ? Math.min(prevEstMs, estThis) : estThis).toISOString();
-        tradableNow = false;
-      }
-      updates.push({
-        id: r.id,
-        patch: {
-          steam_synced_at: now.toISOString(),
-          steam_tradable: tradableNow,
-          steam_unlock_est_at: estAt,
-          steam_first_seen_at: firstSeen,
-        },
-      });
-    }
-    await storage.updateInventoryCooldown(updates);
-    return { matched, unlocked, notFound, at: now.toISOString() };
+    const plan = planSteamSync(rows, items, now);
+    await storage.updateInventoryCooldown(plan.updates);
+    await storage.addInventoryBulk(plan.newEntries);
+    return {
+      matched: plan.matched,
+      unlocked: plan.unlocked,
+      imported: plan.imported,
+      notFound: plan.notFound,
+      assetCount,
+      totalInventoryCount,
+      at: now.toISOString(),
+    };
+  },
+
+  /** 用已登录的 Steam 会话同步库存：自动识别本人 SteamID64（存回设置），免手填、杜绝 ID 填错 */
+  async syncSteamInventoryFromSession(): Promise<{ matched: number; unlocked: number; imported: number; notFound: number; at: string; steamId: string }> {
+    const settings = await storage.getSettings();
+    const steamId = await resolveOwnSteamId(settings.steamCookie || '');
+    await storage.updateSettings({ steamId });
+    const res = await this.syncSteamInventorySmart();
+    return { ...res, steamId };
   },
 
   // ---- 订单 ----

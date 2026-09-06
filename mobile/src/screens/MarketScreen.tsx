@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Quote } from '../api/client';
-import type { CollectProgress } from '../data/collector';
 import { Card, Row } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
@@ -35,9 +34,6 @@ export function MarketScreen({ onOpenDetail }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [query, setQuery] = useState('');
-  const [collecting, setCollecting] = useState(false);
-  const [progress, setProgress] = useState<CollectProgress | null>(null);
-  const [collectCount, setCollectCount] = useState(20);
 
   const load = useCallback(async () => {
     try {
@@ -53,21 +49,7 @@ export function MarketScreen({ onOpenDetail }: Props) {
 
   useEffect(() => {
     load();
-    api.getSettings().then((s) => setCollectCount(s.refreshCount)).catch(() => undefined);
   }, [load]);
-
-  const startCollect = async () => {
-    setCollecting(true);
-    setProgress(null);
-    try {
-      await api.refresh({ count: collectCount, onProgress: setProgress });
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '采集失败');
-    } finally {
-      setCollecting(false);
-    }
-  };
 
   const q = query.trim().toLowerCase();
   const shown = quotes.filter((it) => {
@@ -112,13 +94,6 @@ export function MarketScreen({ onOpenDetail }: Props) {
           </TouchableOpacity>
         ))}
       </View>
-      {collecting ? (
-        <View style={styles.collecting}>
-          <Text style={styles.collectingText}>
-            📡 {progress?.message ?? '正在采集行情…'}
-          </Text>
-        </View>
-      ) : null}
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
@@ -129,7 +104,7 @@ export function MarketScreen({ onOpenDetail }: Props) {
           <Card>
             <Text style={styles.empty}>
               {quotes.length === 0
-                ? '暂无数据。点击上方「📡 一键扫描」拉取 Steam 热门武器箱行情。'
+                ? '暂无数据。去首页点「📡 一键扫描」拉取 Steam 热门武器箱行情。'
                 : '没有匹配的武器箱，换个关键词或筛选条件试试。'}
             </Text>
           </Card>
@@ -152,11 +127,6 @@ export function MarketScreen({ onOpenDetail }: Props) {
           </TouchableOpacity>
         ))}
       </ScrollView>
-      {!collecting ? (
-        <TouchableOpacity style={styles.scanFab} onPress={startCollect}>
-          <Text style={styles.scanFabText}>📡 一键扫描</Text>
-        </TouchableOpacity>
-      ) : null}
     </SafeAreaView>
   );
 }
@@ -177,8 +147,6 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
   tabTextActive: { color: '#FFFFFF' },
-  collecting: { paddingHorizontal: 14, paddingBottom: 4 },
-  collectingText: { color: colors.info, fontSize: 12 },
   content: { padding: 14, paddingBottom: 90 },
   itemCard: { paddingVertical: 10 },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
@@ -186,9 +154,4 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'center' },
   arrow: { color: colors.textDim, fontSize: 24, marginLeft: 8 },
   empty: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
-  scanFab: {
-    position: 'absolute', bottom: 16, left: 14, right: 14,
-    backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center',
-  },
-  scanFabText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
 });

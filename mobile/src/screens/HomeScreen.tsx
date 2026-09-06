@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Quote } from '../api/client';
-import type { CollectProgress } from '../data/collector';
+import { scanService, ScanState } from '../data/scanService';
+import { settingsEvents } from '../data/storage';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
@@ -25,6 +26,8 @@ interface Props {
   onOpenRadar: () => void;
   onOpenSimulate: () => void;
   onOpenDetail: (name: string) => void;
+  /** 打开「快速导入历史（C5 官方趋势）」 */
+  onOpenHistImport?: () => void;
 }
 
 function statusText(lastUpdated: string | null): { text: string; color: string } {
@@ -36,14 +39,13 @@ function statusText(lastUpdated: string | null): { text: string; color: string }
   return { text: '数据过期', color: colors.danger };
 }
 
-export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDetail }: Props) {
+export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDetail, onOpenHistImport }: Props) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [status, setStatus] = useState<{ lastUpdated: string | null; snapshotCount: number; itemCount: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [collecting, setCollecting] = useState(false);
-  const [progress, setProgress] = useState<CollectProgress | null>(null);
+  const [scan, setScan] = useState<ScanState>(scanService.getState());
   const [collectCount, setCollectCount] = useState(20);
 
   const load = useCallback(async () => {
@@ -63,19 +65,39 @@ export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDe
   useEffect(() => {
     load();
     api.getSettings().then((s) => setCollectCount(s.refreshCount)).catch(() => undefined);
+    // 扫描进度是全局状态：切页/前后台回来都实时显示
+    const unsubScan = scanService.subscribe(setScan);
+    // 设置页改扫描数量时，本页按钮上的数字实时刷新
+    const unsubSettings = settingsEvents.subscribe((s) => setCollectCount(s.refreshCount));
+    return () => {
+      unsubScan();
+      unsubSettings();
+    };
   }, [load]);
 
+  const collecting = scan.running;
+
   const startCollect = async () => {
-    setCollecting(true);
-    setProgress(null);
+    if (scan.running) return;
+    setError(null);
     try {
-      const stats = await api.refresh({ count: collectCount, onProgress: setProgress });
+      const stats = await scanService.start(collectCount);
       await load();
-      if (stats.success === 0) setError('采集失败：请检查网络后重试');
+      if (stats.success === 0 && stats.skipped === 0) setError('采集失败：请检查网络后重试');
     } catch (e) {
       setError(e instanceof Error ? e.message : '采集失败');
-    } finally {
-      setCollecting(false);
+    }
+  };
+
+  const quickBackfill = async () => {
+    if (scan.running) return;
+    setError(null);
+    try {
+      const res = await scanService.quickBackfill(collectCount);
+      await load();
+      setError(`快速补历史完成：${res.rounds} 轮，新采 ${res.success} 个点${res.failed > 0 ? `，失败 ${res.failed}` : ''}（不再有「历史不足」即为补齐）`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '补历史失败');
     }
   };
 
@@ -93,7 +115,7 @@ export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDe
       >
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>CS2 余额助手</Text>
+            <Text style={styles.title}>宇额助手</Text>
             <Text style={styles.subtitle}>C5GAME 买入 → 7 天限制期 → Steam 卖出</Text>
           </View>
           <View style={styles.statusBox}>
@@ -104,24 +126,41 @@ export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDe
           </View>
         </View>
 
-        {/* 一键扫描 */}
+        {/* 一键扫描（进度为全局状态：切页/前后台回来不丢；中断后点卡片续扫） */}
         {collecting ? (
           <Card style={styles.collectCard}>
-            <Text style={styles.collectTitle}>📡 正在采集行情…</Text>
+            <Text style={styles.collectTitle}>📡 正在扫描行情…</Text>
             <Text style={styles.collectDesc}>
-              {progress
-                ? progress.message ||
-                  (progress.stage === 'listing' ? '拉取热门武器箱榜单…' : `已采集 ${progress.done}/${progress.total} 个`)
+              {scan.progress
+                ? scan.progress.message ||
+                  (scan.progress.stage === 'listing' ? '拉取热门武器箱榜单…' : `已扫描 ${scan.progress.done}/${scan.progress.total} 个`)
                 : '准备中…'}
             </Text>
           </Card>
-        ) : (
+        ) : scan.progress && scan.progress.stage !== 'done' ? (
           <TouchableOpacity onPress={startCollect}>
             <Card style={styles.collectCard}>
-              <Text style={styles.collectTitle}>📡 一键扫描（{collectCount} 个）</Text>
-              <Text style={styles.collectDesc}>Steam 热门武器箱 → C5GAME 买入价，本地完成分析与预测</Text>
+              <Text style={styles.collectTitle}>
+                ⏸ 上次扫描未完成（{scan.progress.done}/{scan.progress.total}），点击继续
+              </Text>
+              <Text style={styles.collectDesc}>已扫描的不会重复采集，只补缺的部分</Text>
             </Card>
           </TouchableOpacity>
+        ) : (
+          <View>
+            <TouchableOpacity onPress={startCollect}>
+              <Card style={styles.collectCard}>
+                <Text style={styles.collectTitle}>📡 一键扫描（{collectCount} 个）</Text>
+                <Text style={styles.collectDesc}>Steam 热门武器箱 → C5GAME 买入价，本地完成分析与预测</Text>
+              </Card>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={quickBackfill}>
+              <Text style={styles.backfillLink}>⚡ 历史不足？快速补历史（连扫 4 轮，约 5–8 分钟）</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onOpenHistImport}>
+              <Text style={styles.backfillLink}>🔁 快速导入历史（C5 官方趋势，需 C5 登录一次）</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {loading ? <Loading msg="正在获取市场分析…" /> : null}
@@ -228,6 +267,7 @@ const styles = StyleSheet.create({
   collectCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary },
   collectTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   collectDesc: { color: colors.textDim, fontSize: 13, marginTop: 6, lineHeight: 18 },
+  backfillLink: { color: colors.info, fontSize: 12, textAlign: 'center', paddingVertical: 8 },
   heroCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary, padding: 18 },
   heroHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   heroLabel: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1 },

@@ -7,9 +7,12 @@ import { engine, BuyPrepareResult, BuyExecuteResult } from '../core/engine';
 import { storage } from '../data/storage';
 import { fetchC5StatsBulk, C5StatsResult } from '../data/c5';
 import type { CollectProgress, CollectStats } from '../data/collector';
+import type { C5BuyAdvice } from '../core/advice';
 export type { Quote, RadarItem, Scenario, Prediction, InventoryEntry, Simulation, SimulationItem, OrderRecord, HistoryPoint } from '../core/types';
 export type { BuyPrepareResult, BuyExecuteResult } from '../core/engine';
 export type { C5StatsResult } from '../data/c5';
+export type { C5BuyAdvice } from '../core/advice';
+export type { SkinportStats } from '../data/skinport';
 import type { Quote, RadarItem, Prediction, InventoryEntry, Simulation, OrderRecord, HistoryPoint } from '../core/types';
 
 // 为兼容旧签名保留（本地模式无后端地址概念）
@@ -44,7 +47,27 @@ export const api = {
   inventory: () => engine.inventory() as Promise<InventoryEntry[]>,
   addInventory: (params: { item_name: string; quantity: number; buy_price: number }) =>
     engine.addInventory(params),
-  syncSteamInventory: (steamId: string) => engine.syncSteamInventory(steamId),
+  /** C5 买入时机参考（近几天统计 + 较昨日变化 + 分位 + 趋势） */
+  c5BuyAdvice: (name: string) => engine.c5BuyAdvice(name),
+  /** Skinport 实际成交统计（免 Key 免登录） */
+  skinportStats: (name: string) => engine.skinportStats(name),
+  /** 库存同步唯一入口：Web API + 双 Context（context 2 + context 16 交易保护） */
+  syncSteamInventorySmart: () => engine.syncSteamInventorySmart(),
+  /** 用已登录的 Steam 会话同步（自动识别本人 SteamID64 并存回设置） */
+  syncSteamInventoryFromSession: () => engine.syncSteamInventoryFromSession(),
+  /** 会话导入历史的目标清单（价格点不足的名字优先） */
+  historyTargets: (limit = 60) => engine.listHistoryTargets(limit),
+  /** WebView 会话内抓到的 pricehistory.prices 解析入库 */
+  importSteamPriceHistoryRaw: (name: string, prices: unknown) => engine.importSteamPriceHistoryRaw(name, prices),
+  /** C5 历史导入目标清单（Steam / C5 历史点不足的名字优先） */
+  c5HistoryTargets: (limit = 60) => engine.c5HistoryTargets(limit),
+  /** C5 快速导入：逐件拉 C5 官方趋势入库（需 C5 Cookie，可选 app-key 查 itemId）；失败即停返回失败项 */
+  importC5Histories: (
+    names: string[],
+    opts: { c5AppKey: string; c5Cookie: string },
+    onItem?: (done: number, total: number, name: string, added: number) => void,
+    startIdx = 0,
+  ) => engine.importC5Histories(names, opts, onItem, startIdx),
   orders: () => engine.orders() as Promise<OrderRecord[]>,
   prepareBuy: (params: { name: string; qty?: number }) => engine.prepareBuy(params) as Promise<BuyPrepareResult>,
   executeBuy: (params: { name: string; qty?: number }) => engine.executeBuy(params) as Promise<BuyExecuteResult>,
@@ -66,5 +89,6 @@ export const api = {
   },
   getSettings: () => storage.getSettings(),
   updateSettings: (patch: Parameters<typeof storage.updateSettings>[0]) => storage.updateSettings(patch),
-  clearAllData: () => storage.clearAllData(),
+  /** 按板块清除业务数据（设置/凭证保留）；不传参 = 全部 */
+  clearAllData: (parts?: { snapshots?: boolean; inventory?: boolean; orders?: boolean }) => storage.clearAllData(parts),
 };

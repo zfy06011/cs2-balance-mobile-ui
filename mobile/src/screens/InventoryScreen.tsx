@@ -1,5 +1,5 @@
 /** 库存管理：录入购买记录、7 天倒计时、当前/解除限制时估值（PRD 第十节） */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
@@ -9,7 +9,7 @@ import { api, InventoryEntry } from '../api/client';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { colors } from '../theme/colors';
-import { displayNameOf, fmtZhe } from '../utils/format';
+import { displayNameOf } from '../utils/format';
 
 function fmtMoney(v: number | null | undefined): string {
   if (v === null || v === undefined) return '--';
@@ -28,6 +28,35 @@ function fmtRemainHours(h: number): string {
 
 export function InventoryScreen() {
   const [items, setItems] = useState<InventoryEntry[]>([]);
+
+  // 同名武器箱堆叠：合并数量/成本/利润，按最早解锁排序
+  interface Stack {
+    name: string;
+    totalQty: number;
+    records: number;
+    totalCost: number;
+    totalProfit: number | null;
+    entries: InventoryEntry[];
+  }
+  const stacks = useMemo<Stack[]>(() => {
+    const map = new Map<string, InventoryEntry[]>();
+    for (const it of items) {
+      const arr = map.get(it.item_name) ?? [];
+      arr.push(it);
+      map.set(it.item_name, arr);
+    }
+    const out: Stack[] = [];
+    for (const [name, entries] of map) {
+      entries.sort((a, b) => a.unlock_at.localeCompare(b.unlock_at));
+      const totalQty = entries.reduce((s, e) => s + e.quantity, 0);
+      const totalCost = entries.reduce((s, e) => s + e.buy_price * e.quantity, 0);
+      const profits = entries.map((e) => (e.net_profit_estimate != null ? e.net_profit_estimate * e.quantity : null));
+      const totalProfit = profits.every((p) => p == null) ? null : profits.reduce<number>((s, p) => s + (p ?? 0), 0);
+      out.push({ name, totalQty, records: entries.length, totalCost, totalProfit, entries });
+    }
+    out.sort((a, b) => a.entries[0].unlock_at.localeCompare(b.entries[0].unlock_at));
+    return out;
+  }, [items]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,16 +89,22 @@ export function InventoryScreen() {
     api.getSettings().then((s) => setSteamId(s.steamId || '')).catch(() => undefined);
   }, []);
 
-  const sync = async () => {
-    if (!steamId.trim()) {
-      setSyncMsg('请先填写 SteamID64（个人资料页 /profiles/ 后面的 17 位数字）');
-      return;
-    }
+  /** 唯一同步入口：Steam Web API + 双 Context（context 2 普通 + context 16 交易保护） */
+  const syncSmart = async () => {
     setSyncing(true);
     setSyncMsg(null);
     try {
-      const res = await api.syncSteamInventory(steamId.trim());
-      setSyncMsg(`同步完成：匹配 ${res.matched} 件，其中可上架 ${res.unlocked} 件，未在 Steam 找到 ${res.notFound} 件`);
+      const res = await api.syncSteamInventorySmart();
+      if (res.steamId) setSteamId(res.steamId);
+      const src = '来源：Steam Web API（官方）';
+      const warn = res.ctx16Error ? `；注意：交易保护箱通道（context 16）失败：${res.ctx16Error}` : '';
+      if (res.empty) {
+        setSyncMsg(`同步完成但未找到武器箱（总量 ${res.totalInventoryCount ?? 0}）${res.reason ?? ''}（${src}${warn}）`);
+        return;
+      }
+      setSyncMsg(
+        `同步完成：本地匹配 ${res.matched} 件（可上架 ${res.unlocked} 件），新导入 ${res.imported} 件，未找到 ${res.notFound} 件（${src}${warn}）`,
+      );
       await load();
     } catch (e) {
       setSyncMsg(`同步失败：${e instanceof Error ? e.message : '未知错误'}`);
@@ -120,55 +155,60 @@ export function InventoryScreen() {
           </Card>
 
           <Card>
-            <SectionTitle>同步 Steam 冷却（精确到小时）</SectionTitle>
-            <Text style={styles.hint}>填入 SteamID64（个人资料页 /profiles/ 后的 17 位数字），从 Steam 库存拉取真实冷却天数，并按首次观察到的时间推算剩余小时。下拉刷新可重复同步，越接近解锁越准。</Text>
-            <TextInput
-              style={styles.input}
-              value={steamId}
-              onChangeText={setSteamId}
-              placeholder="SteamID64 / profiles/7656119… 链接"
-              placeholderTextColor={colors.textDim}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <TouchableOpacity style={[styles.addBtn, syncing && { opacity: 0.6 }]} onPress={sync} disabled={syncing}>
-              <Text style={styles.addBtnText}>{syncing ? '同步中…' : '⟳ 同步 Steam 冷却'}</Text>
+            <SectionTitle>同步 Steam 库存</SectionTitle>
+            <Text style={styles.hint}>需在设置页配置 Steam Web API Key（免费申请）；未做过「Steam 一键登录」时，还需填写你的 SteamID64（或自定义 URL），Web API 即可同步、无需登录。官方接口可含交易保护箱（context 16）。同步后自动导入武器箱、更新精确冷却倒计时。</Text>
+            <TouchableOpacity style={[styles.addBtn, syncing && { opacity: 0.6 }]} onPress={syncSmart} disabled={syncing}>
+              <Text style={styles.addBtnText}>{syncing ? '同步中…' : '⟳ 同步 Steam 库存'}</Text>
             </TouchableOpacity>
             {syncMsg ? <Text style={styles.saved}>{syncMsg}</Text> : null}
           </Card>
 
-          <SectionTitle>我的库存（{items.length}）</SectionTitle>
+          <SectionTitle>我的库存（{items.length} 条 · 堆叠后 {stacks.length} 种）</SectionTitle>
           {loading ? <Loading /> : null}
           {!loading && error ? <ErrorView message={error} onRetry={load} /> : null}
           {!loading && !error && items.length === 0 ? (
             <Card><Text style={styles.empty}>还没有库存记录，录入第一笔吧。</Text></Card>
           ) : null}
-          {items.map((it) => (
-            <Card key={it.id}>
-              <View style={styles.itemHeader}>
-                <Text style={styles.name} numberOfLines={1}>{displayNameOf(it.item_name)}</Text>
-                <View style={[styles.countdown, it.days_left <= 1 && { borderColor: colors.danger }]}>
-                  <Text style={[styles.countdownText, it.days_left <= 1 && { color: colors.danger }]}>
-                    {it.days_left <= 0 ? '可上架' : `解锁倒计时 ${fmtRemainHours(it.hours_left)}`}
-                  </Text>
+          {stacks.map((g) => {
+            const first = g.entries[0];
+            return (
+              <Card key={g.name}>
+                <View style={styles.itemHeader}>
+                  <Text style={styles.name} numberOfLines={1}>{displayNameOf(g.name)}</Text>
+                  <View style={[styles.countdown, first.days_left <= 1 && { borderColor: colors.danger }]}>
+                    <Text style={[styles.countdownText, first.days_left <= 1 && { color: colors.danger }]}>
+                      {first.days_left <= 0 ? '可上架' : `最快解锁 ${fmtRemainHours(first.hours_left)}`}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <Row label="数量 × 买入价" value={`${it.quantity} × ¥${it.buy_price.toFixed(2)}`} />
-              <Row label="买入时间" value={new Date(it.buy_at).toLocaleString()} />
-              <Row label="预计可卖时间" value={new Date(it.unlock_at).toLocaleString()} />
-              {it.steam_synced ? (
+                <View style={styles.stackRow}>
+                  <Text style={styles.stackBadge}>× {g.totalQty}</Text>
+                  <Text style={styles.stackMeta}>{g.records > 1 ? `${g.records} 笔记录堆叠` : '1 笔记录'}</Text>
+                </View>
+                <Row label="总数量 × 均买入价" value={`${g.totalQty} × ¥${(g.totalCost / g.totalQty).toFixed(2)}`} />
+                <Row label="总成本（含 1% 费用）" value={fmtMoney(g.totalCost * 1.01)} />
+                <Row label="预计可卖时间（最早）" value={new Date(first.unlock_at).toLocaleString()} />
+                {first.steam_synced ? (
+                  <Row
+                    label="冷却来源"
+                    value={first.steam_tradable ? 'Steam：已可上架' : first.unlock_source === 'steam' ? 'Steam 真实冷却（推算）' : 'Steam 估算'}
+                    valueColor={first.steam_tradable ? colors.success : colors.gold}
+                  />
+                ) : null}
+                <Row label="当前市场估值 / 预计可到账" value={`${fmtMoney(first.current_estimate)} / ${fmtMoney(first.net_receive_estimate)}`} valueColor={colors.success} />
                 <Row
-                  label="冷却来源"
-                  value={it.steam_tradable ? 'Steam：已可上架' : it.unlock_source === 'steam' ? 'Steam 真实冷却（推算）' : 'Steam 估算'}
-                  valueColor={it.steam_tradable ? colors.success : colors.gold}
+                  label={`预计净利 / 回报率（按 ${g.totalQty} 件）`}
+                  value={`${fmtMoney(g.totalProfit)} / ${g.totalCost > 0 && g.totalProfit != null ? `${((g.totalProfit / g.totalCost) * 100).toFixed(1)}%` : '--'}`}
+                  valueColor={g.totalProfit != null && g.totalProfit >= 0 ? colors.success : colors.danger}
                 />
-              ) : null}
-              <Row label="当前市场估值" value={fmtMoney(it.current_estimate)} />
-              <Row label="预计几折（越低越划算）" value={fmtZhe(it.expected_discount_estimate)} valueColor={it.expected_discount_estimate != null && it.expected_discount_estimate <= 0.95 ? colors.success : colors.warning} />
-              <Row label="预计可到账（扣费后）" value={fmtMoney(it.net_receive_estimate)} valueColor={colors.success} />
-              <Row label="预计净利 / 回报率" value={`${fmtMoney(it.net_profit_estimate)} / ${it.roi_estimate != null ? `${(it.roi_estimate * 100).toFixed(1)}%` : '--'}`} valueColor={it.net_profit_estimate != null && it.net_profit_estimate >= 0 ? colors.success : colors.danger} />
-            </Card>
-          ))}
+                {first.sell_advice_text ? (
+                  <Text style={[styles.saved, first.sell_advice_code === 'wait_event_pass' || first.sell_advice_code === 'wait_recovery' ? { color: colors.gold } : { color: colors.success }]}>
+                    ⏱ {first.sell_advice_text}
+                  </Text>
+                ) : null}
+              </Card>
+            );
+          })}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -196,6 +236,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.gold, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
   },
   countdownText: { color: colors.gold, fontSize: 11, fontWeight: '700' },
+  stackRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  stackBadge: {
+    color: colors.primary, fontSize: 13, fontWeight: '800',
+    backgroundColor: colors.cardAlt, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3,
+    overflow: 'hidden', borderWidth: 1, borderColor: colors.primary,
+  },
+  stackMeta: { color: colors.textDim, fontSize: 11 },
   empty: { color: colors.textDim, fontSize: 14 },
   hint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
 });

@@ -159,25 +159,32 @@ class MarketEvent:
     start: date          # 开始日期（UTC，含当天）
     end: date            # 结束日期（UTC，含当天）
     name: str | None = None
-    pressure: float | None = None       # 窗口内压制幅度（默认 0.03 = 3%）
-    recovery_days: int | None = None    # 事件结束后回补天数（默认 14）
+    pressure: float | None = None       # 窗口内价差幅度（默认 0.03 = 3%）
+    recovery_days: int | None = None    # 事件结束后回补天数（默认 14；仅 suppress 类有效）
+    impact: str | None = None           # suppress / boost；缺省按 kind 推断
 
 
 @dataclass(frozen=True)
 class EventAdjustResult:
-    factor: float        # 总价差乘数：1=无影响；<1 压制；>1 回补
+    factor: float        # 总价差乘数：1=无影响；<1 压制；>1 回补/提振
     count: int           # 命中事件数
     kinds: list[str]     # 命中事件种类（去重、保序）
     names: list[str]     # 命中事件名称（去重、保序）
 
 
+def _default_impact(ev: MarketEvent) -> str:
+    if ev.impact:
+        return ev.impact
+    return "suppress" if ev.kind in ("steam-sale", "valve-policy", "case-removal") else "boost"
+
+
 def compute_event_adjust(target_at: datetime, events: list[MarketEvent]) -> EventAdjustResult:
     """计算 target_at 的事件价差修正（与 mobile/core/prediction.ts 对齐）。
 
-    - target_at 在事件窗口内（含首尾日）：×(1 - pressure)（大促期间价格被压制）
-    - target_at 在事件结束后 recovery_days 天内：×(1 + pressure × (1 - d / recovery_days))，
-      从结束日起线性回补到 0（价格回归常态）
-    - 其余情况：不修正（factor = 1）
+    - suppress（大促/政策利空）：窗口内（含首尾日）×(1 - pressure)；结束后 recovery_days 天内
+      ×(1 + pressure × (1 - d / recovery_days)) 线性回补
+    - boost（Major/春节等需求提振）：窗口内 ×(1 + pressure)；开始前 3 天预期 ×(1 + pressure/2)；无回补尾
+    - 多事件命中按乘法叠加；空列表时 factor = 1
     """
     factor = 1.0
     count = 0
@@ -188,16 +195,27 @@ def compute_event_adjust(target_at: datetime, events: list[MarketEvent]) -> Even
         start_day = ev.start
         end_day = ev.end
         pressure = ev.pressure if ev.pressure is not None else 0.03
-        recovery_days = ev.recovery_days if ev.recovery_days is not None else 14
+        impact = _default_impact(ev)
         hit = False
-        if start_day <= target_day <= end_day:
-            factor *= 1.0 - pressure
-            hit = True
-        else:
-            d = (target_day - end_day).days
-            if 0 < d <= recovery_days:
-                factor *= 1.0 + pressure * (1.0 - d / recovery_days)
+        if impact == "boost":
+            if start_day <= target_day <= end_day:
+                factor *= 1.0 + pressure
                 hit = True
+            else:
+                d = (start_day - target_day).days
+                if 0 < d <= 3:
+                    factor *= 1.0 + pressure / 2
+                    hit = True
+        else:
+            if start_day <= target_day <= end_day:
+                factor *= 1.0 - pressure
+                hit = True
+            else:
+                d = (target_day - end_day).days
+                recovery_days = ev.recovery_days if ev.recovery_days is not None else 14
+                if 0 < d <= recovery_days:
+                    factor *= 1.0 + pressure * (1.0 - d / recovery_days)
+                    hit = True
         if hit:
             count += 1
             if ev.kind not in kinds:
@@ -369,6 +387,178 @@ class BaselinePredictorV2:
             item_id=item_id,
             market_hash_name=market_hash_name,
             model_version=MODEL_VERSION_V2,
+            predicted_at=pred_at,
+            target_at=target_at,
+            horizon_days=self.horizon_days,
+            **quantiles,
+            prob_profit=round(prob_profit, 4),
+            prob_loss=round(prob_loss, 4),
+            confidence=confidence,
+            features=features,
+        )
+
+
+MODEL_VERSION_V3 = "baseline-momentum-v3"
+
+
+class BaselinePredictorV3:
+    """V3：EW 加权 21 点对数回归（半衰期 7）+ EWMA 波动率（λ=0.94）
+    + 连续量价确认（tanh 映射，[0.85,1.15]）+ 波动自适应漂移限幅（min(2%, max(0.5%, 3σ)))。
+    与 mobile/src/core/prediction.ts#BaselinePredictorV3 逐位对齐。"""
+
+    def __init__(
+        self,
+        horizon_days: int = 7,
+        trend_days: int = 21,
+        trend_half_life: float = 7.0,
+        momentum_decay: float = 0.5,
+        min_history: int = 15,
+        min_trend_points: int = 3,
+        ewma_lambda: float = 0.94,
+    ):
+        self.horizon_days = horizon_days
+        self.trend_days = trend_days
+        self.trend_half_life = trend_half_life
+        self.momentum_decay = momentum_decay
+        self.min_history = min_history
+        self.min_trend_points = min_trend_points
+        self.ewma_lambda = ewma_lambda
+
+    def predict(
+        self,
+        market_hash_name: str,
+        prices: list[float],
+        breakeven_price: float | None = None,
+        item_id: int | None = None,
+        predicted_at: datetime | None = None,
+        volume: float | None = None,
+        volume_history: list[float] | None = None,
+        popular_rank: int | None = None,
+        events: list[MarketEvent] | None = None,
+    ) -> PredictionResult:
+        if len(prices) < 1:
+            raise ValueError("至少需要 1 条历史价格才能预测")
+
+        latest = prices[-1]
+        log_returns = [
+            math.log(prices[i] / prices[i - 1]) for i in range(1, len(prices)) if prices[i - 1] > 0
+        ]
+        # EWMA 波动率
+        ew_var = 0.0
+        has_ew = False
+        for r in log_returns:
+            ew_var = self.ewma_lambda * ew_var + (1 - self.ewma_lambda) * r * r if has_ew else r * r
+            has_ew = True
+        vol = math.sqrt(ew_var) if has_ew else 0.05
+        if len(prices) < self.min_history:
+            vol = max(vol, 0.05) * 1.5
+
+        # 趋势：EW 加权对数回归（或首末对数收益回退）
+        window = prices[-self.trend_days:]
+        insufficient = len(prices) < self.min_trend_points
+        drift_clamp = min(0.02, max(0.005, 3 * vol))
+        raw_drift = 0.0
+        trend_clamped = False
+        if len(window) >= 2:
+            if len(window) >= self.min_trend_points:
+                n = len(window)
+                sw = sx = sy = sxx = sxy = 0.0
+                for i, p in enumerate(window):
+                    w = 0.5 ** ((n - 1 - i) / self.trend_half_life)
+                    sw += w
+                    sx += w * i
+                    sy += w * math.log(p)
+                    sxx += w * i * i
+                    sxy += w * i * math.log(p)
+                den = sw * sxx - sx * sx
+                raw_drift = (sw * sxy - sx * sy) / den if den > 0 else 0.0
+            elif window[0] > 0:
+                raw_drift = math.log(window[-1] / window[0]) / (len(window) - 1)
+            if raw_drift > drift_clamp:
+                raw_drift = drift_clamp
+                trend_clamped = True
+            elif raw_drift < -drift_clamp:
+                raw_drift = -drift_clamp
+                trend_clamped = True
+
+        # 量价配合：连续映射
+        volume_ratio: float | None = None
+        volume_confirm = 1.0
+        if volume is not None and volume > 0 and volume_history and len(volume_history) >= 2:
+            base = volume_history[:-1]
+            pos = [v for v in base if v and v > 0]
+            avg = sum(pos) / len(pos) if pos else 0.0
+            if avg > 0:
+                volume_ratio = volume / avg
+                if abs(raw_drift) > 0.0005:
+                    volume_confirm = max(0.85, min(1.15, 1 + 0.15 * math.tanh((volume_ratio - 1) / 0.35)))
+        drift_daily = raw_drift * volume_confirm
+
+        drift = drift_daily * self.horizon_days * self.momentum_decay
+        sigma_total = vol * math.sqrt(self.horizon_days)
+        pred_at = predicted_at or datetime.utcnow()
+        target_at = pred_at + timedelta(days=self.horizon_days)
+        event_res = compute_event_adjust(target_at, events or [])
+        event_factor = event_res.factor
+        p50 = latest * math.exp(drift) * event_factor
+
+        quantiles = {q: max(round(p50 * math.exp(_Z[q] * sigma_total), 4), 0.0) for q in _Z}
+
+        prob_profit = 0.5
+        if breakeven_price and breakeven_price > 0:
+            if sigma_total < 1e-9:
+                prob_profit = 1.0 if p50 > breakeven_price else (0.0 if p50 < breakeven_price else 0.5)
+            else:
+                mu = math.log(p50)
+                prob_profit = 1.0 - _normal_cdf((math.log(breakeven_price) - mu) / sigma_total)
+        prob_profit = max(0.0, min(1.0, prob_profit))
+        prob_loss = 1.0 - prob_profit
+
+        confidence = max(0.1, min(0.95, 1.0 - sigma_total * 3.0))
+        len_factor = 0.6 + 0.4 * min(1.0, max(1, len(prices)) / self.min_history)
+        confidence *= len_factor
+        if insufficient:
+            confidence = min(confidence, 0.25)
+        if volume_confirm > 1.03:
+            confidence = max(0.1, min(0.95, confidence + 0.05))
+        elif volume_confirm < 0.97:
+            confidence = max(0.1, min(0.95, confidence - 0.05))
+        confidence = round(confidence, 4)
+
+        if event_res.count > 0:
+            confidence = max(0.1, min(0.95, confidence * 0.9))
+            confidence = round(confidence, 4)
+
+        anchor = max(0, len(prices) - 7)
+        momentum = math.log(latest / prices[anchor]) if len(prices) >= 2 and prices[anchor] > 0 else 0.0
+
+        features: dict = {
+            "latest_price": round(latest, 4),
+            "momentum": round(momentum, 6),
+            "trend_daily": round(raw_drift, 6),
+            "volatility": round(vol, 6),
+            "history_len": len(prices),
+            "data_insufficient": insufficient,
+            "trend_clamped": trend_clamped,
+            "volume_confirm": round(volume_confirm, 4),
+            "trend_points": len(window),
+            "drift_clamp": round(drift_clamp, 6),
+        }
+        if volume_ratio is not None:
+            features["volume_ratio"] = round(volume_ratio, 3)
+        if popular_rank is not None and popular_rank > 0:
+            features["popular_rank"] = popular_rank
+        if event_res.count > 0:
+            features["event_active"] = True
+            features["event_count"] = event_res.count
+            features["event_adjust"] = round(event_factor - 1.0, 6)
+            features["event_kinds"] = ",".join(event_res.kinds)
+            features["event_names"] = ",".join(event_res.names)
+
+        return PredictionResult(
+            item_id=item_id,
+            market_hash_name=market_hash_name,
+            model_version=MODEL_VERSION_V3,
             predicted_at=pred_at,
             target_at=target_at,
             horizon_days=self.horizon_days,

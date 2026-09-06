@@ -4,7 +4,7 @@ import {
   RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, Prediction, Quote, HistoryPoint, C5StatsResult } from '../api/client';
+import { api, Prediction, Quote, HistoryPoint, C5StatsResult, C5BuyAdvice, SkinportStats } from '../api/client';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
@@ -41,15 +41,25 @@ export function DetailScreen({ name, onBack }: Props) {
   const [c5Stats, setC5Stats] = useState<C5StatsResult | null>(null);
   const [c5StatsMsg, setC5StatsMsg] = useState<string | null>(null);
   const [c5StatsLoading, setC5StatsLoading] = useState(false);
+  const [c5Advice, setC5Advice] = useState<C5BuyAdvice | null>(null);
+  const [skStats, setSkStats] = useState<SkinportStats | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [q, p, h] = await Promise.all([api.quote(name), api.prediction(name), api.history(name, 7)]);
+      const [q, p, h, adv, sk] = await Promise.all([
+        api.quote(name),
+        api.prediction(name),
+        api.history(name, 7),
+        api.c5BuyAdvice(name).catch(() => null),
+        api.skinportStats(name).catch(() => null),
+      ]);
       setQuote(q);
       setPred(p);
       setHistory(h);
+      setC5Advice(adv);
+      setSkStats(sk);
       setC5Input(q.c5_buy_price != null ? String(q.c5_buy_price) : '');
     } catch (e) {
       setError(e instanceof Error ? e.message : '加载失败');
@@ -81,7 +91,15 @@ export function DetailScreen({ name, onBack }: Props) {
     setRefreshingOne(true);
     try {
       const stats = await api.collectOne(name);
-      setC5Msg(stats.success > 0 ? '已刷新 Steam 价格 ✅' : '刷新失败，请稍后重试');
+      if (stats.success > 0) {
+        setC5Msg(
+          stats.c5Price != null
+            ? `已刷新价格 ✅（Steam + C5 ¥${stats.c5Price.toFixed(2)}）`
+            : '已刷新 Steam 价格 ✅（C5 未配 app-key 或暂无价，可手动录入）',
+        );
+      } else {
+        setC5Msg('刷新失败，请稍后重试');
+      }
       await load();
     } catch (e) {
       setC5Msg(`刷新失败：${e instanceof Error ? e.message : '未知错误'}`);
@@ -174,6 +192,62 @@ export function DetailScreen({ name, onBack }: Props) {
               <Row label="限制期" value={`约 ${quote.lock_days} 天（168 小时）`} />
             </Card>
 
+
+            {/* C5 买入时机参考（近几天统计 + 较昨日变化 + 事件影响 + 趋势） */}
+            {c5Advice ? (
+              <>
+                <SectionTitle>C5 买入时机参考</SectionTitle>
+                <Card>
+                  <Row label="当前 C5 价" value={fmtMoney(c5Advice.now)} valueColor={colors.warning} />
+                  <Row label="近 7 天均值 / 最低 / 最高" value={`${fmtMoney(c5Advice.avg7d)} / ${fmtMoney(c5Advice.min7d)} / ${fmtMoney(c5Advice.max7d)}`} />
+                  {c5Advice.change1d != null ? (
+                    <Row
+                      label="较昨日"
+                      value={`${c5Advice.change1d >= 0 ? '+' : ''}${(c5Advice.change1d * 100).toFixed(1)}%`}
+                      valueColor={c5Advice.change1d <= 0 ? colors.success : colors.danger}
+                    />
+                  ) : null}
+                  {c5Advice.percentile7d != null ? (
+                    <Row label="近 7 天价格分位" value={`${c5Advice.percentile7d}%（越低越便宜）`} />
+                  ) : null}
+                  <Row label="近 7 天趋势" value={c5Advice.trend === 'up' ? '上行 ↗' : c5Advice.trend === 'down' ? '下行 ↘' : '平稳 →'} />
+                  {pred?.features?.event_names ? (
+                    <Row
+                      label="活动影响"
+                      value={String(pred.features.event_names)}
+                      valueColor={colors.info}
+                    />
+                  ) : null}
+                  <Text style={[styles.hint, c5Advice.suggested === 'good' && { color: colors.success }, c5Advice.suggested === 'wait' && { color: colors.danger }]}>
+                    {c5Advice.suggested === 'good' ? '✅ ' : c5Advice.suggested === 'wait' ? '⏸ ' : '• '}
+                    {c5Advice.reason}
+                  </Text>
+                  {c5Advice.suggested === 'good' ? (
+                    <Text style={styles.hint}>未来 7 天 Steam 侧预计 {fmtMoney(pred?.p50 ?? null)}（{c5Advice.trend === 'down' ? 'C5 短线仍在走低，可分批买' : '当前价位买入的预计几折见顶部'}）。</Text>
+                  ) : null}
+                  {skStats ? (
+                    <>
+                      <Row
+                        label="实际成交 近7天 均价 / 最低"
+                        value={`${fmtMoney(skStats.d7.avg)} / ${fmtMoney(skStats.d7.min)}`}
+                        valueColor={colors.info}
+                      />
+                      <Row
+                        label="实际成交 近30天 均价 / 最低"
+                        value={`${fmtMoney(skStats.d30.avg)} / ${fmtMoney(skStats.d30.min)}`}
+                        valueColor={colors.info}
+                      />
+                      <Row
+                        label="实际成交 近90天 均价 / 成交量"
+                        value={`${fmtMoney(skStats.d90.avg)} / ${skStats.d90.volume != null ? skStats.d90.volume : '--'}`}
+                        valueColor={colors.info}
+                      />
+                      <Text style={styles.hint}>「实际成交」来自 Skinport 公开成交数据（免 Key 免登录），反映真实买家成交价，与 C5 挂牌价对照可判断当前挂牌偏贵还是便宜。</Text>
+                    </>
+                  ) : null}
+                </Card>
+              </>
+            ) : null}
 
             {/* C5 卖出参考（求购价） */}
             <SectionTitle>C5 卖出参考（求购价）</SectionTitle>
@@ -286,7 +360,7 @@ export function DetailScreen({ name, onBack }: Props) {
                 onPress={refreshOne}
                 disabled={refreshingOne}
               >
-                <Text style={styles.btnGhostText}>{refreshingOne ? '刷新中…' : '📡 刷新此商品 Steam 价格'}</Text>
+                <Text style={styles.btnGhostText}>{refreshingOne ? '刷新中…' : '⟳ 刷新价格（Steam + C5）'}</Text>
               </TouchableOpacity>
               {c5Msg ? <Text style={styles.c5Msg}>{c5Msg}</Text> : null}
             </Card>

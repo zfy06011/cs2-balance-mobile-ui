@@ -8,8 +8,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface LocalSnapshot {
+  /** steam = Steam 实时/历史点；c5 = C5 当前买入价；c5_hist = C5 官方历史日线（网页 cookie 导入） */
   name: string;
-  source: 'steam' | 'c5';
+  source: 'steam' | 'c5' | 'c5_hist';
   price: number;
   volume: number | null;
   fetchedAt: string;
@@ -48,6 +49,10 @@ export interface LocalOrder {
 
 export interface AppSettings {
   c5AppKey: string;
+  /** C5GAME 网页登录 cookie，用于拉取官方历史价格（选填） */
+  c5Cookie: string;
+  /** Steam Web API Key（免费，steamcommunity.com/dev/apikey）：官方库存接口，含交易保护箱 */
+  steamApiKey: string;
   /** SteamID64（/profiles/ 后的 17 位数字），用于 Steam 库存冷却同步 */
   steamId: string;
   refreshCount: number;
@@ -66,9 +71,53 @@ const K_SNAPSHOTS = '@cs2balance/snapshots_v2';
 const K_INVENTORY = '@cs2balance/inventory_v2';
 const K_ORDERS = '@cs2balance/orders_v2';
 const K_SETTINGS = '@cs2balance/settings_v2';
+const K_SCAN = '@cs2balance/scan_state_v1';
+const K_EVENT_FEED = '@cs2balance/event_feed_v1';
 const STEAM_KEEP = 50;
+/** 官方历史导入的每名保留上限（天）：供给长周期指标（波动率/90 天低位/长趋势） */
+export const HISTORY_KEEP = 120;
 export const LOCK_HOURS = 168;
 export const LOCK_DAYS = 7;
+
+/** 扫描会话状态（跨页面/前后台共享，断点续采展示用） */
+export interface ScanStateRecord {
+  running: boolean;
+  progress: CollectProgressLike | null;
+  startedAt: string | null;
+  count: number;
+}
+
+/** 与 collector.CollectProgress 结构一致的轻量形状（避免循环依赖） */
+export interface CollectProgressLike {
+  stage: 'listing' | 'c5' | 'prices' | 'done';
+  done: number;
+  total: number;
+  currentName: string;
+  success: number;
+  failed: number;
+  message: string;
+}
+
+/** 设置变更事件：设置页改完，首页扫描按钮上的数量实时刷新 */
+const settingsListeners = new Set<(s: AppSettings) => void>();
+
+export const settingsEvents = {
+  subscribe(l: (s: AppSettings) => void): () => void {
+    settingsListeners.add(l);
+    return () => {
+      settingsListeners.delete(l);
+    };
+  },
+  emit(s: AppSettings): void {
+    for (const l of settingsListeners) {
+      try {
+        l({ ...s });
+      } catch {
+        // 单个订阅者异常不影响其他
+      }
+    }
+  },
+};
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
   try {
@@ -91,6 +140,8 @@ function num(v: unknown, def: number): number {
 
 const DEFAULT_SETTINGS: AppSettings = {
   c5AppKey: '',
+  c5Cookie: '',
+  steamApiKey: '',
   steamId: '',
   refreshCount: 20,
   steamCookie: '',
@@ -118,7 +169,31 @@ export const storage = {
     const cur = await this.getSettings();
     const next = { ...cur, ...patch };
     await writeJSON(K_SETTINGS, next);
+    this.emitSettings(next);
     return next;
+  },
+  emitSettings(s: AppSettings): void {
+    settingsEvents.emit(s);
+  },
+
+  // ---- 扫描会话状态 ----
+  async saveScanState(s: ScanStateRecord): Promise<void> {
+    await writeJSON(K_SCAN, s);
+  },
+  async getScanState(): Promise<ScanStateRecord | null> {
+    const s = await readJSON<ScanStateRecord | null>(K_SCAN, null);
+    if (!s || typeof s !== 'object') return null;
+    return s;
+  },
+
+  // ---- 市场事件源缓存（RSS 拉取结果） ----
+  async saveEventFeed(feed: { items: unknown[]; fetchedAt: string }): Promise<void> {
+    await writeJSON(K_EVENT_FEED, feed);
+  },
+  async getEventFeed(): Promise<{ items: Array<Record<string, unknown>>; fetchedAt: string } | null> {
+    const f = await readJSON<{ items: Array<Record<string, unknown>>; fetchedAt: string } | null>(K_EVENT_FEED, null);
+    if (!f || !Array.isArray(f.items)) return null;
+    return f;
   },
 
   // ---- 快照 ----
@@ -142,6 +217,67 @@ export const storage = {
       await writeJSON(K_SNAPSHOTS, kept);
     }
   },
+  /**
+   * 合并 Steam 官方历史日线入快照库（按日期去重；超 50 条截断最旧的）。
+   * 历史点 fetchedAt 用「日期 T08:00:00Z」，与当天实时快照（真实时间戳）可区分且排序稳定。
+   * 返回实际新增的点数。导出后预测器 / 雷达 / 详情趋势图自动受益。
+   */
+  async mergeSteamHistory(name: string, points: Array<{ date: string; price: number; volume: number | null }>): Promise<number> {
+    if (points.length === 0) return 0;
+    const all = await this.getSnapshots();
+    const existing = new Set(
+      all.filter((s) => s.source === 'steam' && s.name === name).map((s) => s.fetchedAt.slice(0, 10)),
+    );
+    let added = 0;
+    for (const pt of points) {
+      if (existing.has(pt.date)) continue;
+      all.push({ name, source: 'steam', price: pt.price, volume: pt.volume, fetchedAt: `${pt.date}T08:00:00.000Z` });
+      existing.add(pt.date);
+      added++;
+    }
+    if (added === 0) return 0;
+    const mine = all
+      .filter((s) => s.source === 'steam' && s.name === name)
+      .sort((a, b) => a.fetchedAt.localeCompare(b.fetchedAt));
+    const keep = new Set(mine.slice(-HISTORY_KEEP).map((s) => s.fetchedAt));
+    const pruned = all.filter((s) => !(s.source === 'steam' && s.name === name) || keep.has(s.fetchedAt));
+    await writeJSON(K_SNAPSHOTS, pruned);
+    return added;
+  },
+
+  /** 合并 C5 官方历史日线（source='c5_hist'，按日期去重、超 50 条截断最旧）。返回新增点数。 */
+  async mergeC5History(name: string, points: Array<{ date: string; price: number }>): Promise<number> {
+    if (points.length === 0) return 0;
+    const all = await this.getSnapshots();
+    const existing = new Set(
+      all.filter((s) => s.source === 'c5_hist' && s.name === name).map((s) => s.fetchedAt.slice(0, 10)),
+    );
+    let added = 0;
+    for (const pt of points) {
+      if (existing.has(pt.date)) continue;
+      all.push({ name, source: 'c5_hist', price: pt.price, volume: null, fetchedAt: `${pt.date}T08:00:00.000Z` });
+      existing.add(pt.date);
+      added++;
+    }
+    if (added === 0) return 0;
+    const mine = all
+      .filter((s) => s.source === 'c5_hist' && s.name === name)
+      .sort((a, b) => a.fetchedAt.localeCompare(b.fetchedAt));
+    const keep = new Set(mine.slice(-HISTORY_KEEP).map((s) => s.fetchedAt));
+    const pruned = all.filter((s) => !(s.source === 'c5_hist' && s.name === name) || keep.has(s.fetchedAt));
+    await writeJSON(K_SNAPSHOTS, pruned);
+    return added;
+  },
+
+  /** 读取 C5 历史日线（最近 limit 条，按日期升序） */
+  async getC5History(name: string, limit = 14): Promise<LocalSnapshot[]> {
+    const all = await this.getSnapshots();
+    const mine = all
+      .filter((s) => s.source === 'c5_hist' && s.name === name && s.price > 0)
+      .sort((a, b) => a.fetchedAt.localeCompare(b.fetchedAt));
+    return mine.slice(-limit);
+  },
+
   async getSteamPrices(name: string): Promise<number[]> {
     const all = await this.getSnapshots();
     return all
@@ -170,6 +306,20 @@ export const storage = {
   },
   async setC5Price(name: string, price: number): Promise<void> {
     await this.addSnapshot({ name, source: 'c5', price, volume: null, fetchedAt: new Date().toISOString() });
+    await this.addC5Intraday(name, price);
+  },
+
+  /** C5 日内点（真实时间戳）并入 c5_hist：多次扫描/刷新后「较昨日」即为真实 24h 变化 */
+  async addC5Intraday(name: string, price: number): Promise<void> {
+    if (!Number.isFinite(price) || price <= 0) return;
+    const all = await this.getSnapshots();
+    all.push({ name, source: 'c5_hist', price, volume: null, fetchedAt: new Date().toISOString() });
+    const mine = all
+      .filter((s) => s.source === 'c5_hist' && s.name === name)
+      .sort((a, b) => a.fetchedAt.localeCompare(b.fetchedAt));
+    const keep = new Set(mine.slice(-HISTORY_KEEP).map((s) => s.fetchedAt));
+    const pruned = all.filter((s) => !(s.source === 'c5_hist' && s.name === name) || keep.has(s.fetchedAt));
+    await writeJSON(K_SNAPSHOTS, pruned);
   },
 
   // ---- 库存 ----
@@ -183,6 +333,17 @@ export const storage = {
     all.push(entry);
     await writeJSON(K_INVENTORY, all);
     return entry;
+  },
+
+  /** 批量导入库存（一次读一次写；Steam 库存同步自动导入用） */
+  async addInventoryBulk(items: Array<Omit<LocalInventoryItem, 'id'>>): Promise<LocalInventoryItem[]> {
+    if (items.length === 0) return [];
+    const all = await this.getInventory();
+    let nextId = all.reduce((m, x) => Math.max(m, x.id), 0) + 1;
+    const entries = items.map((it) => ({ ...it, id: nextId++ }));
+    all.push(...entries);
+    await writeJSON(K_INVENTORY, all);
+    return entries;
   },
 
   /**
@@ -221,7 +382,13 @@ export const storage = {
     return entry;
   },
 
-  async clearAllData(): Promise<void> {
-    await AsyncStorage.multiRemove([K_SNAPSHOTS, K_INVENTORY, K_ORDERS, K_SETTINGS]);
+  /** 按板块清除业务数据（设置/凭证始终保留）。不传参 = 全部清除 */
+  async clearAllData(parts?: { snapshots?: boolean; inventory?: boolean; orders?: boolean }): Promise<void> {
+    const p = parts ?? { snapshots: true, inventory: true, orders: true };
+    const keys: string[] = [];
+    if (p.snapshots) keys.push(K_SNAPSHOTS);
+    if (p.inventory) keys.push(K_INVENTORY);
+    if (p.orders) keys.push(K_ORDERS);
+    if (keys.length > 0) await AsyncStorage.multiRemove(keys);
   },
 };
