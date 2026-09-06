@@ -89,21 +89,20 @@ export function InventoryScreen() {
     api.getSettings().then((s) => setSteamId(s.steamId || '')).catch(() => undefined);
   }, []);
 
-  /** 唯一同步入口：Steam Web API + 双 Context（context 2 普通 + context 16 交易保护） */
+  /** 唯一同步入口：C5 官方 OpenAPI（app-key）——库存仅走 C5，能看到交易保护中的物品 */
   const syncSmart = async () => {
     setSyncing(true);
     setSyncMsg(null);
     try {
       const res = await api.syncSteamInventorySmart();
       if (res.steamId) setSteamId(res.steamId);
-      const src = '来源：Steam Web API（官方）';
-      const warn = res.ctx16Error ? `；注意：交易保护箱通道（context 16）失败：${res.ctx16Error}` : '';
+      const src = '来源：C5 OpenAPI（官方）';
       if (res.empty) {
-        setSyncMsg(`同步完成但未找到武器箱（总量 ${res.totalInventoryCount ?? 0}）${res.reason ?? ''}（${src}${warn}）`);
+        setSyncMsg(`同步完成但未找到武器箱（总量 ${res.totalInventoryCount ?? 0}）${res.reason ?? ''}（${src}）`);
         return;
       }
       setSyncMsg(
-        `同步完成：本地匹配 ${res.matched} 件（可上架 ${res.unlocked} 件），新导入 ${res.imported} 件，未找到 ${res.notFound} 件（${src}${warn}）`,
+        `同步完成：本地匹配 ${res.matched} 件（可上架 ${res.unlocked} 件），新导入 ${res.imported} 件，未找到 ${res.notFound} 件（${src}）`,
       );
       await load();
     } catch (e) {
@@ -156,9 +155,9 @@ export function InventoryScreen() {
 
           <Card>
             <SectionTitle>同步 Steam 库存</SectionTitle>
-            <Text style={styles.hint}>需在设置页配置 Steam Web API Key（免费申请）；未做过「Steam 一键登录」时，还需填写你的 SteamID64（或自定义 URL），Web API 即可同步、无需登录。官方接口可含交易保护箱（context 16）。同步后自动导入武器箱、更新精确冷却倒计时。</Text>
+            <Text style={styles.hint}>库存仅走 C5GAME 官方接口（app-key）：需在设置页配置 C5 app-key 与 SteamID64（做过一键登录可自动识别）。C5 服务端视角能看到交易保护中的箱子（7 天冷却期），同步后自动导入武器箱、更新精确冷却倒计时。</Text>
             <TouchableOpacity style={[styles.addBtn, syncing && { opacity: 0.6 }]} onPress={syncSmart} disabled={syncing}>
-              <Text style={styles.addBtnText}>{syncing ? '同步中…' : '⟳ 同步 Steam 库存'}</Text>
+              <Text style={styles.addBtnText}>{syncing ? '同步中…' : '⟳ 同步库存（C5 app-key）'}</Text>
             </TouchableOpacity>
             {syncMsg ? <Text style={styles.saved}>{syncMsg}</Text> : null}
           </Card>

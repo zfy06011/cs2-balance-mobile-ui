@@ -376,10 +376,10 @@ assert('fees.steam=0.8696', DEFAULT_FEES.steam_seller_receive_ratio === 0.8696);
 assert('fees.c5=0.01', DEFAULT_FEES.c5_buy_fee_ratio === 0.01);
 
 // ---------- 7. Steam 库存同步：双键匹配 + 自动导入 ----------
-const { planSteamSync, estimateCooldown, buildEmptySyncReason } = p('steamSync.js');
+const { planSteamSync, estimateCooldown, buildC5EmptySyncReason } = p('steamSync.js');
 
 // ---------- 8. Steam 官方历史价格解析 ----------
-const { parsePriceHistory, parseWebApiInventory, normalizeSteamId, fetchSteamInventoryWebApi } = require(path.join(outDirSteam, 'steam.js'));
+const { parsePriceHistory, normalizeSteamId } = require(path.join(outDirSteam, 'steam.js'));
 // skinport.ts + c5.ts 同理单独编译（同目录，公共根直接输出到 outDirSk）
 const outDirSk = path.join(__dirname, '.verify-skinport');
 fs.rmSync(outDirSk, { recursive: true, force: true });
@@ -414,70 +414,31 @@ const recentOnly = filterRecent(feed, 45, new Date('2025-11-01T00:00:00.000Z').g
 assert('rss.recent_filter', recentOnly.length === 2 && recentOnly[0].date === '2025-10-23T12:00:00.000Z', JSON.stringify(recentOnly.map((x) => x.date)));
 assert('rss.empty_safe', parseRss('', 'x').length === 0 && parseRss('<html>not rss</html>', 'x').length === 0);
 
-// ---------- 12. Steam Web API 库存解析（IEconService，含交易保护箱） ----------
-const expSoon = new Date(Date.now() + 3 * 86400000).toISOString().replace(/\.\d+Z$/, 'Z');
-const webApiPayload = {
-  total_inventory_count: 2,
-  assets: [
-    { appid: '730', contextid: '2', assetid: '1', classid: 'c1', instanceid: 'i1', amount: '1', cache_expiration: expSoon },
-    { appid: '730', contextid: '2', assetid: '2', classid: 'c2', instanceid: 'i2', amount: '3' },
-  ],
-  descriptions: [
-    { classid: 'c1', instanceid: 'i1', market_hash_name: 'Kilowatt Case', market_name: '千瓦武器箱', tradable: 0, marketable: 1 },
-    { classid: 'c2', instanceid: 'i2', market_hash_name: 'Revolver Case', market_name: '左轮武器箱', tradable: 1, marketable: 1 },
-  ],
+// ---------- 12. C5 OpenAPI 库存解析（GET /merchant/inventory/v2/{steamId}/730，app-key） ----------
+// 库存仅走 C5 app-key（v1.5.9）：C5 服务端高权限通道能看到交易保护中的箱子（status=4 冷却中），
+// Steam Web API 对保护期账号返回空对象，已整体移除。
+const { parseC5Inventory, aggregateC5Inventory } = require(path.join(outDirC5, 'c5.js'));
+const c5InvPayload = {
+  success: true, data: {
+    steamId: '76561198000000000', appId: 730, total: 3, lastAssetId: null,
+    list: [
+      { marketHashName: 'Kilowatt Case', name: '千瓦武器箱', status: 4, ifTradable: false, tradableTime: null, assetId: 'a1', itemId: 'i1', price: 12.5 },
+      { marketHashName: 'Kilowatt Case', name: '千瓦武器箱', status: 0, ifTradable: true, tradableTime: null, assetId: 'a2', itemId: 'i2', price: 13.2 },
+      { marketHashName: 'AK-47 | Redline', name: 'AK-47 | 红线', status: 0, ifTradable: true, tradableTime: null, assetId: 'a3', itemId: 'i3', price: 100 },
+    ],
+  },
 };
-const webInv = parseWebApiInventory(webApiPayload);
-assert('webapi.parse_len=2', webInv.items.length === 2 && webInv.assetCount === 2, webInv.items.length);
-assert('webapi.total', webInv.totalInventoryCount === 2, webInv.totalInventoryCount);
-const kw = webInv.items.find((x) => x.name === 'Kilowatt Case');
-const rv = webInv.items.find((x) => x.name === 'Revolver Case');
-assert('webapi.protected_days', !!kw && kw.tradable === false && kw.tradableRestrictionDays != null && kw.tradableRestrictionDays >= 2 && kw.tradableRestrictionDays <= 4, JSON.stringify(kw));
-assert('webapi.unlocked', !!rv && rv.tradable === true && rv.amount === 3, JSON.stringify(rv));
-// 空列表但 total>0（Steam 报告 N 件但 assets 为空）：引擎据此区分「真空库存」与「返回异常」（context 16 失败场景）
-const emptyInv = parseWebApiInventory({ total_inventory_count: 5, assets: [], descriptions: [] });
-assert('webapi.empty_total_kept', emptyInv.items.length === 0 && emptyInv.assetCount === 0 && emptyInv.totalInventoryCount === 5, JSON.stringify(emptyInv));
+const c5Parsed = parseC5Inventory(c5InvPayload);
+assert('c5_inv.filter_case_only', c5Parsed.items.length === 2 && c5Parsed.assetCount === 3 && c5Parsed.total === 3, JSON.stringify(c5Parsed.items));
+const c5Protected = c5Parsed.items.find((x) => x.assetId === 'a1');
+const c5Unlocked = c5Parsed.items.find((x) => x.assetId === 'a2');
+assert('c5_inv.status4_cooldown', !!c5Protected && c5Protected.tradable === false && c5Protected.tradableRestrictionDays === null && c5Protected.name === 'Kilowatt Case' && c5Protected.cnName === '千瓦武器箱', JSON.stringify(c5Protected));
+assert('c5_inv.status0_tradable', !!c5Unlocked && c5Unlocked.tradable === true && c5Unlocked.price === 13.2, JSON.stringify(c5Unlocked));
+const c5Agg = aggregateC5Inventory(c5Parsed.items);
+assert('c5_inv.aggregate_amount=2', c5Agg.length === 1 && c5Agg[0].name === 'Kilowatt Case' && c5Agg[0].amount === 2 && c5Agg[0].tradable === true, JSON.stringify(c5Agg));
 assert('steam.norm_digits', normalizeSteamId('76561198000000000') === '76561198000000000', normalizeSteamId('76561198000000000'));
 assert('steam.norm_profiles_url', normalizeSteamId('https://steamcommunity.com/profiles/76561198000000000') === '76561198000000000', normalizeSteamId('https://steamcommunity.com/profiles/76561198000000000'));
 assert('steam.norm_vanity_rejects', (() => { try { normalizeSteamId('myvanity'); return false; } catch { return true; } })(), 'vanity should be rejected by normalizeSteamId');
-
-// ---------- 12b. 模拟 INV_SCRIPT 修复后的合并场景（context2 空 + context16 有物品） ----------
-const ctx2Empty = { success: true, total_inventory_count: 0, assets: [], descriptions: [] };
-const ctx16Protected = {
-  success: true, total_inventory_count: 2,
-  assets: [
-    { appid: '730', contextid: '16', assetid: '10', classid: 'c10', instanceid: 'i10', amount: '1' },
-    { appid: '730', contextid: '16', assetid: '11', classid: 'c11', instanceid: 'i11', amount: '2' },
-  ],
-  descriptions: [
-    { classid: 'c10', instanceid: 'i10', market_hash_name: 'Dreams & Nightmares Case', tradable: 0, marketable: 0 },
-    { classid: 'c11', instanceid: 'i11', market_hash_name: 'CS:GO Weapon Case', tradable: 0, marketable: 0 },
-  ],
-};
-// 模拟修复后的 merge 逻辑：扁平 concat
-const mergedAssets = [].concat(ctx2Empty.assets, ctx16Protected.assets);
-const mergedDescRaw = [].concat(ctx2Empty.descriptions, ctx16Protected.descriptions);
-const seenD = {}; const dedupedDesc = [];
-for (const dd of mergedDescRaw) { const k = dd.classid + '|' + dd.instanceid; if (!seenD[k]) { seenD[k] = true; dedupedDesc.push(dd); } }
-const mergedPayload = { total_inventory_count: mergedAssets.length, assets: mergedAssets, descriptions: dedupedDesc };
-const mergedInv = parseWebApiInventory(mergedPayload);
-assert('webapi.merge_ctx16_len=2', mergedInv.items.length === 2, mergedInv.items.length);
-assert('webapi.merge_ctx16_assetCount=2', mergedInv.assetCount === 2, mergedInv.assetCount);
-const dn = mergedInv.items.find((x) => x.name === 'Dreams & Nightmares Case');
-const wc = mergedInv.items.find((x) => x.name === 'CS:GO Weapon Case');
-assert('webapi.merge_ctx16_protected', !!dn && dn.tradable === false && dn.amount === 1, JSON.stringify(dn));
-assert('webapi.merge_ctx16_qty', !!wc && wc.amount === 2 && wc.tradable === false, JSON.stringify(wc));
-
-// ---------- 12c. v1.5.6：Steam 官方 response 包装解析回归 ----------
-// 官方 GetInventoryItemsWithDescriptions 实际返回 {"response":{...}}（同 GetPlayerSummaries）。
-// 此前解析层只认 result/裸对象 → 数据被整体丢弃 → 永远空库存/0/?。
-const wrappedInv = parseWebApiInventory({ response: webApiPayload });
-assert('webapi.response_wrapper_parse', wrappedInv.items.length === 2 && wrappedInv.assetCount === 2 && wrappedInv.totalInventoryCount === 2, JSON.stringify(wrappedInv));
-const wrappedEmpty = parseWebApiInventory({ response: { success: 1, total_inventory_count: 5, assets: [], descriptions: [] } });
-assert('webapi.response_wrapper_empty', wrappedEmpty.items.length === 0 && wrappedEmpty.assetCount === 0 && wrappedEmpty.totalInventoryCount === 5, JSON.stringify(wrappedEmpty));
-// 兼容 result 包裹（历史会话抓取格式）
-const wrappedResult = parseWebApiInventory({ result: webApiPayload });
-assert('webapi.result_wrapper_parse', wrappedResult.items.length === 2 && wrappedResult.totalInventoryCount === 2, JSON.stringify(wrappedResult));
 
 // ---------- 13. Skinport 实际成交解析 ----------
 const skPayload = [
@@ -601,89 +562,12 @@ assert('steam_sync.no_dup_import', plan.newEntries.every((e) => e.item_name !== 
 assert('steam_sync.est_unlocked_now', estimateCooldown({ tradable: true, tradableRestrictionDays: null }, null, NOW).estAt === NOW.toISOString());
 assert('steam_sync.est_default_7d', estimateCooldown({ tradable: false, tradableRestrictionDays: null }, null, NOW).estAt === '2026-09-12T12:00:00.000Z');
 
-// 空库存诊断（v1.5.3）：context 2/16 各自 report 总数 + SteamID 昵称，区分「ID 填错」与「Valve 不返回保护期物品」
-assert('empty_reason.ctx16_error', buildEmptySyncReason({ ctx16Error: 'HTTP 429', assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: null, playerName: '言念如一' }).includes('context 16）失败：HTTP 429') && buildEmptySyncReason({ ctx16Error: 'HTTP 429', assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: null, playerName: '言念如一' }).includes('context 2 报 0 件、context 16 报 ? 件'));
-assert('empty_reason.all_zero', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('该账号 CS2 库存里没有任何物品') && buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('昵称「言念如一」'));
-assert('empty_reason.all_zero_hint', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('解锁后在本页重新同步即可自动显示') && buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('本地已记录') === false && buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: '言念如一' }).includes('请用 Steam 登录后的会话同步验证') === false);
-assert('empty_reason.nickname_missing', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: null }).includes('无法取得该 SteamID 昵称'));
-assert('empty_reason.has_asset_no_case', buildEmptySyncReason({ assetCount: 2, totalInventoryCount: 2, ctx2Total: 2, ctx16Total: 0, playerName: '言念如一' }).includes('Steam 库存可见 2 件物品，但没有武器箱'));
-assert('empty_reason.weird_empty', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 5, ctx2Total: 5, ctx16Total: 0, playerName: null }).includes('报告共 5 件但列表为空'));
-// v1.5.7：空库存文案携带 Steam 原始返回片段（用户直接发回即可核对 Steam 实际返回形状）
-assert('empty_reason.raw_snippet', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: null, ctx16Total: null, playerName: '言念如一', ctx2Raw: '{"response":{}}', ctx16Raw: '{"response":{}}' }).includes('Steam 原始返回片段：{"response":{}} || {"response":{}}'));
-assert('empty_reason.raw_omitted_when_none', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: 'x' }).includes('Steam 原始返回片段') === false);
-// v1.5.8：双通道均为空响应对象 + 本地保护期记录 → 断言「不返回保护期物品」结论与本地保护期提示
-assert('empty_reason.protection_hint_full', (() => {
-  const r = buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: null, ctx16Total: null, playerName: '言念如一', ctx2Raw: '{"response":{}}', ctx16Raw: '{"response":{}}', localProtectedCount: 14, localEarliestUnlockAt: '2026-09-12T04:00:00.000Z' });
-  return r.includes('已排除 Key、SteamID 与网络错误') && r.includes('本地已记录 14 件保护中箱子') && r.includes('最早约 ') && r.includes('解锁后在本页重新同步即可自动显示') && r.includes('Steam 原始返回片段：{"response":{}} || {"response":{}}');
-})());
-assert('empty_reason.protection_hint_zero', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: null, ctx16Total: null, playerName: '言念如一', ctx2Raw: '{"response":{}}', ctx16Raw: '{"response":{}}', localProtectedCount: 0 }).includes('本地已记录') === false);
+// 空库存诊断（v1.5.9）：C5 app-key 通道能看到保护期箱子，返回空 = SteamID 非本人 / C5 未绑定该账号
+assert('empty_reason.c5_zero', buildC5EmptySyncReason({ total: 0, assetCount: 0 }).includes('C5 服务端未返回任何物品') && buildC5EmptySyncReason({ total: 0, assetCount: 0 }).includes('Steam 侧共报 0 件资产') && buildC5EmptySyncReason({ total: 0, assetCount: 0 }).includes('SteamID64 不是本人账号'));
+assert('empty_reason.c5_unknown_total', buildC5EmptySyncReason({ total: null, assetCount: 0 }).includes('Steam 侧共报 ? 件资产'));
+assert('empty_reason.c5_has_asset_no_case', buildC5EmptySyncReason({ total: 352, assetCount: 12 }).includes('C5 服务端可见 12 件资产，其中没有武器箱') && buildC5EmptySyncReason({ total: 352, assetCount: 12 }).includes('共报 352 件'));
 
-// ---------- 12d. v1.5.6：端到端 mock Steam Web API（response 包装） ----------
-// 直接驱动 fetchSteamInventoryWebApi：context 2/16 + GetPlayerSummaries 全部返回
-// {"response":{...}} 包装，验证 fetchContext 解包后能读到真实库存与总数。
-(async () => {
-  const realFetch = globalThis.fetch;
-  const fakeResp = (body) => ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) });
-  globalThis.fetch = async (url) => {
-    const u = String(url);
-    if (u.includes('GetInventoryItemsWithDescriptions')) {
-      const m = /contextid=(\d+)/.exec(u);
-      const contextId = m ? m[1] : '2';
-      if (contextId === '2') {
-        return fakeResp({ response: { success: 1, total_inventory_count: 1, assets: [
-          { appid: '730', contextid: '2', assetid: '1', classid: 'c1', instanceid: 'i1', amount: '1' },
-        ], descriptions: [
-          { classid: 'c1', instanceid: 'i1', market_hash_name: 'Kilowatt Case', market_name: '千瓦武器箱', tradable: 1, marketable: 1 },
-        ] } });
-      }
-      return fakeResp({ response: { success: 1, total_inventory_count: 0, assets: [], descriptions: [] } });
-    }
-    if (u.includes('GetPlayerSummaries')) {
-      return fakeResp({ response: { players: [{ personaname: '言念如一' }] } });
-    }
-    throw new Error('unexpected url: ' + u);
-  };
-  try {
-    const webApiResult = await fetchSteamInventoryWebApi('TEST_KEY', '76561198000000000');
-    assert('webapi.e2e_response_wrapper', webApiResult.assetCount === 1 && webApiResult.ctx2Total === 1 && webApiResult.ctx16Total === 0 && webApiResult.items.length === 1 && webApiResult.items[0].name === 'Kilowatt Case' && webApiResult.items[0].cnName === '千瓦武器箱' && webApiResult.playerName === '言念如一', JSON.stringify(webApiResult));
-    // v1.5.7：success=0 必须显式抛错（不能静默按空库存处理）
-    globalThis.fetch = async (url) => {
-      const u = String(url);
-      if (u.includes('GetInventoryItemsWithDescriptions')) {
-        return fakeResp({ response: { success: 0, message: 'Invalid key' } });
-      }
-      throw new Error('unexpected url: ' + u);
-    };
-    let threwSuccessZero = false;
-    try {
-      await fetchSteamInventoryWebApi('BAD_KEY', '76561198000000000');
-    } catch (e) {
-      threwSuccessZero = e instanceof Error && /success=0/.test(e.message);
-    }
-    assert('webapi.e2e_success0_throws', threwSuccessZero, 'success=0 应抛错');
-    // v1.5.7：Steam 返回无字段的空对象（total_inventory_count/assets 缺失）→ 双 context 报 ? 且携带原始片段，
-    // 用于区分「装错旧包 / Steam 返回结构异常 / 账号真空库存」
-    globalThis.fetch = async (url) => {
-      const u = String(url);
-      if (u.includes('GetInventoryItemsWithDescriptions')) {
-        return fakeResp({ response: {} });
-      }
-      if (u.includes('GetPlayerSummaries')) {
-        return fakeResp({ response: { players: [{ personaname: '言念如一' }] } });
-      }
-      throw new Error('unexpected url: ' + u);
-    };
-    const emptyRes = await fetchSteamInventoryWebApi('TEST_KEY', '76561198000000000');
-    assert('webapi.e2e_empty_returns_raw', emptyRes.assetCount === 0 && emptyRes.ctx2Total === null && emptyRes.ctx16Total === null && emptyRes.ctx2Raw.includes('"response"') && emptyRes.ctx16Raw.includes('"response"'), JSON.stringify(emptyRes));
-  } finally {
-    globalThis.fetch = realFetch;
-  }
-})().then(() => {
-  console.log('');
-  console.log('PASS ' + passed + ' / ' + (passed + failed));
-  if (failed > 0) { console.log(failed + ' FAILED'); process.exit(1); }
-  console.log('ALL CORE ASSERTIONS PASSED (TS == Python baseline)');
-}).catch((e) => {
-  console.error('E2E ERROR ' + e);
-  process.exit(1);
-});
+console.log('');
+console.log('PASS ' + passed + ' / ' + (passed + failed));
+if (failed > 0) { console.log(failed + ' FAILED'); process.exit(1); }
+console.log('ALL CORE ASSERTIONS PASSED (TS == Python baseline)');

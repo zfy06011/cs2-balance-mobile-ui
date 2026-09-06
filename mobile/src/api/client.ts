@@ -54,7 +54,7 @@ export const api = {
   /** 库存同步唯一入口：Web API + 双 Context（context 2 + context 16 交易保护） */
   syncSteamInventorySmart: () => engine.syncSteamInventorySmart(),
   /** 用已登录的 Steam 会话同步（自动识别本人 SteamID64 并存回设置） */
-  syncSteamInventoryFromSession: () => engine.syncSteamInventoryFromSession(),
+
   /** 会话导入历史的目标清单（价格点不足的名字优先） */
   historyTargets: (limit = 60) => engine.listHistoryTargets(limit),
   /** WebView 会话内抓到的 pricehistory.prices 解析入库 */

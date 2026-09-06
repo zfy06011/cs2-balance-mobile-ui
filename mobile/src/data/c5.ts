@@ -304,3 +304,175 @@ function extractC5ItemId(json: unknown, marketHashName: string): string {
   return matchId || firstId;
 }
 
+// ---------------------------------------------------------------------------
+// C5 库存（官方 OpenAPI：GET /merchant/inventory/v2/{steamId}/{appId}）
+// v1.5.9 起库存仅走 C5 app-key：C5 服务端从 Steam 高权限通道拉库存，能看到交易保护中的
+// 物品（status=4 暂时不可交易/冷却中），Steam Web API 对保护期账号返回空对象
+// （用户实测 {"response":{}}），已移除。历史价格仍走 C5 网页 cookie（OpenAPI 无历史端点）。
+//
+// 响应：{ success, data: { steamId, appId, total, lastAssetId, list: [...] } }
+//   list[] 每项 = 一个独立资产；status 枚举：
+//     0 正常 / 1 在售 / 2 禁用 / 3 永久不可交易 / 4 暂时不可交易（冷却中）
+//     / 5 待发货 / 6 中间 / 7 可出租
+//   关键字段：marketHashName（英文，匹配键）、name（中文名）、ifTradable、
+//   tradableTime（可交易时刻，可能为 null）、itemId、assetId、price。
+//   分页：data.lastAssetId 非 null 时作为下一页 startAssetId，直到为 null。
+// ---------------------------------------------------------------------------
+
+export interface C5InventoryItem {
+  /** 英文 MarketHashName：本地库存匹配键 */
+  name: string;
+  /** C5 中文名（无中文时 null） */
+  cnName: string | null;
+  /** 该名下的资产件数（同物品多资产聚合计数） */
+  amount: number;
+  /** 是否可交易（status 0/1/7 或 ifTradable=true；status=4 冷却中为 false） */
+  tradable: boolean;
+  /** 距可交易剩余整数天；null 表示未知（交给计划层按 7 天估算） */
+  tradableRestrictionDays: number | null;
+  /** C5 资产状态枚举（0 正常/1 在售/2 禁用/3 永久不可交易/4 冷却中/5 待发货/6 中间/7 可出租） */
+  status: number;
+  /** 可交易的具体时刻（ISO；C5 通常返回 null，未知时按 7 天估算） */
+  tradableTime: string | null;
+  assetId: string | null;
+  itemId: string | null;
+  /** C5 参考价（元） */
+  price: number | null;
+}
+
+interface C5InventoryRaw {
+  success?: boolean | 0 | 1;
+  data?: Record<string, unknown> | null;
+  errorCode?: number;
+  errorMsg?: string | null;
+}
+
+/** 从 C5 单个资产对象提取字段；非武器箱返回 null（与 steam.ts#isCaseLikeName 同口径） */
+function c5AssetItemOf(o: Record<string, unknown>, now: number): C5InventoryItem | null {
+  const mhn = String(o.marketHashName ?? o.market_hash_name ?? '').trim();
+  if (!mhn || !isCaseLikeName(mhn)) return null;
+  let status = typeof o.status === 'number' ? o.status : parseInt(String(o.status), 10);
+  if (!Number.isFinite(status)) status = 0;
+  const ifTradable = o.ifTradable === true || o.ifTradable === 1 || String(o.ifTradable) === '1';
+  const rawCn = String(o.name ?? '');
+  const cnName = rawCn && rawCn !== mhn && /[\u4e00-\u9fff]/.test(rawCn) ? rawCn : null;
+  const tradableTime = typeof o.tradableTime === 'string' && o.tradableTime ? o.tradableTime : null;
+  // 可交易判定：C5 明确可交易 / status ∈ {0 正常, 1 在售, 7 可出租} → 可交易；
+  // status=4 冷却中 → 不可交易（tradableTime 已知时按精确时刻，否则交给计划层按 7 天估算）。
+  let tradable = ifTradable || status === 0 || status === 1 || status === 7;
+  let tradableDays: number | null = null;
+  if (!tradable && tradableTime) {
+    const t = Date.parse(tradableTime);
+    if (Number.isFinite(t)) {
+      const daysLeft = Math.ceil((t - now) / 86400000);
+      tradable = daysLeft <= 0;
+      tradableDays = Math.max(0, daysLeft);
+    }
+  }
+  const assetId = o.assetId != null && String(o.assetId) ? String(o.assetId) : null;
+  const itemId = o.itemId != null && String(o.itemId) ? String(o.itemId) : null;
+  return {
+    name: mhn, cnName, amount: 1, tradable, tradableRestrictionDays: tradableDays,
+    status, tradableTime, assetId, itemId, price: toNumber(o.price),
+  };
+}
+
+/** 解析一页 C5 库存响应（含武器箱过滤；同页同名多资产不聚合，聚合见 aggregateC5Inventory） */
+export function parseC5Inventory(json: unknown): {
+  items: C5InventoryItem[]; assetCount: number; total: number | null; lastAssetId: string | null;
+} {
+  const root = (json ?? {}) as C5InventoryRaw;
+  const data = (root.data && typeof root.data === 'object' ? root.data : {}) as Record<string, unknown>;
+  const list = Array.isArray(data.list) ? data.list : Array.isArray(data.items) ? data.items : [];
+  const total = typeof data.total === 'number' ? data.total : typeof root.data?.total === 'number' ? (root.data.total as number) : null;
+  const lastAssetId = typeof data.lastAssetId === 'string' && data.lastAssetId ? data.lastAssetId : null;
+  const now = Date.now();
+  const items: C5InventoryItem[] = [];
+  for (const raw of list) {
+    if (raw == null || typeof raw !== 'object') continue;
+    const it = c5AssetItemOf(raw as Record<string, unknown>, now);
+    if (it) items.push(it);
+  }
+  return { items, assetCount: list.length, total, lastAssetId };
+}
+
+/** 跨页/同页聚合：同一 marketHashName 的多个资产合并为一条（数量求和、可交易取或、冷却取最早解锁） */
+export function aggregateC5Inventory(items: C5InventoryItem[]): C5InventoryItem[] {
+  const seen = new Map<string, C5InventoryItem>();
+  for (const it of items) {
+    const prev = seen.get(it.name);
+    if (!prev) {
+      seen.set(it.name, { ...it });
+      continue;
+    }
+    prev.amount += it.amount;
+    prev.tradable = prev.tradable || it.tradable;
+    if (it.tradableRestrictionDays != null && (prev.tradableRestrictionDays == null || it.tradableRestrictionDays < prev.tradableRestrictionDays)) {
+      prev.tradableRestrictionDays = it.tradableRestrictionDays;
+    }
+    if (!prev.tradableTime && it.tradableTime) prev.tradableTime = it.tradableTime;
+    if (!prev.assetId && it.assetId) prev.assetId = it.assetId;
+    if (prev.price == null && it.price != null) prev.price = it.price;
+  }
+  return Array.from(seen.values());
+}
+
+export interface C5InventoryResult {
+  items: C5InventoryItem[];
+  assetCount: number;
+  total: number | null;
+  lastAssetId: string | null;
+}
+
+/** 拉取 C5 库存（自动分页直到 lastAssetId 为空；最多 20 页）。
+ *  需 app-key（库存与价格统一走 C5 官方 OpenAPI）与 17 位 SteamID64。 */
+export async function fetchC5Inventory(steamId: string, appKey: string): Promise<C5InventoryResult> {
+  const key = (appKey || '').trim();
+  const sid = String(steamId || '').trim().replace(/^https?:\/\/steamcommunity\.com\/profiles\//, '');
+  if (!key) throw new Error('请先到「设置」页配置 C5GAME app-key（库存与价格统一走 C5 官方 OpenAPI，免费注册：opendoc.c5game.com）');
+  if (!/^\d{17}$/.test(sid)) throw new Error('请到「设置」页填写 17 位 SteamID64（资料页 /profiles/ 后的数字），配合 C5 app-key 同步库存');
+  let startAssetId = '0';
+  let last = '';
+  let rawTotal: number | null = null;
+  const all: C5InventoryItem[] = [];
+  for (let page = 0; page < 20; page++) {
+    const url = C5_API_BASE + '/merchant/inventory/v2/' + sid + '/730?language=zh&startAssetId=' + encodeURIComponent(startAssetId) + '&app-key=' + encodeURIComponent(key);
+    let resp: Response;
+    try {
+      resp = await fetch(url, { headers: { Accept: 'application/json' } });
+    } catch (e) {
+      throw new Error('无法连接 openapi.c5game.com（网络或代理问题）：' + (e instanceof Error ? e.message : String(e)));
+    }
+    if (!resp.ok) {
+      let snippet = '';
+      try {
+        snippet = (await resp.text()).replace(/\s+/g, ' ').trim().slice(0, 200);
+      } catch {
+        // 读失败不阻塞
+      }
+      if (resp.status === 400) throw new Error('C5 库存接口拒绝（400）：app-key 无效或未授权该接口' + (snippet ? '，返回：' + snippet : ''));
+      throw new Error('C5 库存接口返回 ' + resp.status + (snippet ? '：' + snippet : ''));
+    }
+    let json: unknown;
+    try {
+      json = await resp.json();
+    } catch {
+      throw new Error('C5 库存接口返回的不是有效 JSON');
+    }
+    const obj = (json ?? {}) as C5InventoryRaw;
+    if (obj.success === false || obj.success === 0) {
+      const msg = String(obj.errorMsg ?? '未知错误');
+      const code = obj.errorCode != null ? String(obj.errorCode) : '';
+      throw new Error('C5 库存接口返回失败（' + (code ? 'errorCode=' + code + '，' : '') + msg + '）。请核对设置页的 C5 app-key 是否有效且已获得库存接口权限');
+    }
+    const parsed = parseC5Inventory(json);
+    if (page === 0) rawTotal = parsed.total;
+    all.push(...parsed.items);
+    const nextLast = parsed.lastAssetId;
+    if (!nextLast || nextLast === last || nextLast === startAssetId) break;
+    last = nextLast;
+    startAssetId = nextLast;
+  }
+  return { items: aggregateC5Inventory(all), assetCount: all.length, total: rawTotal, lastAssetId: last || null };
+}
+

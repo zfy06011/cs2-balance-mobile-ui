@@ -51,8 +51,6 @@ export interface AppSettings {
   c5AppKey: string;
   /** C5GAME 网页登录 cookie，用于拉取官方历史价格（选填） */
   c5Cookie: string;
-  /** Steam Web API Key（免费，steamcommunity.com/dev/apikey）：官方库存接口，含交易保护箱 */
-  steamApiKey: string;
   /** SteamID64（/profiles/ 后的 17 位数字），用于 Steam 库存冷却同步 */
   steamId: string;
   refreshCount: number;
@@ -141,7 +139,6 @@ function num(v: unknown, def: number): number {
 const DEFAULT_SETTINGS: AppSettings = {
   c5AppKey: '',
   c5Cookie: '',
-  steamApiKey: '',
   steamId: '',
   refreshCount: 20,
   steamCookie: '',

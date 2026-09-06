@@ -7,9 +7,9 @@ import {
   storage, LocalSnapshot, LOCK_HOURS, LOCK_DAYS,
 } from '../data/storage';
 import { collectCases, collectOne, CollectProgress, CollectStats } from '../data/collector';
-import { fetchSteamInventoryWebApi, parseWebApiInventory, parsePriceHistory, resolveOwnSteamId, resolveSteamIdViaWebApi } from '../data/steam';
+import { parsePriceHistory, resolveOwnSteamId, normalizeSteamId } from '../data/steam';
 import { fetchSkinportHistory, SkinportStats } from '../data/skinport';
-import { fetchC5StatsBulk, fetchC5PriceTrend, fetchC5ItemIdViaWeb } from '../data/c5';
+import { fetchC5StatsBulk, fetchC5PriceTrend, fetchC5ItemIdViaWeb, fetchC5Inventory } from '../data/c5';
 
 let skinportCache: Map<string, { t: number; v: SkinportStats | null }> | null = null;
 import { ProfitCalculator } from './profit';
@@ -17,7 +17,7 @@ import { BaselinePredictor, BaselinePredictorV3, MARKET_EVENTS, type MarketEvent
 import { evaluateRadar } from './radar';
 import { simulate as runSimulation, reverseTarget, SimItemInput, SIM_CONFIG } from './simulation';
 import { checkPurchase, BuyProtection, BuyCheckResult, buildBuySummary } from './buy';
-import { planSteamSync, buildEmptySyncReason } from './steamSync';
+import { planSteamSync, buildC5EmptySyncReason } from './steamSync';
 import { buildSellAdvice, buildC5BuyAdvice, AdvicePoint } from './advice';
 import { DEFAULT_FEES } from './fees';
 import type {
@@ -527,70 +527,53 @@ export const engine = {
     return { ok, skip, fail, failedIdx: null, failedName: null, failedReason: null };
   },
 
-  /** 库存同步唯一入口：Steam Web API + 双 Context（context 2 普通 + context 16 交易保护）。
-   *  需配置 Steam Web API Key（免费，steamcommunity.com/dev/apikey 申请）；
-   *  交易保护期物品在 context 16，context 16 失败会直接导致保护箱缺失——原因必须透出。 */
+  /** 库存同步唯一入口：C5 官方 OpenAPI（app-key）。v1.5.9 起库存仅走 C5 app-key：
+   *  C5 服务端从 Steam 高权限通道拉库存，能看到交易保护中的物品（status=4 冷却中）；
+   *  Steam Web API 对保护期账号返回空对象（v1.5.7 用户实测双 context 均 {"response":{}}），
+   *  已随本版本移除 Web API 库存方式与设置项。历史价格仍走 C5 网页 cookie（OpenAPI 无历史端点）。
+   *  需要 C5 app-key + SteamID64（做过 Steam 一键登录可自动识别本人 ID）。 */
   async syncSteamInventorySmart(): Promise<{
     matched: number; unlocked: number; imported: number; notFound: number;
     steamId: string; empty: boolean; assetCount: number; totalInventoryCount: number | null;
-    ctx2Total: number | null; ctx16Total: number | null; playerName: string | null;
-    source: 'steam_webapi'; reason?: string; ctx16Error?: string;
-    ctx2Raw?: string; ctx16Raw?: string; at: string;
+    playerName: string | null;
+    source: 'c5_openapi'; reason?: string; at: string;
   }> {
     const settings = await storage.getSettings();
-    const cookie = (settings.steamCookie || '').trim();
-    const apiKey = (settings.steamApiKey || '').trim();
+    const appKey = (settings.c5AppKey || '').trim();
     let steamId = (settings.steamId || '').trim();
-    if (cookie) {
+    // 曾做过「Steam 一键登录」：仅用于自动识别本人 SteamID64（库存仍走 C5 app-key，不依赖 Steam cookie）
+    if ((!steamId || !/^\d{17}$/.test(steamId.replace(/^.*profiles\//, ''))) && settings.steamCookie) {
       try {
-        const sid = await resolveOwnSteamId(cookie);
+        const sid = await resolveOwnSteamId(settings.steamCookie);
         steamId = sid;
         await storage.updateSettings({ steamId: sid });
       } catch {
         // cookie 失效时回退已存 steamId；两者皆无则走下方精准提示
       }
     }
-    if (!apiKey) {
-      throw new Error('请先到「设置」页配置 Steam Web API Key（免费，steamcommunity.com/dev/apikey 申请）。官方接口含交易保护箱（context 16）。');
+    if (!appKey) {
+      throw new Error('请先到「设置」页配置 C5GAME app-key（库存与价格统一走 C5 官方 OpenAPI，免费注册：opendoc.c5game.com）');
     }
     if (!steamId) {
-      throw new Error('请到「设置」页填写你的 SteamID64（资料页 /profiles/ 后的 17 位数字，或自定义 URL 如 steamcommunity.com/id/xxx），配合 Web API Key 即可同步，无需 Steam 登录');
+      throw new Error('请到「设置」页填写你的 SteamID64（资料页 /profiles/ 后的 17 位数字），配合 C5 app-key 即可同步，无需 Steam 登录');
     }
-    // 自定义 URL / vanity：仅凭 Key 即可解析为 17 位数字，无需 Cookie 登录
-    if (!/^\d{17}$/.test(steamId) && !/profiles\/\d{17}/.test(steamId)) {
-      const resolved = await resolveSteamIdViaWebApi(apiKey, steamId);
-      await storage.updateSettings({ steamId: resolved });
-      steamId = resolved;
+    // 自定义 URL（vanity）已无法解析（Steam Web API Key 已移除）→ 只收 17 位数字或 profiles 链接
+    let sid: string;
+    try {
+      sid = normalizeSteamId(steamId);
+    } catch {
+      throw new Error('SteamID64 格式不正确：请输入资料页 /profiles/ 后的 17 位数字（自定义 URL 需先到 Steam 资料页查看数字 ID），或做一次「Steam 一键登录」自动识别');
     }
-    const fetched = await fetchSteamInventoryWebApi(apiKey, steamId);
-    const { items, assetCount, totalInventoryCount, ctx16Error, ctx2Total, ctx16Total, playerName, ctx2Raw, ctx16Raw } = fetched;
+    if (sid !== steamId.trim()) await storage.updateSettings({ steamId: sid });
+    const fetched = await fetchC5Inventory(sid, appKey);
+    const { items, assetCount, total } = fetched;
     const now = new Date();
     if (items.length === 0) {
-      // 用户库存全在保护期时，context 2 天然为空；若 context 16 也失败则保护箱整体缺失——优先显形。
-      // 附带 context 2/16 各自 report 的总数 + SteamID 昵称，用于区分「ID 填错」与「Valve 不返回保护期物品」。
-      // v1.5.8：结合本地库存统计「保护中」条数与最早解锁日，空库存文案给出「解锁后重新同步自动显示」的准确提示
-      // （v1.5.7 用户实测双通道均返回 {"response":{}}，证明是 Steam Web API 不返回保护期物品，而非解析/Key/ID 问题）。
-      const nowMs = Date.now();
-      const rows = await storage.getInventory();
-      let localProtectedCount = 0;
-      let localEarliestUnlockAt: string | null = null;
-      for (const r of rows) {
-        if (r.steam_tradable === true) continue; // 已确认可交易/可上架，不在保护期
-        let estMs: number;
-        if (r.steam_unlock_est_at) {
-          const est = new Date(r.steam_unlock_est_at).getTime();
-          if (!Number.isFinite(est)) continue;
-          estMs = est;
-        } else {
-          estMs = new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000;
-        }
-        if (estMs <= nowMs) continue; // 预计已解锁
-        localProtectedCount++;
-        const estIso = new Date(estMs).toISOString();
-        if (localEarliestUnlockAt === null || estIso < localEarliestUnlockAt) localEarliestUnlockAt = estIso;
-      }
-      const reason = buildEmptySyncReason({ ctx16Error, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, ctx2Raw, ctx16Raw, localProtectedCount, localEarliestUnlockAt });
-      return { matched: 0, unlocked: 0, imported: 0, notFound: 0, steamId, empty: true, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, source: 'steam_webapi', reason, ctx16Error, ctx2Raw, ctx16Raw, at: now.toISOString() };
+      const reason = buildC5EmptySyncReason({ assetCount, total });
+      return {
+        matched: 0, unlocked: 0, imported: 0, notFound: 0, steamId: sid, empty: true,
+        assetCount, totalInventoryCount: total, playerName: null, source: 'c5_openapi', reason, at: now.toISOString(),
+      };
     }
     const rows = await storage.getInventory();
     const plan = planSteamSync(rows, items, now);
@@ -601,58 +584,14 @@ export const engine = {
       unlocked: plan.unlocked,
       imported: plan.imported,
       notFound: plan.notFound,
-      steamId,
+      steamId: sid,
       empty: false,
       assetCount,
-      totalInventoryCount,
-      ctx2Total,
-      ctx16Total,
-      playerName,
-      source: 'steam_webapi',
-      ctx16Error,
-      ctx2Raw,
-      ctx16Raw,
+      totalInventoryCount: total,
+      playerName: null,
+      source: 'c5_openapi',
       at: now.toISOString(),
     };
-  },
-
-  /** 会话拉取：解析 WebView 内（完整登录态）抓到的库存 JSON 并入库。
-   *  交易保护期内的箱子不在经典接口的匿名返回里，但在登录会话视角可见，此入口即为此设计。 */
-  async importSteamInventoryRaw(raw: string): Promise<{
-    matched: number; unlocked: number; imported: number; notFound: number;
-    assetCount: number; totalInventoryCount: number | null; at: string;
-  }> {
-    let data: Parameters<typeof parseWebApiInventory>[0];
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new Error('拉取到的不是有效 JSON（可能未登录或页面异常），请确认已登录 Steam 后重试');
-    }
-    // parseWebApiInventory 兼容 assets/descriptions 形状，且支持 cache_expiration（保护期精算）
-    const { items, assetCount, totalInventoryCount } = parseWebApiInventory(data);
-    const rows = await storage.getInventory();
-    const now = new Date();
-    const plan = planSteamSync(rows, items, now);
-    await storage.updateInventoryCooldown(plan.updates);
-    await storage.addInventoryBulk(plan.newEntries);
-    return {
-      matched: plan.matched,
-      unlocked: plan.unlocked,
-      imported: plan.imported,
-      notFound: plan.notFound,
-      assetCount,
-      totalInventoryCount,
-      at: now.toISOString(),
-    };
-  },
-
-  /** 用已登录的 Steam 会话同步库存：自动识别本人 SteamID64（存回设置），免手填、杜绝 ID 填错 */
-  async syncSteamInventoryFromSession(): Promise<{ matched: number; unlocked: number; imported: number; notFound: number; at: string; steamId: string }> {
-    const settings = await storage.getSettings();
-    const steamId = await resolveOwnSteamId(settings.steamCookie || '');
-    await storage.updateSettings({ steamId });
-    const res = await this.syncSteamInventorySmart();
-    return { ...res, steamId };
   },
 
   // ---- 订单 ----

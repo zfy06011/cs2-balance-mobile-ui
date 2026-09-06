@@ -1,8 +1,24 @@
 # HANDOFF 专项 —— 库存与历史两个未解决问题（2026-09-07）
 
 > 写给下一位接手者。主文档 `docs/HANDOFF.md` 是全量状态；本文只聚焦两个**曾未解决**的问题，
-> 汇总已验证事实、已试过的方案、以及按优先级排列的下一步。App 当前版本 v1.5.8（已打包，versionCode 24）。
+> 汇总已验证事实、已试过的方案、以及按优先级排列的下一步。App 当前版本 v1.5.9（已打包，versionCode 25）。
 
+> **2026-09-07 更新（v1.5.9 已打包，versionCode 25 —— 库存方案收敛为仅 C5 OpenAPI app-key，方向变更）**：
+> - ✅ **用户拍板：库存只走 C5GAME 官方 OpenAPI（app-key）**：`GET https://openapi.c5game.com/merchant/inventory/v2/{steamId}/730?language=zh&startAssetId=<lastAssetId>&app-key=<key>`，
+>   自动分页直到 `lastAssetId` 为空（最多 20 页）；`status=4`（暂时不可交易/冷却中）归为 `tradable=false`，`status=0/1/7` 可交易。
+> - ✅ **回答用户「C5 库存为什么能显示」**：C5 服务端从 Steam **高权限通道**拉库存，**能看到交易保护期物品（status=4 冷却中）**；
+>   而第三方 Steam Web API key 对保护期账号返回 `{"response":{}}`（v1.5.7 用户实测）。所以 v1.5.2~v1.5.8 的 Web API 链路永远空库存。
+> - ✅ **已彻底移除 Steam Web API 库存方式**：`data/steam.ts` 删除 `SteamInventoryItem/parseWebApiInventory/fetchSteamInventoryWebApi/resolveSteamIdViaWebApi/fetchSteamPlayerSummary`；
+>   `engine.ts` 删除 `importSteamInventoryRaw/syncSteamInventoryFromSession`；`api/client.ts` 删除 `syncSteamInventoryFromSession`；
+>   **设置页 Steam Web Key 输入项已删除**（`AppSettings.steamApiKey` 移除），只保留 C5 app-key + SteamID64（做过 Steam 一键登录可自动识别本人 ID）。
+> - ✅ **新增 C5 库存实现**：`c5.ts#fetchC5Inventory`（返回 `{items, assetCount, total, lastAssetId}`，聚合同名、过滤非武器箱）；
+>   `engine.ts#syncSteamInventorySmart` 改为 C5 app-key 通道（`source:'c5_openapi'`）；空库存文案 `steamSync.ts#buildC5EmptySyncReason`
+>   （C5 返回空 = SteamID64 非本人 / C5 app-key 未绑定该账号，不再有保护期歧义）；来源文案「C5 OpenAPI（官方）」。
+> - ✅ **回答用户「Steam 历史能否通过 C5 app-key 获取」：不能**。已枚举 `opendoc.c5game.com` 全部端点（余额/在售/订单/求购/库存/购买，均为实时快照），
+>   无历史价格端点；探测 `price-trend` / `price/history` / `item/trend` 疑似端点实测 **404**。历史仍走 C5 网页 cookie（`trade-flex/order/price-trend/chart?itemId=&period=7|30`）。
+> - ✅ 验证：typecheck 零错误；verify:core **222/222 PASS**（移除 Web API 库存断言、新增 C5 库存 5 项 + buildC5EmptySyncReason 3 项）；APK 已打包并同步桌面。
+> - ⏭ 下一步：等用户提供 C5 app-key + SteamID 后真机验证 `merchant/inventory/v2/730` 分页与保护期箱子可见性（接口匿名实测 200 + `{"errorCode":400001,"errorMsg":"请输入正确的 app-Key"}`，可达性已确认）。
+>
 > **2026-09-07 更新（v1.5.8 已打包，versionCode 24 —— 空库存文案据实定论：Steam Web API 不返回保护期物品，已实锤）**：
 > - ✅ **用户 v1.5.7 同步后发回完整文案（决定性证据）**：context 2/16 均返回 **`{"response":{}}`**（连 `total_inventory_count`/`assets` 都没返回），
 >   昵称「言念如一」可查（`GetPlayerSummaries` 通）、key/SteamID/网络全通 → **排除：装错旧包（文案含 v1.5.7 新增片段）、解析 bug（解包后仍空）、key/SteamID/网络错误**。

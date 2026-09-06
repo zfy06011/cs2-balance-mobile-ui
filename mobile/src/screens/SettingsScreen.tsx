@@ -22,7 +22,6 @@ export function SettingsScreen({ onCookieLogin }: Props) {
   const [c5Cookie, setC5Cookie] = useState('');
   const [cookie, setCookie] = useState('');
   const [steamId, setSteamId] = useState('');
-  const [steamApiKey, setSteamApiKey] = useState('');
   const [count, setCount] = useState(20);
   const [msg, setMsg] = useState<string | null>(null);
   const [buyMaxPrice, setBuyMaxPrice] = useState('0');
@@ -41,7 +40,6 @@ export function SettingsScreen({ onCookieLogin }: Props) {
       setC5Cookie(settings.c5Cookie || '');
       setCookie(settings.steamCookie);
       setSteamId(settings.steamId || '');
-      setSteamApiKey(settings.steamApiKey || '');
       setCount(settings.refreshCount);
       setBuyMaxPrice(String(settings.buyMaxPrice));
       setBuyTargetZhe(String(settings.buyTargetZhe));
@@ -63,7 +61,6 @@ export function SettingsScreen({ onCookieLogin }: Props) {
         c5Cookie: c5Cookie.trim(),
         steamCookie: cookie.trim(),
         steamId: steamId.trim(),
-        steamApiKey: steamApiKey.trim(),
         refreshCount: count,
         buyMaxPrice: parseFloat(buyMaxPrice) || 0,
         buyTargetZhe: parseFloat(buyTargetZhe) || 0,
@@ -78,7 +75,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
   };
 
   const testSteam = async () => {
-    setMsg('正在测试 Steam 连接…');
+    setMsg('正在测试 Steam 搜索连接…');
     try {
       const { searchCases } = await import('../data/steam');
       const hits = await searchCases(5, cookie.trim());
@@ -150,7 +147,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
 
           <Card>
             <SectionTitle>数据源配置</SectionTitle>
-            <Text style={styles.hint}>C5GAME 买入价可填 app-key 自动获取（需申请），也可以直接在商品详情页手动录入。</Text>
+            <Text style={styles.hint}>库存与价格统一走 C5GAME 官方 OpenAPI（app-key，免费注册：opendoc.c5game.com）。「⟳ 同步库存」与 C5 买入价都需要它，历史价格另需 C5 登录凭证。</Text>
             <TextInput
               style={styles.input}
               value={c5Key}
@@ -160,7 +157,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Text style={styles.hint}>推荐用「一键登录」：App 内登录一次，凭证自动保存——Steam 登录供库存会话兜底，C5 登录供首页「快速导入历史」（官方趋势）与买入参考使用。手填 Cookie 仅作备用（浏览器 F12 复制整行 Cookie）。</Text>
+            <Text style={styles.hint}>推荐用「一键登录」：App 内登录一次，凭证自动保存——Steam 登录仅供识别 SteamID64 与搜索加速（库存已改走 C5 app-key），C5 登录供首页「快速导入历史」（官方趋势）与买入参考使用。手填 Cookie 仅作备用（浏览器 F12 复制整行 Cookie）。</Text>
             <View style={styles.countRow}>
               <TouchableOpacity style={[styles.btnPrimary, styles.halfBtn]} onPress={() => onCookieLogin?.('steam')}>
                 <Text style={styles.btnPrimaryText}>🔐 Steam 一键登录</Text>
@@ -173,7 +170,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
               style={styles.input}
               value={cookie}
               onChangeText={setCookie}
-              placeholder="Steam Cookie（备用，可留空）"
+              placeholder="Steam Cookie（搜索加速，可留空）"
               placeholderTextColor={colors.textDim}
               autoCapitalize="none"
               autoCorrect={false}
@@ -187,17 +184,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Text style={styles.hint}>Steam Web API Key（推荐）：电脑浏览器打开 steamcommunity.com/dev/apikey，登录后注册一个 Key（域名随便填），粘贴到这里。库存同步将走官方接口——能看到交易保护中的箱子（社区接口看不到），保护期也精确到时刻。</Text>
-            <TextInput
-              style={styles.input}
-              value={steamApiKey}
-              onChangeText={setSteamApiKey}
-              placeholder="Steam Web API Key（32 位十六进制，选填）"
-              placeholderTextColor={colors.textDim}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Text style={styles.hint}>SteamID64（资料页 /profiles/ 后的 17 位数字，或自定义 URL 如 steamcommunity.com/id/xxx）：配合上面的 Web API Key 即可同步库存，无需 Steam 登录。已「一键登录」过的会自动识别，此项可留空。</Text>
+            <Text style={styles.hint}>SteamID64（资料页 /profiles/ 后的 17 位数字）：配合上面的 C5 app-key 即可同步库存（库存仅走 C5 官方接口）。已做过「一键登录」（Steam/C5）会自动识别，此项可留空。自定义 URL 需先在 Steam 资料页查看数字 ID。</Text>
             <TextInput
               style={styles.input}
               value={steamId}
@@ -212,7 +199,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
                 <Text style={styles.btnPrimaryText}>保存设置</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.btnGhost, { flex: 1 }]} onPress={testSteam}>
-                <Text style={styles.btnGhostText}>测试 Steam 连接</Text>
+                <Text style={styles.btnGhostText}>测试 Steam 搜索</Text>
               </TouchableOpacity>
             </View>
           </Card>
