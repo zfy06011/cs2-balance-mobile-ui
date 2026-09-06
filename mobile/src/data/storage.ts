@@ -63,6 +63,8 @@ export interface AppSettings {
   buyMaxBudget: number;
   /** 雷达目标折扣（折数，低于该值才提醒，默认 7） */
   radarTargetZhe: number;
+  /** 云端历史 Worker 地址（可选；填了「快速导入历史」优先走云端，零登录） */
+  cloudWorkerUrl: string;
 }
 
 const K_SNAPSHOTS = '@cs2balance/snapshots_v2';
@@ -146,6 +148,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   buyTargetZhe: 0,
   buyMaxBudget: 0,
   radarTargetZhe: 7,
+  cloudWorkerUrl: '',
 };
 
 export const storage = {

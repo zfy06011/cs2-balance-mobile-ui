@@ -17,6 +17,7 @@
 6. [开源项目实现参考](#6-开源项目实现参考)
 7. [候选方案对比](#7-候选方案对比)
 8. [推荐方案与实施计划](#8-推荐方案与实施计划)
+9. [2026-09-07 实测补充：gid 页 SSR 解析法（零 cookie 全量历史）](#9-2026-09-07-实测补充gid-页-ssr-解析法零-cookie-全量历史)
 
 ---
 
@@ -301,6 +302,8 @@ Steam 移动端使用与 Web 相同的 cookie 认证，但通过 `MobileWebAuth`
 - **方案 B（pricehistory API）** 需要有效 cookie，在用户环境不可靠
 - **方案 C（快速补历史）** 每次扫描产生 1-2 个点，多次积累可达到 4+ 点阈值
 
+> **2026-09-07 更正**：本章生成本报告当日尚未实测 gid 页。实测后确认——**gid 页 SSR 数据（方案 F）取代 line1 成为主通道**（零 cookie、2013 至今全量日线 + 近期小时粒度 + 盘口深度，CS:GO Weapon Case 实测 5202 点）。详见 [#9](#9-2026-09-07-实测补充gid-页-ssr-解析法零-cookie-全量历史)。line1 仅作旧版页面兜底。
+
 ---
 
 ## 8. 推荐方案与实施计划
@@ -450,4 +453,85 @@ if (match) {
 
 ---
 
-*报告完成。下一步：将此报告提交给用户确认后，进入实施阶段。*
+## 9. 2026-09-07 实测补充：gid 页 SSR 解析法（零 cookie 全量历史，取代 line1 成为主通道）
+
+> **研究日期**：2026-09-07。本报告 7.2 / 8.2 曾推荐 line1 提取为主通道；**实测后更正**：
+> Steam 市场「gid 页」（重定向终态页）内嵌的 SSR 数据是当前**唯一可靠、零 cookie、全量**的历史通道，
+> 且比 line1 数据更全（日线 + 近期小时粒度 + 盘口深度）。line1 仅作旧版页面兜底。
+
+### 9.1 访问路径与重定向
+
+```
+GET https://steamcommunity.com/market/listings/730/{urlencode(market_hash_name)}
+  → 302 重定向 → https://steamcommunity.com/market/listings/730/G18A11F3004   （gid 页）
+```
+
+- 名称页（含中文/空格等特殊字符）会被 302 改写为 `/listings/730/{GID}`；GID 格式：**`G` + 10 位大写十六进制**（共 11 字符，如 `G18A11F3004`）
+- 跟随重定向后抓终态页 HTML 即可，**无需任何 cookie**
+
+### 9.2 内嵌 SSR 数据结构
+
+页面内一行：
+
+```html
+<script>
+window.SSR.renderContext=JSON.parse("...");  // 注意：双重编码 JSON 字符串
+</script>
+```
+
+解析步骤（实测 CS:GO Weapon Case，2026-09-07 抓取）：
+1. 提取 `window.SSR.renderContext=JSON.parse(` 后的引号字符串 → `JSON.parse` → **得到一段 JSON 字符串**（双重编码）
+2. 对该字符串再 `JSON.parse` → `renderContext` 对象：`{ localizationSettings, queryData, cookiePrefs, manifest }`
+3. `renderContext.queryData` 是 JSON 字符串 → 再 parse → `{ mutations, queries }`
+4. `queries[]` 中找 `queryKey: ["market", "pricehistory", 730, "<名称>"]` → `state.data.prices`
+5. `prices` 每项是对象 `{ time: unix秒, price_median: 元, purchases: 成交量 }`
+
+同页另有 `queryKey: ["market", "orderbook", 730, "<名称>"]` → `state.data` 里的买卖盘深度：
+`amtMaxBuyOrder / amtMinSellOrder / eCurrency / rgCompactBuyOrders / rgCompactSellOrders`。
+
+### 9.3 实测数据（CS:GO Weapon Case，G18A11F3004）
+
+| 指标 | 实测值 |
+|------|--------|
+| 价格点数 | **5202 个**（2013-08-14 → 2026-09-06） |
+| 粒度 | 日粒度为主 + 近期小时粒度（2013 至今全量） |
+| 货币 | currency=23（CNY），价格用页面 `price_prefix/suffix` 还原 |
+| 买单深度 | `rgCompactBuyOrders` 2900 档（最高么买价 `amtMaxBuyOrder`=93000） |
+| 卖单深度 | `rgCompactSellOrders` 668 档（最低卖价 `amtMinSellOrder`=96673） |
+
+> 同一时间 `pricehistory/?appid=730&market_hash_name=..` 未登录实测返回 `[]`（HTTP 400），
+> 说明 gid 页 SSR 是真正零 cookie 的官方全量数据通道，云端（海外出口）可直连。
+
+### 9.4 与既有通道对比（更正 7.2）
+
+| 方案 | 端点 | 认证 | 数据范围 | 结论（2026-09-07） |
+|------|------|------|----------|--------------------|
+| **F. gid 页 SSR（新主通道）** | `/market/listings/730/{gid}` 重定向终态页 | **零 cookie** | 2013 至今全量日线 + 近期小时 + 盘口深度 | ⭐⭐⭐⭐⭐ **云端缓存方案的基础** |
+| A. 市场列表页 line1 提取 | `/market/listings/730/{name}` | 零 cookie | 完整日线（无小时粒度/盘口） | ⭐⭐⭐⭐ 旧版页面兜底 |
+| B. pricehistory API | `/market/pricehistory/` | Cookie 必需 | 完整日线 | ⭐⭐ 云端不可用 |
+| C. 快速补历史（priceoverview） | `/market/priceoverview/` | 无需 | 仅当前价 | ⭐⭐⭐ 实时通道 |
+| E. 第三方付费源 | cs2.sh / Pricempire | API Key | 全历史 | ⭐⭐ 备选 |
+
+### 9.5 落地：云端历史缓存（cloud/，v1.5.10）
+
+- 新目录 `cloud/`：Cloudflare Worker + D1 定时抓 gid 页入库（cron `*/15 * * * *`，热门武器箱 Top-100）
+- 公开只读 API：`GET /history?name=..&days=120` → `{ name, price_prefix, points:[[ts,price,volume],..] }`
+- App 端「🔁 快速导入历史」优先走云端（设置页填 Worker 地址，零登录），失败回退 C5 官方趋势
+- 详见 `docs/数据调用链路.md` 第 6 章与 `cloud/` 源码（`src/steam.ts`、`src/worker.ts`）
+
+---
+
+## 附录 D：gid 页 SSR 解析参考（cloud/src/steam.ts 已实现，8/8 单测通过）
+
+```typescript
+// cloud/src/steam.ts：parseSSR / extractPriceHistory / extractOrderbook
+// 关键点：
+// 1) JSON.parse 外层 → 得到字符串 → 再 JSON.parse 才是 renderContext 对象（双重编码）
+// 2) renderContext.queryData 也是字符串 → 再 parse 得 queries[]
+// 3) 找 queryKey[0..1] === ['market','pricehistory'] → state.data.prices
+// 4) 旧格式兜底：var line1 = [["Jun 01 2014 01: +0", 0.12, 15], ...]
+// 5) gid 提取：/\/market\/listings\/730\/(G[0-9A-F]{10})/i（11 字符，G + 10 位 hex）
+// 6) orderbook：queryKey[0..1] === ['market','orderbook'] → state.data 盘口字段
+```
+
+*报告完成。本报告结论已落地为 `cloud/`（Worker + D1）+ App v1.5.10 云端历史通道。*

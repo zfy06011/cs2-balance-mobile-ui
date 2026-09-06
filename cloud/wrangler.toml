@@ -1,0 +1,37 @@
+name = "cs2-price-history"
+main = "src/worker.ts"
+compatibility_date = "2025-05-01"
+workers_dev = true
+
+# 首次部署前：
+#   1) npx wrangler login
+#   2) npx wrangler d1 create cs2-price-history   （把返回的 database_id 填到下面）
+#   3) npm run db:remote                          （执行 schema.sql 建表）
+#   4) npm run deploy
+# 可选写入口鉴权：npx wrangler secret put INGEST_TOKEN  （不设置则 /ingest 无鉴权，仅应自用）
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cs2-price-history"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+
+# 每 15 分钟一轮。注意：免费版 Worker CPU 限额 10ms/调用，整轮抓 100 页会超限，
+# 建议 Workers Paid（CPU 30s）；或把 MAINTENANCE 模式改为「本机采集器 POST /ingest 入库」
+# （见 README.md「两种运行模式」），免费版即可支撑。
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+# 每轮最多处理箱数（首轮回填会很大；可调小并配合更密的 cron 分摊）
+MAX_ITEMS_PER_RUN = "100"
+# 实时抓取并发（整轮抓取时建议 2-3，避免触发 Steam 限流）
+CONCURRENCY = "3"
+STEAM_TIMEOUT_MS = "10000"
+STEAM_RETRIES = "2"
+REQUEST_DELAY_MS = "400"
+# 历史保留天数（默认 3650 = 全量 2013 至今；首轮回填行数 = 箱数 x 点数，注意 D1 免费写 10 万行/天）
+HISTORY_DAYS = "3650"
+# Steam 搜索返回的前 N 个热门武器箱
+TOP_CASES = "100"
+# /history 默认返回天数
+DEFAULT_HISTORY_DAYS = "120"

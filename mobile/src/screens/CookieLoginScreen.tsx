@@ -32,7 +32,7 @@ const TARGETS: Record<
     loginCookie: /NC5_accessToken|NC5_uid/i,
   },
   'steam-hist': {
-    title: '🔁 快速导入历史（C5 官方趋势）',
+    title: '🔁 快速导入历史（云端 / C5 官方趋势）',
     url: 'https://www.c5game.com/',
     origin: 'https://www.c5game.com',
     loginCookie: /NC5_accessToken|NC5_uid/i,
@@ -72,17 +72,9 @@ export function CookieLoginScreen({ kind, onClose }: Props) {
     setPullMsg('准备目标清单…');
     try {
       const settings = await api.getSettings();
+      const cloudUrl = (settings.cloudWorkerUrl || '').trim();
       const c5AppKey = (settings.c5AppKey || '').trim();
       const c5Cookie = (settings.c5Cookie || '').trim();
-      if (!c5Cookie) {
-        setPulling(false);
-        setPullMsg(null);
-        Alert.alert(
-          '需要 C5 登录凭证',
-          '快速导入走 C5GAME 官方趋势接口（需 C5 登录态）。\n\n请在下方页面右上角登录 C5GAME（登录成功会自动保存凭证），然后再次点「开始导入」。',
-        );
-        return;
-      }
       const names = await api.c5HistoryTargets(60);
       if (names.length === 0) {
         setPulling(false);
@@ -90,44 +82,91 @@ export function CookieLoginScreen({ kind, onClose }: Props) {
         Alert.alert('没有需要导入的箱子', '所有监控箱子的历史都已充足（或还没有扫描数据）。');
         return;
       }
+      // 通道选择：配置了云端地址 → 云端优先（零登录）；否则回退 C5 官方趋势（需 C5 登录态）
+      let channel: 'cloud' | 'c5' = cloudUrl ? 'cloud' : 'c5';
+      if (channel === 'c5' && !c5Cookie) {
+        setPulling(false);
+        setPullMsg(null);
+        Alert.alert(
+          '需要 C5 登录凭证',
+          '未配置云端历史地址，快速导入走 C5GAME 官方趋势接口（需 C5 登录态）。\n\n请在下方页面右上角登录 C5GAME（登录成功会自动保存凭证），或回到设置页填写「云端历史地址」（推荐，零登录）。',
+        );
+        return;
+      }
       histNamesRef.current = names;
-      setPullMsg(`0/${names.length}`);
+      setPullMsg('0/' + names.length);
       let startIdx = 0;
       let acc = { ok: 0, skip: 0, fail: 0 };
       for (;;) {
-        const r = await api.importC5Histories(
-          names,
-          { c5AppKey, c5Cookie },
-          (done, total) => {
-            setPullMsg(`${done}/${total}`); // done 为 1-based
-          },
-          startIdx,
-        );
-        acc = { ok: r.ok, skip: r.skip, fail: r.fail };
-        if (r.failedIdx === null || r.failedIdx < 0) break; // 全部完成
-        const cont = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            '导入中断',
-            `箱子：${r.failedName ?? '未知'}\n原因：${r.failedReason ?? '未知'}\n\n已成功 ${acc.ok} 个${acc.skip > 0 ? `，无新增 ${acc.skip} 个` : ''}${acc.fail > 0 ? `，失败 ${acc.fail} 个` : ''}。`,
-            [
-              { text: '停止', style: 'cancel', onPress: () => resolve(false) },
-              { text: '跳过此箱继续', onPress: () => resolve(true) },
-            ],
+        if (channel === 'cloud') {
+          const r = await api.importCloudHistories(
+            names,
+            cloudUrl,
+            (done, total) => {
+              setPullMsg(done + '/' + total); // done 为 1-based
+            },
+            startIdx,
           );
-        });
-        if (!cont) break;
-        startIdx = (r.failedIdx ?? 0) + 1;
+          acc = { ok: r.ok, skip: r.skip, fail: r.fail };
+          if (r.failedIdx === null || r.failedIdx < 0) break; // 全部完成
+          const ask = await new Promise<'stop' | 'skip' | 'c5'>((resolve) => {
+            const btns: Array<{ text: string; style?: 'cancel'; onPress: () => void }> = [
+              { text: '停止', style: 'cancel', onPress: () => resolve('stop') },
+              { text: '跳过此箱继续', onPress: () => resolve('skip') },
+            ];
+            if (c5Cookie) {
+              btns.push({ text: '改用 C5 官方趋势', onPress: () => resolve('c5') });
+            }
+            Alert.alert(
+              '云端导入中断',
+              '箱子：' + (r.failedName ?? '未知') + '\n原因：' + (r.failedReason ?? '未知') + '\n\n已成功 ' + acc.ok + ' 个' + (acc.skip > 0 ? '，无新增 ' + acc.skip + ' 个' : '') + (acc.fail > 0 ? '，失败 ' + acc.fail + ' 个' : '') + '。',
+              btns,
+            );
+          });
+          if (ask === 'stop') break;
+          if (ask === 'c5') {
+            channel = 'c5';
+            startIdx = r.failedIdx ?? 0; // 当前箱改用 C5 重试
+            continue;
+          }
+          startIdx = (r.failedIdx ?? 0) + 1;
+        } else {
+          const r = await api.importC5Histories(
+            names,
+            { c5AppKey, c5Cookie },
+            (done, total) => {
+              setPullMsg(done + '/' + total); // done 为 1-based
+            },
+            startIdx,
+          );
+          acc = { ok: r.ok, skip: r.skip, fail: r.fail };
+          if (r.failedIdx === null || r.failedIdx < 0) break; // 全部完成
+          const cont = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              'C5 导入中断',
+              '箱子：' + (r.failedName ?? '未知') + '\n原因：' + (r.failedReason ?? '未知') + '\n\n已成功 ' + acc.ok + ' 个' + (acc.skip > 0 ? '，无新增 ' + acc.skip + ' 个' : '') + (acc.fail > 0 ? '，失败 ' + acc.fail + ' 个' : '') + '。',
+              [
+                { text: '停止', style: 'cancel', onPress: () => resolve(false) },
+                { text: '跳过此箱继续', onPress: () => resolve(true) },
+              ],
+            );
+          });
+          if (!cont) break;
+          startIdx = (r.failedIdx ?? 0) + 1;
+        }
       }
       setPulling(false);
       setPullMsg(null);
       if (acc.ok === 0 && acc.fail > 0 && acc.skip === 0) {
         Alert.alert(
           '导入 0 条',
-          'C5 官方趋势接口全部失败。\n\n请确认 C5 Cookie 仍有效（可在页面右上角重新登录一次再试），或已正确配置 C5 app-key（可加快查 itemId）。',
+          channel === 'cloud'
+            ? '云端历史通道全部失败（网络不通 / Worker 未部署 / 箱子均未收录）。\n\n请确认「云端历史地址」正确可访问（可先用手机浏览器打开 /health 测试）；或回到设置页改用 C5 官方趋势。'
+            : 'C5 官方趋势接口全部失败。\n\n请确认 C5 Cookie 仍有效（可在页面右上角重新登录一次再试），或已正确配置 C5 app-key（可加快查 itemId）。',
         );
         return;
       }
-      Alert.alert('历史导入完成 ✅', `成功 ${acc.ok} 个${acc.skip > 0 ? `，跳过 ${acc.skip} 个（无新增点数）` : ''}${acc.fail > 0 ? `，失败 ${acc.fail} 个` : ''}。返回后详情页即有完整趋势。`, [
+      Alert.alert('历史导入完成 ✅', '成功 ' + acc.ok + ' 个' + (acc.skip > 0 ? '，跳过 ' + acc.skip + ' 个（无新增/未收录）' : '') + (acc.fail > 0 ? '，失败 ' + acc.fail + ' 个' : '') + '。返回后详情页即有完整趋势。', [
         { text: '好的', onPress: onClose },
       ]);
     } catch (e) {
@@ -319,7 +358,7 @@ export function CookieLoginScreen({ kind, onClose }: Props) {
       </View>
       <Text style={styles.hint}>
         {isHistPull
-          ? '借鉴 C5GAME 官方网页趋势接口，快速导入各箱 90 天历史（约 120 个价格点）。先在页面右上角登录 C5GAME（自动保存凭证），再点「开始导入」；任一件失败会停下来询问，不再静默跳过。'
+          ? '快速导入历史：配置了「云端历史地址」时优先走云端（Cloudflare Worker，零登录，含 Steam 官方 2013 年至今全量日线）；未配置则回退 C5GAME 官方趋势（需在页面右上角登录 C5GAME，自动保存凭证）。任一件失败会停下来询问，不再静默跳过。'
           : '在页面内正常登录（支持验证码）；登录成功后会自动保存，也可点右上角「手动保存」。'}
       </Text>
       <WebView

@@ -61,6 +61,15 @@ export const api = {
   importSteamPriceHistoryRaw: (name: string, prices: unknown) => engine.importSteamPriceHistoryRaw(name, prices),
   /** C5 历史导入目标清单（Steam / C5 历史点不足的名字优先） */
   c5HistoryTargets: (limit = 60) => engine.c5HistoryTargets(limit),
+  /** 云端历史导入目标清单（与 C5 共用：Steam / C5 历史点不足优先） */
+  cloudHistoryTargets: (limit = 60) => engine.c5HistoryTargets(limit),
+  /** 云端快速导入：从 Cloudflare Worker 拉 Steam 官方全量历史（零 cookie）入库；失败即停返回失败项 */
+  importCloudHistories: (
+    names: string[],
+    workerBaseUrl: string,
+    onItem?: (done: number, total: number, name: string, added: number) => void,
+    startIdx = 0,
+  ) => engine.importCloudHistories(names, workerBaseUrl, onItem, startIdx),
   /** C5 快速导入：逐件拉 C5 官方趋势入库（需 C5 Cookie，可选 app-key 查 itemId）；失败即停返回失败项 */
   importC5Histories: (
     names: string[],

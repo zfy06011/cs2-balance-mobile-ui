@@ -10,6 +10,7 @@ import { collectCases, collectOne, CollectProgress, CollectStats } from '../data
 import { parsePriceHistory, resolveOwnSteamId, normalizeSteamId } from '../data/steam';
 import { fetchSkinportHistory, SkinportStats } from '../data/skinport';
 import { fetchC5StatsBulk, fetchC5PriceTrend, fetchC5ItemIdViaWeb, fetchC5Inventory } from '../data/c5';
+import { fetchCloudHistory, cloudPointsToHistory } from '../data/cloudHistory';
 
 let skinportCache: Map<string, { t: number; v: SkinportStats | null }> | null = null;
 import { ProfitCalculator } from './profit';
@@ -511,6 +512,45 @@ export const engine = {
           throw new Error('C5 趋势接口无数据（Cookie 可能已失效）');
         }
         const added = await storage.mergeC5History(name, pts);
+        onItem?.(i + 1, names.length, name, added);
+        if (added > 0) ok++;
+        else skip++;
+      } catch (e) {
+        fail++;
+        onItem?.(i + 1, names.length, name, 0);
+        return {
+          ok, skip, fail,
+          failedIdx: i, failedName: name,
+          failedReason: e instanceof Error ? e.message : String(e),
+        };
+      }
+    }
+    return { ok, skip, fail, failedIdx: null, failedName: null, failedReason: null };
+  },
+
+  /** 云端快速导入（Cloudflare Worker D1 缓存，零 cookie）：逐箱拉 Steam 官方全量历史入库。
+   *  任一件失败即停止返回（与 importC5Histories 同语义）；云端未收录 / 网络失败会给出原因。 */
+  async importCloudHistories(
+    names: string[],
+    workerBaseUrl: string,
+    onItem?: (done: number, total: number, name: string, added: number) => void,
+    startIdx = 0,
+  ): Promise<{
+    ok: number; skip: number; fail: number;
+    failedIdx: number | null; failedName: string | null; failedReason: string | null;
+  }> {
+    let ok = 0;
+    let skip = 0;
+    let fail = 0;
+    for (let i = startIdx; i < names.length; i++) {
+      const name = names[i];
+      try {
+        const data = await fetchCloudHistory(workerBaseUrl, name, 120);
+        const pts = cloudPointsToHistory(data.points);
+        if (pts.length === 0) {
+          throw new Error('云端尚未收录该箱（等待定时采集，或检查箱子名称）');
+        }
+        const added = await storage.mergeSteamHistory(name, pts);
         onItem?.(i + 1, names.length, name, added);
         if (added > 0) ok++;
         else skip++;

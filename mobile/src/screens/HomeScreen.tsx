@@ -26,7 +26,7 @@ interface Props {
   onOpenRadar: () => void;
   onOpenSimulate: () => void;
   onOpenDetail: (name: string) => void;
-  /** 打开「快速导入历史（C5 官方趋势）」 */
+  /** 打开「快速导入历史（云端 / C5 官方趋势）」 */
   onOpenHistImport?: () => void;
 }
 
@@ -158,7 +158,7 @@ export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDe
               <Text style={styles.backfillLink}>⚡ 历史不足？快速补历史（连扫 4 轮，约 5–8 分钟）</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={onOpenHistImport}>
-              <Text style={styles.backfillLink}>🔁 快速导入历史（C5 官方趋势，需 C5 登录一次）</Text>
+              <Text style={styles.backfillLink}>🔁 快速导入历史（云端 / C5 官方趋势）</Text>
             </TouchableOpacity>
           </View>
         )}

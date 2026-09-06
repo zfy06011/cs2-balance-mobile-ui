@@ -28,6 +28,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
   const [buyTargetZhe, setBuyTargetZhe] = useState('0');
   const [buyMaxBudget, setBuyMaxBudget] = useState('0');
   const [radarTargetZhe, setRadarTargetZhe] = useState('7');
+  const [cloudUrl, setCloudUrl] = useState('');
   const [clearModal, setClearModal] = useState(false);
   const [clearSel, setClearSel] = useState({ snapshots: true, inventory: true, orders: true });
 
@@ -45,6 +46,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
       setBuyTargetZhe(String(settings.buyTargetZhe));
       setBuyMaxBudget(String(settings.buyMaxBudget));
       setRadarTargetZhe(String(settings.radarTargetZhe));
+      setCloudUrl(settings.cloudWorkerUrl || '');
     } catch {
       // ignore
     }
@@ -66,6 +68,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
         buyTargetZhe: parseFloat(buyTargetZhe) || 0,
         buyMaxBudget: parseFloat(buyMaxBudget) || 0,
         radarTargetZhe: parseFloat(radarTargetZhe) || 0,
+        cloudWorkerUrl: cloudUrl.trim(),
       });
       setMsg('设置已保存 ✅');
       loadStatus();
@@ -156,6 +159,17 @@ export function SettingsScreen({ onCookieLogin }: Props) {
               placeholderTextColor={colors.textDim}
               autoCapitalize="none"
               autoCorrect={false}
+            />
+            <Text style={styles.hint}>云端历史地址（选填，推荐）：部署 Cloudflare Worker + D1（见 docs/HANDOFF.md「云端历史缓存」），把 Worker 域名填到这里，如 https://cs2-price-history.xxx.workers.dev。「🔁 快速导入历史」将优先从云端拉 Steam 官方全量历史（零登录），未填或失败则回退 C5 官方趋势（需 C5 登录）。</Text>
+            <TextInput
+              style={styles.input}
+              value={cloudUrl}
+              onChangeText={setCloudUrl}
+              placeholder="https://xxx.workers.dev（云端历史，选填）"
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
             />
             <Text style={styles.hint}>推荐用「一键登录」：App 内登录一次，凭证自动保存——Steam 登录仅供识别 SteamID64 与搜索加速（库存已改走 C5 app-key），C5 登录供首页「快速导入历史」（官方趋势）与买入参考使用。手填 Cookie 仅作备用（浏览器 F12 复制整行 Cookie）。</Text>
             <View style={styles.countRow}>

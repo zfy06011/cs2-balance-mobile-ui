@@ -1,0 +1,17 @@
+{
+  "name": "cs2-price-history-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Steam CS2 武器箱历史价格云端缓存：定时抓取 Steam 市场 gid 页 SSR pricehistory 入库 D1，提供零 cookie 只读历史 API（Cloudflare Workers + D1）。",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 execute cs2-price-history --local --file=./schema.sql",
+    "db:remote": "wrangler d1 execute cs2-price-history --remote --file=./schema.sql",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
