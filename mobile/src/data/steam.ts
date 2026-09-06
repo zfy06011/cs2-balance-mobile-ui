@@ -310,6 +310,10 @@ export interface SteamInventoryWebApiResult {
   ctx16Error?: string;
   /** 该 SteamID 对应的 Steam 昵称（GetPlayerSummaries，尽力而为；用于核对 ID 是否本人） */
   playerName: string | null;
+  /** context 2 原始响应片段（截断 ≤300 字符、单行）；库存为空时带回 app 文案，便于核对 Steam 实际返回形状 */
+  ctx2Raw?: string;
+  /** context 16 原始响应片段（截断 ≤300 字符、单行） */
+  ctx16Raw?: string;
 }
 
 /** 用 Web API 查该 SteamID 的公开昵称（GetPlayerSummaries/v2），失败返回 null，不阻塞主流程。
@@ -381,6 +385,9 @@ export async function fetchSteamInventoryWebApi(
       throw new Error(`Steam Web API 返回的不是有效 JSON${snippet ? `：${snippet}` : ''}`);
     }
     const obj = (data ?? {}) as Record<string, unknown>;
+    // 原始响应片段（截断、单行）：库存为空时透出给用户，用户直接发回即可核对 Steam 实际返回形状
+    const rawText = JSON.stringify(obj).replace(/\s+/g, ' ').trim();
+    const truncate = (max: number) => (rawText.length > max ? `${rawText.slice(0, max)}…` : rawText);
     // Steam 官方接口（GetInventoryItemsWithDescriptions/GetPlayerSummaries）统一返回 {"response":{...}} 包装；
     // 兼容历史 result 包裹与裸对象，避免响应被整体丢弃而永远显示「空库存/0/?」。
     const root = ((obj.response ?? obj.result ?? obj) ?? {}) as {
@@ -389,18 +396,19 @@ export async function fetchSteamInventoryWebApi(
       assets?: Record<string, unknown>[];
       descriptions?: Record<string, unknown>[];
     };
-    if (root.success === false) {
-      const snippet = JSON.stringify(obj).replace(/\s+/g, ' ').slice(0, 200);
-      throw new Error(`Steam Web API 返回失败（请核对 Key 与 SteamID）：${snippet}`);
+    // success 可能缺失（官方成功响应通常无 success 字段）、true/1（成功）、false/0（失败）。
+    // 只把明确的失败抛出去；缺失时交给下游按字段存在性判断，绝不静默当成空库存。
+    if (root.success === false || root.success === 0) {
+      throw new Error(`Steam Web API 返回失败（success=${String(root.success)}，请核对 Key 与 SteamID）：${truncate(200)}`);
     }
-    return root;
+    return { root, raw: truncate(300) };
   };
 
   // context 2 = 普通物品
   const ctx2 = await fetchContext(2);
 
   // context 16 = 交易保护物品（尽力而为，失败不阻塞，但原因必须透出）
-  let ctx16: Awaited<ReturnType<typeof fetchContext>> = { assets: [], descriptions: [], total_inventory_count: 0 };
+  let ctx16: Awaited<ReturnType<typeof fetchContext>> = { root: { assets: [], descriptions: [], total_inventory_count: 0 }, raw: '' };
   let ctx16Error: string | undefined;
   try {
     ctx16 = await fetchContext(16);
@@ -410,19 +418,22 @@ export async function fetchSteamInventoryWebApi(
 
   // 合并两个 context 的 assets 和 descriptions
   const merged = {
-    total_inventory_count: ((ctx2.total_inventory_count ?? 0) as number) + ((ctx16.total_inventory_count ?? 0) as number),
-    assets: [...(ctx2.assets ?? []), ...(ctx16.assets ?? [])],
-    descriptions: [...(ctx2.descriptions ?? []), ...(ctx16.descriptions ?? [])],
+    total_inventory_count: ((ctx2.root.total_inventory_count ?? 0) as number) + ((ctx16.root.total_inventory_count ?? 0) as number),
+    assets: [...(ctx2.root.assets ?? []), ...(ctx16.root.assets ?? [])],
+    descriptions: [...(ctx2.root.descriptions ?? []), ...(ctx16.root.descriptions ?? [])],
   };
 
   const parsed = parseWebApiInventory(merged);
   return {
     ...parsed,
     // Steam 偶尔不返回 total_inventory_count：有资产时用资产数兜底，避免诊断文案显示 "?"
-    ctx2Total: typeof ctx2.total_inventory_count === 'number' ? ctx2.total_inventory_count : (ctx2.assets?.length ?? null),
-    ctx16Total: typeof ctx16.total_inventory_count === 'number' ? ctx16.total_inventory_count : (ctx16.assets?.length ?? null),
+    ctx2Total: typeof ctx2.root.total_inventory_count === 'number' ? ctx2.root.total_inventory_count : (ctx2.root.assets?.length ?? null),
+    ctx16Total: typeof ctx16.root.total_inventory_count === 'number' ? ctx16.root.total_inventory_count : (ctx16.root.assets?.length ?? null),
     ctx16Error,
     playerName: await fetchSteamPlayerSummary(apiKey, sid),
+    // 原始响应片段（诊断用）：库存为空时 app 文案直接携带，用户发回即可确认 Steam 实际返回形状
+    ctx2Raw: ctx2.raw,
+    ctx16Raw: ctx16.raw,
   };
 }
 

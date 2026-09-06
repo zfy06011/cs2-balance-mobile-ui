@@ -1,8 +1,24 @@
 # HANDOFF 专项 —— 库存与历史两个未解决问题（2026-09-07）
 
 > 写给下一位接手者。主文档 `docs/HANDOFF.md` 是全量状态；本文只聚焦两个**曾未解决**的问题，
-> 汇总已验证事实、已试过的方案、以及按优先级排列的下一步。App 当前版本 v1.5.6（已打包，versionCode 22）。
+> 汇总已验证事实、已试过的方案、以及按优先级排列的下一步。App 当前版本 v1.5.7（已打包，versionCode 23）。
 
+> **2026-09-07 更新（v1.5.7 已打包，versionCode 23 —— 空库存诊断一锤定音 v2：透出 Steam 原始返回 + success=0 显式报错）**：
+> - 🔴 **v1.5.6 修复 response 包装后，用户官方接口复测仍然显示「context 2 报 ? 件、context 16 报 ? 件」**：
+>   若手机装的确实是 v1.5.6（让用户在设置页确认页脚版本号），说明连 `total_inventory_count`/`assets` 都解析不到
+>   → Steam 实际返回可能与 `{"response":{...}}` 包装不一致；另一种高概率是**手机装的是旧 APK**（历史 bug：
+>   下载 1.5.2 但版本号/功能是 1.5.1，用户有覆盖安装旧包的前科）。
+> - ✅ **取证的唯一正解：空结果必须能看到 Steam 原始返回**。v1.5.7 实现：
+>   - `mobile/src/data/steam.ts#fetchContext` 返回 `{ root, raw }`（raw = 截断 ≤300 字符、单行的原始 JSON）；
+>   - `success===false || success===0` 显式抛错（官方成功响应通常无 success 字段；缺失时按字段存在性判断，绝不静默当空库存）；
+>   - `SteamInventoryWebApiResult` 新增 `ctx2Raw/ctx16Raw`；`buildEmptySyncReason` 在空库存文案拼入
+>     `Steam 原始返回片段：{raw2} || {raw16}` —— **用户把库存页同步文案（或浏览器直查的原始 JSON）原样发回即可一锤定音**：
+>     装错旧包（版本号不是 1.5.7 / 文案无片段）／ Valve 改了返回结构（片段可见非预期形状）／ 账号真空库存（片段是 0 件正常结构）。
+> - ✅ 验证：verify:core 新增 4 项断言（empty_reason.raw_snippet / raw_omitted_when_none / webapi.e2e_success0_throws / webapi.e2e_empty_returns_raw），**238/238 PASS**；typecheck 零错误。
+> - ⏭ 下一步：让用户（1）确认设置页页脚版本号 = v1.5.7；（2）浏览器直查
+>   `https://api.steampowered.com/IEconService/GetInventoryItemsWithDescriptions/v1/?key=<用户key>&steamid=<17位ID>&appid=730&get_descriptions=true&contextid=2`
+>   （contextid=16 再来一次），把原始 JSON 全文或 App 同步文案发回。
+>
 > **2026-09-07 更新（v1.5.6 已打包，versionCode 22 —— Steam 官方库存同步根因修复）**：
 > - 🔴 **「同步完成但未找到武器箱（总量 0）Steam 库存为空：该账号 CS2 库存里没有任何物品（context 2 报 ? 件、context 16 报 ? 件；昵称「言念如一」）」——根因是代码解析 bug，不是 Steam 不返回保护期物品**：
 >   官方 `GetInventoryItemsWithDescriptions`（IEconService）与 `GetPlayerSummaries` 一样返回 `{"response":{...}}` 包装，

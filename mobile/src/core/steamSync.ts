@@ -43,6 +43,10 @@ export interface EmptySyncContext {
   ctx2Total: number | null;
   ctx16Total: number | null;
   playerName: string | null;
+  /** context 2 原始响应片段（截断 ≤300 字符、单行）；空库存时透出定位 Steam 实际返回形状 */
+  ctx2Raw?: string;
+  /** context 16 原始响应片段（截断 ≤300 字符、单行） */
+  ctx16Raw?: string;
 }
 
 /** 空库存结果的诊断文案：透出 context 2/16 各自 report 总数 + SteamID 昵称，
@@ -52,16 +56,20 @@ export function buildEmptySyncReason(c: EmptySyncContext): string {
   const who = c.playerName
     ? `该 SteamID 昵称「${c.playerName}」，请核对是否本人账号`
     : '无法取得该 SteamID 昵称（接口失败），请核对是否本人账号';
+  // 原始响应片段（fetchContext 截断后的真实返回）：两通道都空/无计数时，先看 Steam 实际返回形状定位，
+  // 例如响应确实是 {response:{...}} 但内部为空，还是被 Valve 改成了别的结构。
+  const raws = [c.ctx2Raw, c.ctx16Raw].filter((x): x is string => !!x && x !== '{}');
+  const rawSnippet = raws.length > 0 ? `；Steam 原始返回片段：${raws.join(' || ')}` : '';
   if (c.ctx16Error) {
-    return `库存为空，且交易保护箱通道（context 16）失败：${c.ctx16Error}；${ctxDetail}；${who}`;
+    return `库存为空，且交易保护箱通道（context 16）失败：${c.ctx16Error}；${ctxDetail}；${who}${rawSnippet}`;
   }
   if (c.assetCount === 0 && (c.totalInventoryCount ?? 0) === 0) {
-    return `Steam 库存为空：该账号 CS2 库存里没有任何物品（${ctxDetail}；${who}）。若物品全在交易保护期，Steam Web API 可能不返回保护期物品，请用 Steam 登录后的会话同步验证`;
+    return `Steam 库存为空：该账号 CS2 库存里没有任何物品（${ctxDetail}；${who}）。若物品全在交易保护期，Steam Web API 可能不返回保护期物品，请用 Steam 登录后的会话同步验证${rawSnippet}`;
   }
   if (c.assetCount > 0) {
-    return `Steam 库存可见 ${c.assetCount} 件物品，但没有武器箱（${ctxDetail}；${who}）`;
+    return `Steam 库存可见 ${c.assetCount} 件物品，但没有武器箱（${ctxDetail}；${who}${rawSnippet}）`;
   }
-  return `Steam 返回异常（报告共 ${c.totalInventoryCount ?? '?'} 件但列表为空；${ctxDetail}；${who}）`;
+  return `Steam 返回异常（报告共 ${c.totalInventoryCount ?? '?'} 件但列表为空；${ctxDetail}；${who}${rawSnippet}）`;
 }
 
 export interface SteamSyncPlan {

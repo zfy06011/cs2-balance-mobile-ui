@@ -534,7 +534,8 @@ export const engine = {
     matched: number; unlocked: number; imported: number; notFound: number;
     steamId: string; empty: boolean; assetCount: number; totalInventoryCount: number | null;
     ctx2Total: number | null; ctx16Total: number | null; playerName: string | null;
-    source: 'steam_webapi'; reason?: string; ctx16Error?: string; at: string;
+    source: 'steam_webapi'; reason?: string; ctx16Error?: string;
+    ctx2Raw?: string; ctx16Raw?: string; at: string;
   }> {
     const settings = await storage.getSettings();
     const cookie = (settings.steamCookie || '').trim();
@@ -562,13 +563,13 @@ export const engine = {
       steamId = resolved;
     }
     const fetched = await fetchSteamInventoryWebApi(apiKey, steamId);
-    const { items, assetCount, totalInventoryCount, ctx16Error, ctx2Total, ctx16Total, playerName } = fetched;
+    const { items, assetCount, totalInventoryCount, ctx16Error, ctx2Total, ctx16Total, playerName, ctx2Raw, ctx16Raw } = fetched;
     const now = new Date();
     if (items.length === 0) {
       // 用户库存全在保护期时，context 2 天然为空；若 context 16 也失败则保护箱整体缺失——优先显形。
       // 附带 context 2/16 各自 report 的总数 + SteamID 昵称，用于区分「ID 填错」与「Valve 不返回保护期物品」。
-      const reason = buildEmptySyncReason({ ctx16Error, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName });
-      return { matched: 0, unlocked: 0, imported: 0, notFound: 0, steamId, empty: true, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, source: 'steam_webapi', reason, ctx16Error, at: now.toISOString() };
+      const reason = buildEmptySyncReason({ ctx16Error, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, ctx2Raw, ctx16Raw });
+      return { matched: 0, unlocked: 0, imported: 0, notFound: 0, steamId, empty: true, assetCount, totalInventoryCount, ctx2Total, ctx16Total, playerName, source: 'steam_webapi', reason, ctx16Error, ctx2Raw, ctx16Raw, at: now.toISOString() };
     }
     const rows = await storage.getInventory();
     const plan = planSteamSync(rows, items, now);
@@ -588,6 +589,8 @@ export const engine = {
       playerName,
       source: 'steam_webapi',
       ctx16Error,
+      ctx2Raw,
+      ctx16Raw,
       at: now.toISOString(),
     };
   },

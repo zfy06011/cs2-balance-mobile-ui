@@ -608,6 +608,9 @@ assert('empty_reason.all_zero_hint', buildEmptySyncReason({ assetCount: 0, total
 assert('empty_reason.nickname_missing', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: null }).includes('无法取得该 SteamID 昵称'));
 assert('empty_reason.has_asset_no_case', buildEmptySyncReason({ assetCount: 2, totalInventoryCount: 2, ctx2Total: 2, ctx16Total: 0, playerName: '言念如一' }).includes('Steam 库存可见 2 件物品，但没有武器箱'));
 assert('empty_reason.weird_empty', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 5, ctx2Total: 5, ctx16Total: 0, playerName: null }).includes('报告共 5 件但列表为空'));
+// v1.5.7：空库存文案携带 Steam 原始返回片段（用户直接发回即可核对 Steam 实际返回形状）
+assert('empty_reason.raw_snippet', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: null, ctx16Total: null, playerName: '言念如一', ctx2Raw: '{"response":{}}', ctx16Raw: '{"response":{}}' }).includes('Steam 原始返回片段：{"response":{}} || {"response":{}}'));
+assert('empty_reason.raw_omitted_when_none', buildEmptySyncReason({ assetCount: 0, totalInventoryCount: 0, ctx2Total: 0, ctx16Total: 0, playerName: 'x' }).includes('Steam 原始返回片段') === false);
 
 // ---------- 12d. v1.5.6：端到端 mock Steam Web API（response 包装） ----------
 // 直接驱动 fetchSteamInventoryWebApi：context 2/16 + GetPlayerSummaries 全部返回
@@ -637,6 +640,35 @@ assert('empty_reason.weird_empty', buildEmptySyncReason({ assetCount: 0, totalIn
   try {
     const webApiResult = await fetchSteamInventoryWebApi('TEST_KEY', '76561198000000000');
     assert('webapi.e2e_response_wrapper', webApiResult.assetCount === 1 && webApiResult.ctx2Total === 1 && webApiResult.ctx16Total === 0 && webApiResult.items.length === 1 && webApiResult.items[0].name === 'Kilowatt Case' && webApiResult.items[0].cnName === '千瓦武器箱' && webApiResult.playerName === '言念如一', JSON.stringify(webApiResult));
+    // v1.5.7：success=0 必须显式抛错（不能静默按空库存处理）
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (u.includes('GetInventoryItemsWithDescriptions')) {
+        return fakeResp({ response: { success: 0, message: 'Invalid key' } });
+      }
+      throw new Error('unexpected url: ' + u);
+    };
+    let threwSuccessZero = false;
+    try {
+      await fetchSteamInventoryWebApi('BAD_KEY', '76561198000000000');
+    } catch (e) {
+      threwSuccessZero = e instanceof Error && /success=0/.test(e.message);
+    }
+    assert('webapi.e2e_success0_throws', threwSuccessZero, 'success=0 应抛错');
+    // v1.5.7：Steam 返回无字段的空对象（total_inventory_count/assets 缺失）→ 双 context 报 ? 且携带原始片段，
+    // 用于区分「装错旧包 / Steam 返回结构异常 / 账号真空库存」
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (u.includes('GetInventoryItemsWithDescriptions')) {
+        return fakeResp({ response: {} });
+      }
+      if (u.includes('GetPlayerSummaries')) {
+        return fakeResp({ response: { players: [{ personaname: '言念如一' }] } });
+      }
+      throw new Error('unexpected url: ' + u);
+    };
+    const emptyRes = await fetchSteamInventoryWebApi('TEST_KEY', '76561198000000000');
+    assert('webapi.e2e_empty_returns_raw', emptyRes.assetCount === 0 && emptyRes.ctx2Total === null && emptyRes.ctx16Total === null && emptyRes.ctx2Raw.includes('"response"') && emptyRes.ctx16Raw.includes('"response"'), JSON.stringify(emptyRes));
   } finally {
     globalThis.fetch = realFetch;
   }
