@@ -321,6 +321,10 @@ export interface PredictV2Params {
   volumeHistory?: number[];
   /** Steam 热门榜排名（1 起） */
   popularRank?: number | null;
+  /** 与 prices 等长的时间戳（毫秒，升序）；提供时按 UTC 日去重（每日保留最后一个点） */
+  timestamps?: number[];
+  /** 与 prices 等长的成交量（可为 null） */
+  volumes?: Array<number | null>;
   /** 市场事件日历（Steam 大促等）：对 targetAt 做窗口价差修正；缺省不修正（保持与旧版一致） */
   events?: MarketEvent[];
 }
@@ -707,5 +711,408 @@ export class BaselinePredictorV3 {
       confidence,
       features,
     };
+  }
+}
+
+// ===========================================================================
+// V4：长周期鲁棒预测器（借鉴 steam-skin-ops / AetherSwap / cs2-market-bot）
+// 与 backend/app/services/prediction.py#BaselinePredictorV4 逐位对齐。
+// ===========================================================================
+
+export const MODEL_VERSION_V4 = 'baseline-robust-v4';
+
+/** 数值中位数（升序副本取中；偶数取中间两者均值）——与 Python 同实现 */
+export function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const a = xs.slice().sort((x, y) => x - y);
+  const n = a.length;
+  return n % 2 === 1 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
+}
+
+/** 简单标准差（总体，除以 n） */
+function stddev(xs: number[]): number {
+  const n = xs.length;
+  if (n < 2) return 0;
+  let sum = 0;
+  for (const x of xs) sum += x;
+  const mean = sum / n;
+  let varSum = 0;
+  for (const x of xs) varSum += (x - mean) * (x - mean);
+  return Math.sqrt(varSum / n);
+}
+
+/** 对数收益率序列（相邻比，跳过非正价格） */
+function logReturnsOf(prices: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    if (prices[i - 1] > 0 && prices[i] > 0) out.push(Math.log(prices[i] / prices[i - 1]));
+  }
+  return out;
+}
+
+/** Theil-Sen 斜率：所有点对 (j,i) 斜率的中位数（对异常值鲁棒） */
+export function theilSenSlope(ys: number[]): number {
+  const n = ys.length;
+  if (n < 2) return 0;
+  const slopes: number[] = [];
+  for (let i = 1; i < n; i++) {
+    for (let j = 0; j < i; j++) {
+      if (ys[j] > 0 && ys[i] > 0) slopes.push((Math.log(ys[i]) - Math.log(ys[j])) / (i - j));
+    }
+  }
+  return slopes.length > 0 ? median(slopes) : 0;
+}
+
+/** OLS 决定系数 R²（log 价格对索引） */
+function rSquared(ys: number[]): number {
+  const n = ys.length;
+  if (n < 3) return 0;
+  const logs = ys.map((y) => (y > 0 ? Math.log(y) : 0));
+  let sx = 0;
+  let sy = 0;
+  for (let i = 0; i < n; i++) {
+    sx += i;
+    sy += logs[i];
+  }
+  const mx = sx / n;
+  const my = sy / n;
+  let sxx = 0;
+  let sxy = 0;
+  for (let i = 0; i < n; i++) {
+    sxx += (i - mx) * (i - mx);
+    sxy += (i - mx) * (logs[i] - my);
+  }
+  const slope = sxx > 0 ? sxy / sxx : 0;
+  let ssTot = 0;
+  let ssRes = 0;
+  for (let i = 0; i < n; i++) {
+    const pred = my + slope * (i - mx);
+    ssTot += (logs[i] - my) * (logs[i] - my);
+    ssRes += (logs[i] - pred) * (logs[i] - pred);
+  }
+  if (ssTot <= 0) return 0;
+  const r2 = 1 - ssRes / ssTot;
+  return Math.max(0, Math.min(1, r2));
+}
+
+/** 当前价在窗口内的分位（0..1，含端点；窗口为空返回 null） */
+function percentileOf(window: number[], latest: number): number | null {
+  if (window.length === 0) return null;
+  let below = 0;
+  for (const p of window) {
+    if (p <= latest) below++;
+  }
+  return below / window.length;
+}
+
+export class BaselinePredictorV4 {
+  constructor(
+    public horizonDays = 7,
+    public trendDays = 21,
+    public momentumDecay = 0.5,
+    public minHistory = 15,
+    public minTrendPoints = 3,
+    public ewmaLambda = 0.94,
+    /** 均值回归强度：drift_meanrev = -kappa * ln(latest / SMA365) */
+    public kappa = 0.02,
+    /** 季节性权重 */
+    public seasonalWeight = 0.5,
+    /** 启用长周期特征所需最少点数 */
+    public minLongHistory = 180,
+    /**
+     * 趋势混合权重：Theil-Sen 中位数斜率抗噪但偏平（回测方向准确率偏低），
+     * 按该权重混入近 7 日对数动量，兼顾稳健与方向响应。
+     * 0.6 由 backtest_v4 / sweep_blend 在 8 箱 900 天 walk-forward 上调得：
+     * MAE 1.1707（V3 1.1959）、RMSE 3.7615（V3 3.9741）、方向 53.4%（V3 54.2%）、覆盖 85.4%（V3 82.8%）。
+     */
+    public momentumBlend = 0.6,
+  ) {}
+
+  predict(params: PredictV2Params): PredictionResult {
+    const {
+      marketHashName, prices: rawPrices, breakevenPrice, itemId, predictedAt,
+      volume, volumeHistory, popularRank, timestamps, events,
+    } = params;
+    if (rawPrices.length < 1) {
+      throw new Error('至少需要 1 条历史价格才能预测');
+    }
+
+    // ---- 按 UTC 日去重（每日保留最后一个点），保证「日线」语义 ----
+    // v1.8.1：同步生成日级规范时间戳（day*86400000），否则两数组长度不等会让
+    // seasonalDaily 直接返回 0（季节性特征永远失效）。
+    let prices = rawPrices;
+    let dayTs = timestamps;
+    if (timestamps != null && timestamps.length === rawPrices.length) {
+      const byDay = new Map<number, number>();
+      const order: number[] = [];
+      for (let i = 0; i < rawPrices.length; i++) {
+        const t = timestamps[i];
+        if (!Number.isFinite(t)) continue;
+        const day = Math.floor(t / 86400000);
+        if (!byDay.has(day)) order.push(day);
+        byDay.set(day, rawPrices[i]);
+      }
+      order.sort((a, b) => a - b);
+      prices = order.map((d) => byDay.get(d) as number);
+      dayTs = order.map((d) => d * 86400000);
+    }
+
+    const latest = prices[prices.length - 1];
+    const logReturns = logReturnsOf(prices);
+
+    // ---- EWMA 波动率（沿用 V3）----
+    let ewVar = 0;
+    let hasEw = false;
+    for (const r of logReturns) {
+      ewVar = hasEw ? this.ewmaLambda * ewVar + (1 - this.ewmaLambda) * r * r : r * r;
+      hasEw = true;
+    }
+    let ewmaVol = hasEw ? Math.sqrt(ewVar) : 0.05;
+    if (prices.length < this.minHistory) ewmaVol = Math.max(ewmaVol, 0.05) * 1.5;
+
+    // ---- 窗口内特征 ----
+    const window = prices.slice(-this.trendDays);
+    const insufficient = prices.length < this.minTrendPoints;
+    const driftClamp = Math.min(0.02, Math.max(0.005, 3 * ewmaVol));
+
+    // 主趋势：Theil-Sen 鲁棒斜率（不足 3 点退回首末对数收益）
+    let trendSlope = 0;
+    if (window.length >= this.minTrendPoints) {
+      trendSlope = theilSenSlope(window);
+    } else if (window.length >= 2 && window[0] > 0) {
+      trendSlope = Math.log(window[window.length - 1] / window[0]) / (window.length - 1);
+    }
+    const r2 = rSquared(window);
+
+    // 方向补充：近 7 日对数动量（Theil-Sen 偏平，混入它以提升方向准确率）
+    let momentumDaily = 0;
+    const momIdx = Math.max(0, prices.length - 7);
+    if (prices.length >= 2 && prices[momIdx] > 0 && latest > 0) {
+      momentumDaily = Math.log(latest / prices[momIdx]) / (prices.length - 1 - momIdx);
+    }
+    const trendMixed = (1 - this.momentumBlend) * trendSlope + this.momentumBlend * momentumDaily;
+
+    // 变异系数 CV（近 30 点）与动态阈值
+    const win30 = prices.slice(-30);
+    let cv = 0;
+    if (win30.length >= 2) {
+      let sum = 0;
+      for (const p of win30) sum += p;
+      const mean = sum / win30.length;
+      if (mean > 0) cv = stddev(win30) / mean;
+    }
+    const cvThreshold = latest >= 100 ? 0.04 : 0.08;
+
+    // 分位（365 天 / 14 天）
+    const win365 = prices.slice(-365);
+    const win14 = prices.slice(-14);
+    const pct365 = percentileOf(win365, latest);
+    const pct14 = percentileOf(win14, latest);
+
+    // 均值回归：-kappa * ln(latest / SMA365)
+    let meanRev = 0;
+    let sma365: number | null = null;
+    if (win365.length >= this.minLongHistory) {
+      let sum = 0;
+      for (const p of win365) sum += p;
+      sma365 = sum / win365.length;
+      if (sma365 > 0 && latest > 0) {
+        meanRev = -this.kappa * Math.log(latest / sma365);
+      }
+    }
+
+    // 波动比 vol30 / vol365
+    let vol30 = 0;
+    let vol365 = 0;
+    const ret30 = logReturnsOf(prices.slice(-31));
+    const ret365 = logReturnsOf(prices.slice(-366));
+    if (ret30.length >= 2) vol30 = stddev(ret30);
+    if (ret365.length >= 2) vol365 = stddev(ret365);
+    let volRatio: number | null = null;
+    if (vol30 > 0 && vol365 > 0) volRatio = vol30 / vol365;
+
+    // 季节性：目标月份往年同月对数收益均值 → 日均（需 ≥2 年数据）
+    const seasonal = this.seasonalDaily(prices, dayTs, predictedAt ?? new Date());
+
+    // 量价确认（沿用 V3 连续映射）
+    let volumeRatio: number | null = null;
+    let volumeConfirm = 1;
+    if (volume != null && volume > 0 && volumeHistory != null && volumeHistory.length >= 2) {
+      const base = volumeHistory.slice(0, -1);
+      let sum = 0;
+      let cnt = 0;
+      for (const v of base) {
+        if (v != null && v > 0) {
+          sum += v;
+          cnt++;
+        }
+      }
+      const avg = cnt > 0 ? sum / cnt : 0;
+      if (avg > 0) {
+        volumeRatio = volume / avg;
+        if (Math.abs(trendSlope) > 0.0005) {
+          volumeConfirm = Math.max(0.85, Math.min(1.15, 1 + 0.15 * Math.tanh((volumeRatio - 1) / 0.35)));
+        }
+      }
+    }
+
+    // 市场状态：由 R² + 斜率 + CV 判定
+    const trendEps = 0.0005;
+    let marketState: 'STABLE' | 'RISING' | 'FALLING' | 'CHAOS';
+    if (cv > cvThreshold * 2 || (window.length >= 3 && r2 < 0.3 && Math.abs(trendSlope) > trendEps * 4)) {
+      marketState = 'CHAOS';
+    } else if (trendSlope > trendEps && r2 >= 0.6) {
+      marketState = 'RISING';
+    } else if (trendSlope < -trendEps && r2 >= 0.6) {
+      marketState = 'FALLING';
+    } else {
+      marketState = 'STABLE';
+    }
+
+    // ---- 漂移合成 ----
+    let driftDaily = trendMixed + meanRev;
+    if (pct365 != null && pct365 > 0.8) driftDaily *= 0.5;      // 长周期高位：抑制追涨
+    if (volRatio != null && volRatio > 1.5) driftDaily *= 0.7;  // 波动放大：抑制外推
+    driftDaily *= volumeConfirm;
+    driftDaily += seasonal;
+    let trendClamped = false;
+    if (driftDaily > driftClamp) {
+      driftDaily = driftClamp;
+      trendClamped = true;
+    } else if (driftDaily < -driftClamp) {
+      driftDaily = -driftClamp;
+      trendClamped = true;
+    }
+
+    // ---- 区间：取多口径波动率的最大值，波动放大时再加宽 ----
+    let sigmaDaily = Math.max(ewmaVol, vol30, vol365 > 0 ? 0.5 * vol365 : 0);
+    if (sigmaDaily <= 0) sigmaDaily = 0.05;
+    const regimeFactor = volRatio != null && volRatio > 1.5 ? 1.2 : 1;
+    const sigmaTotal = sigmaDaily * regimeFactor * Math.sqrt(this.horizonDays);
+
+    const drift = driftDaily * this.horizonDays * this.momentumDecay;
+    const predAt = predictedAt ?? new Date();
+    const targetAt = new Date(predAt.getTime() + this.horizonDays * 86400000);
+    const eventRes = computeEventAdjust(targetAt, events ?? []);
+    const p50 = latest * Math.exp(drift) * eventRes.factor;
+
+    const quantiles: { p10: number; p25: number; p50: number; p75: number; p90: number } = { p10: 0, p25: 0, p50: 0, p75: 0, p90: 0 };
+    for (const q of Object.keys(_Z) as (keyof typeof quantiles)[]) {
+      quantiles[q] = Math.max(0, round2(p50 * Math.exp(_Z[q] * sigmaTotal), 4));
+    }
+
+    let probProfit = 0.5;
+    if (breakevenPrice && breakevenPrice > 0) {
+      if (sigmaTotal < 1e-9) {
+        probProfit = p50 > breakevenPrice ? 1 : p50 < breakevenPrice ? 0 : 0.5;
+      } else {
+        probProfit = 1 - normalCdf((Math.log(breakevenPrice) - Math.log(p50)) / sigmaTotal);
+      }
+    }
+    probProfit = Math.max(0, Math.min(1, probProfit));
+    const probLoss = 1 - probProfit;
+
+    // ---- 置信度：基础 × R² × 市场状态 × 波动 regime ----
+    let confidence = Math.max(0.1, Math.min(0.95, 1 - sigmaTotal * 3));
+    const lenFactor = 0.6 + 0.4 * Math.min(1, Math.max(1, prices.length) / this.minHistory);
+    confidence *= lenFactor;
+    confidence *= 0.8 + 0.2 * r2;
+    confidence *= marketState === 'CHAOS' ? 0.7 : marketState === 'STABLE' ? 1 : 0.95;
+    if (regimeFactor > 1) confidence /= regimeFactor;
+    if (insufficient) confidence = Math.min(confidence, 0.25);
+    if (volumeConfirm > 1.03) confidence += 0.05;
+    else if (volumeConfirm < 0.97) confidence -= 0.05;
+    confidence = Math.max(0.1, Math.min(0.95, confidence));
+    if (eventRes.count > 0) confidence = Math.max(0.1, Math.min(0.95, confidence * 0.9));
+    confidence = round2(confidence, 4);
+
+    let momentum = 0;
+    const anchorIdx = Math.max(0, prices.length - 7);
+    if (prices.length >= 2 && prices[anchorIdx] > 0) {
+      momentum = Math.log(latest / prices[anchorIdx]);
+    }
+
+    const features: Record<string, number | string | boolean> = {
+      latest_price: round2(latest, 4),
+      momentum: round2(momentum, 6),
+      trend_daily: round2(driftDaily, 6),
+      theil_sen_slope: round2(trendSlope, 6),
+      momentum_daily: round2(momentumDaily, 6),
+      r2: round2(r2, 4),
+      cv: round2(cv, 6),
+      volatility: round2(sigmaDaily, 6),
+      history_len: prices.length,
+      history_days: prices.length,
+      data_insufficient: insufficient,
+      trend_clamped: trendClamped,
+      volume_confirm: Math.round(volumeConfirm * 10000) / 10000,
+      trend_points: window.length,
+      drift_clamp: round2(driftClamp, 6),
+      market_state: marketState,
+      mean_rev: round2(meanRev, 6),
+      seasonal: round2(seasonal, 6),
+    };
+    if (pct365 != null) features.pct_365 = round2(pct365, 4);
+    if (pct14 != null) features.pct_14 = round2(pct14, 4);
+    if (volRatio != null) features.vol_ratio = round2(volRatio, 4);
+    if (sma365 != null) features.sma_365 = round2(sma365, 4);
+    if (volumeRatio != null) features.volume_ratio = round2(volumeRatio, 3);
+    if (popularRank != null && popularRank > 0) features.popular_rank = popularRank;
+    if (eventRes.count > 0) {
+      features.event_active = true;
+      features.event_count = eventRes.count;
+      features.event_adjust = round2(eventRes.factor - 1, 6);
+      features.event_kinds = eventRes.kinds.join(',');
+      features.event_names = eventRes.names.join(',');
+    }
+
+    return {
+      item_id: itemId ?? null,
+      market_hash_name: marketHashName,
+      model_version: MODEL_VERSION_V4,
+      predicted_at: predAt.toISOString(),
+      target_at: targetAt.toISOString(),
+      horizon_days: this.horizonDays,
+      p10: quantiles.p10,
+      p25: quantiles.p25,
+      p50: quantiles.p50,
+      p75: quantiles.p75,
+      p90: quantiles.p90,
+      prob_profit: round2(probProfit, 4),
+      prob_loss: round2(probLoss, 4),
+      confidence,
+      features,
+    };
+  }
+
+  /**
+   * 季节性日均漂移：目标月份在往年同月的对数收益均值 ÷ 当月天数 × 权重。
+   * 需要时间戳且跨 ≥2 个年份，否则返回 0（不参与修正）。
+   */
+  private seasonalDaily(prices: number[], timestamps: number[] | undefined, predAt: Date): number {
+    if (!timestamps || timestamps.length !== prices.length || prices.length < this.minLongHistory) return 0;
+    const targetMonth = predAt.getUTCMonth();
+    const byYear = new Map<number, { first: number; last: number }>();
+    for (let i = 0; i < prices.length; i++) {
+      const t = timestamps[i];
+      if (!Number.isFinite(t) || prices[i] <= 0) continue;
+      const d = new Date(t);
+      if (d.getUTCMonth() !== targetMonth) continue;
+      const y = d.getUTCFullYear();
+      const cur = byYear.get(y);
+      if (!cur) byYear.set(y, { first: prices[i], last: prices[i] });
+      else cur.last = prices[i];
+    }
+    const predYear = predAt.getUTCFullYear();
+    const rets: number[] = [];
+    for (const [y, v] of byYear) {
+      if (y >= predYear) continue; // 只用往年
+      if (v.first > 0 && v.last > 0) rets.push(Math.log(v.last / v.first));
+    }
+    if (rets.length === 0) return 0;
+    let sum = 0;
+    for (const r of rets) sum += r;
+    const meanRet = sum / rets.length;
+    return (meanRet / 30) * this.seasonalWeight;
   }
 }

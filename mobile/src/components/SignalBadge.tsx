@@ -10,7 +10,7 @@ const SIGNAL_ICON: Record<string, string> = {
   avoid: '🔴',
 };
 
-export function SignalBadge({ signal }: { signal: string }) {
+export const SignalBadge = React.memo(function SignalBadge({ signal }: { signal: string }) {
   const color = signalColors[signal] ?? colors.textDim;
   const text = SIGNAL_TEXT[signal] ?? signal;
   const icon = SIGNAL_ICON[signal] ?? '•';
@@ -19,7 +19,7 @@ export function SignalBadge({ signal }: { signal: string }) {
       <Text style={[styles.text, { color }]}>{icon} {text}</Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   badge: {

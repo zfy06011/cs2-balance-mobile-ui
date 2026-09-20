@@ -9,17 +9,17 @@ import Constants from 'expo-constants';
 import { api, HealthResult } from '../api/client';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { colors } from '../theme/colors';
-import type { CookieLoginKind } from './CookieLoginScreen';
+import { IS_RC_BUILD } from '../config/buildChannel';
 
 interface Props {
-  /** 打开 App 内一键登录（Steam / C5） */
-  onCookieLogin?: (kind: CookieLoginKind) => void;
+  /** 打开 App 内 Steam 一键登录（用于搜索榜提额 + 自动识别 SteamID64） */
+  onCookieLogin?: () => void;
+  onOpenQualification?: () => void;
 }
 
-export function SettingsScreen({ onCookieLogin }: Props) {
+export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
   const [status, setStatus] = useState<HealthResult | null>(null);
   const [c5Key, setC5Key] = useState('');
-  const [c5Cookie, setC5Cookie] = useState('');
   const [cookie, setCookie] = useState('');
   const [steamId, setSteamId] = useState('');
   const [count, setCount] = useState(20);
@@ -28,7 +28,6 @@ export function SettingsScreen({ onCookieLogin }: Props) {
   const [buyTargetZhe, setBuyTargetZhe] = useState('0');
   const [buyMaxBudget, setBuyMaxBudget] = useState('0');
   const [radarTargetZhe, setRadarTargetZhe] = useState('7');
-  const [cloudUrl, setCloudUrl] = useState('');
   const [clearModal, setClearModal] = useState(false);
   const [clearSel, setClearSel] = useState({ snapshots: true, inventory: true, orders: true });
 
@@ -38,7 +37,6 @@ export function SettingsScreen({ onCookieLogin }: Props) {
       setStatus(s);
       const settings = await api.getSettings();
       setC5Key(settings.c5AppKey);
-      setC5Cookie(settings.c5Cookie || '');
       setCookie(settings.steamCookie);
       setSteamId(settings.steamId || '');
       setCount(settings.refreshCount);
@@ -46,7 +44,6 @@ export function SettingsScreen({ onCookieLogin }: Props) {
       setBuyTargetZhe(String(settings.buyTargetZhe));
       setBuyMaxBudget(String(settings.buyMaxBudget));
       setRadarTargetZhe(String(settings.radarTargetZhe));
-      setCloudUrl(settings.cloudWorkerUrl || '');
     } catch {
       // ignore
     }
@@ -60,7 +57,6 @@ export function SettingsScreen({ onCookieLogin }: Props) {
     try {
       await api.updateSettings({
         c5AppKey: c5Key.trim(),
-        c5Cookie: c5Cookie.trim(),
         steamCookie: cookie.trim(),
         steamId: steamId.trim(),
         refreshCount: count,
@@ -68,7 +64,6 @@ export function SettingsScreen({ onCookieLogin }: Props) {
         buyTargetZhe: parseFloat(buyTargetZhe) || 0,
         buyMaxBudget: parseFloat(buyMaxBudget) || 0,
         radarTargetZhe: parseFloat(radarTargetZhe) || 0,
-        cloudWorkerUrl: cloudUrl.trim(),
       });
       setMsg('设置已保存 ✅');
       loadStatus();
@@ -121,6 +116,13 @@ export function SettingsScreen({ onCookieLogin }: Props) {
             <Row label="最后更新时间" value={status?.lastUpdated ? new Date(status.lastUpdated).toLocaleString() : '--'} />
           </Card>
 
+          {IS_RC_BUILD && onOpenQualification ? (
+            <TouchableOpacity style={styles.rcCard} onPress={onOpenQualification}>
+              <Text style={styles.rcTitle}>🧪 真机资格检测</Text>
+              <Text style={styles.hint}>RC 包内置 live v2 burn-in、故障保护和检测报告导出。</Text>
+            </TouchableOpacity>
+          ) : null}
+
           <Card>
             <SectionTitle>扫描数量</SectionTitle>
             <Text style={styles.hint}>首页「📡 一键扫描」每次扫描的武器箱数量，拖动即改、即时生效（1-100 个）。数量越大耗时越长（每个约 2 秒）；中断后重扫只补缺的。</Text>
@@ -150,7 +152,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
 
           <Card>
             <SectionTitle>数据源配置</SectionTitle>
-            <Text style={styles.hint}>库存与价格统一走 C5GAME 官方 OpenAPI（app-key，免费注册：opendoc.c5game.com）。「⟳ 同步库存」与 C5 买入价都需要它，历史价格另需 C5 登录凭证。</Text>
+            <Text style={styles.hint}>库存与价格统一走 C5GAME 官方 OpenAPI（app-key，免费注册：opendoc.c5game.com）。「⟳ 同步库存」与 C5 买入价都需要它。</Text>
             <TextInput
               style={styles.input}
               value={c5Key}
@@ -160,24 +162,11 @@ export function SettingsScreen({ onCookieLogin }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Text style={styles.hint}>云端历史地址（选填，推荐）：部署 Cloudflare Worker + D1（见 docs/HANDOFF.md「云端历史缓存」），把 Worker 域名填到这里，如 https://cs2-price-history.xxx.workers.dev。「🔁 快速导入历史」将优先从云端拉 Steam 官方全量历史（零登录），未填或失败则回退 C5 官方趋势（需 C5 登录）。</Text>
-            <TextInput
-              style={styles.input}
-              value={cloudUrl}
-              onChangeText={setCloudUrl}
-              placeholder="https://xxx.workers.dev（云端历史，选填）"
-              placeholderTextColor={colors.textDim}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-            />
-            <Text style={styles.hint}>推荐用「一键登录」：App 内登录一次，凭证自动保存——Steam 登录仅供识别 SteamID64 与搜索加速（库存已改走 C5 app-key），C5 登录供首页「快速导入历史」（官方趋势）与买入参考使用。手填 Cookie 仅作备用（浏览器 F12 复制整行 Cookie）。</Text>
+            <Text style={styles.hint}>历史数据保存在本机。新安装会导入随安装包附带的 Steam 日线；后续更新直接连接 Steam 和 C5。</Text>
+            <Text style={styles.hint}>Steam 一键登录：App 内登录一次，凭证自动保存，用于搜索榜提额与自动识别 SteamID64（库存与买入价走 C5 app-key，不依赖 cookie）。手填 Cookie 仅作备用（浏览器 F12 复制整行 Cookie）。</Text>
             <View style={styles.countRow}>
-              <TouchableOpacity style={[styles.btnPrimary, styles.halfBtn]} onPress={() => onCookieLogin?.('steam')}>
+              <TouchableOpacity style={[styles.btnPrimary, { flex: 1, paddingVertical: 12 }]} onPress={onCookieLogin}>
                 <Text style={styles.btnPrimaryText}>🔐 Steam 一键登录</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnPrimary, styles.halfBtn]} onPress={() => onCookieLogin?.('c5')}>
-                <Text style={styles.btnPrimaryText}>🔐 C5 一键登录</Text>
               </TouchableOpacity>
             </View>
             <TextInput
@@ -189,16 +178,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TextInput
-              style={styles.input}
-              value={c5Cookie}
-              onChangeText={setC5Cookie}
-              placeholder="C5 Cookie（备用，可留空）"
-              placeholderTextColor={colors.textDim}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Text style={styles.hint}>SteamID64（资料页 /profiles/ 后的 17 位数字）：配合上面的 C5 app-key 即可同步库存（库存仅走 C5 官方接口）。已做过「一键登录」（Steam/C5）会自动识别，此项可留空。自定义 URL 需先在 Steam 资料页查看数字 ID。</Text>
+            <Text style={styles.hint}>SteamID64（资料页 /profiles/ 后的 17 位数字）：配合上面的 C5 app-key 即可同步库存（库存仅走 C5 官方接口）。做过「Steam 一键登录」会自动识别，此项可留空。自定义 URL 需先在 Steam 资料页查看数字 ID。</Text>
             <TextInput
               style={styles.input}
               value={steamId}
@@ -282,7 +262,7 @@ export function SettingsScreen({ onCookieLogin }: Props) {
             <Text style={styles.modalTitle}>清除本地数据</Text>
             <Text style={styles.modalHint}>勾选要删除的板块（设置、C5 app-key、登录凭证始终保留）：</Text>
             {([
-              { key: 'snapshots', title: '价格快照', desc: 'Steam/C5 历史、官方历史导入数据；清除后需重新扫描' },
+              { key: 'snapshots', title: '价格快照', desc: 'Steam/C5 价格历史与实时点；清除后需重新扫描' },
               { key: 'inventory', title: '库存记录', desc: '购买记录与冷却倒计时；Steam 导入的箱子也会删除' },
               { key: 'orders', title: '订单流水', desc: '一键买入的订单历史' },
             ] as const).map((row) => (
@@ -322,12 +302,13 @@ const styles = StyleSheet.create({
   header: { color: colors.text, fontSize: 22, fontWeight: '800', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8 },
   content: { padding: 14, paddingBottom: 40 },
   hint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
+  rcCard: { backgroundColor: colors.cardAlt, borderRadius: 14, borderWidth: 1, borderColor: colors.primary, padding: 14, marginBottom: 12 },
+  rcTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 4 },
   input: {
     backgroundColor: colors.cardAlt, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
     color: colors.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 10,
   },
   countRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  halfBtn: { flex: 1, paddingVertical: 12 },
   modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   modalBox: {
     backgroundColor: colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border,
@@ -356,7 +337,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.danger,
   },
   btnDangerText: { color: colors.danger, fontSize: 14, fontWeight: '700' },
-  progress: { color: colors.info, fontSize: 12, marginTop: 10, lineHeight: 17 },
   note: { color: colors.textDim, fontSize: 12, marginTop: 8, lineHeight: 17 },
   msg: { color: colors.info, fontSize: 13, marginTop: 12, textAlign: 'center' },
   footer: { color: colors.textDim, fontSize: 11, textAlign: 'center', marginTop: 16 },

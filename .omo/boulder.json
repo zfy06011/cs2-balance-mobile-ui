@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "active_work_id": "v1.9.5-local-only",
+  "works": {
+    "v1.9.5-local-only": {
+      "work_id": "v1.9.5-local-only",
+      "active_plan": ".omo/plans/v1.9.5-local-only.md",
+      "plan_name": "v1.9.5-local-only",
+      "session_ids": ["codex:current"],
+      "status": "active",
+      "worktree_path": null
+    }
+  }
+}

@@ -1,23 +1,33 @@
 /** 武器箱详情：预计几折为核心，价格流程 C5→7天→Steam，简单趋势 + 折叠详细数据，底部固定一键买入。 */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Prediction, Quote, HistoryPoint, C5StatsResult, C5BuyAdvice, SkinportStats } from '../api/client';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
+import { HoldingsCard } from '../components/HoldingsCard';
 import { SignalBadge } from '../components/SignalBadge';
+import { PriceTrendChart, ChartPoint, PredictionBand } from '../components/PriceTrendChart';
 import { colors } from '../theme/colors';
-import { displayNameOf, fmtMoney, fmtPct, fmtZhe, SIGNAL_TEXT } from '../utils/format';
+import { displayNameOf, fmtMoney, fmtPct, fmtZhe } from '../utils/format';
 import { runBuyFlow } from '../utils/buyFlow';
+import type { HoldingsSummary, InventoryEntry } from '../core/types';
+import { useOpportunitySnapshot } from '../ui/opportunity/useOpportunitySnapshot';
+import { selectOpportunityCard, type OpportunityCardViewModel } from '../ui/opportunity/opportunityViewModel';
+import { OpportunityCard } from '../ui/opportunity/OpportunityCard';
 
 interface Props {
   name: string;
   onBack: () => void;
 }
 
-function conclusionOf(q: Quote | null, momentum: number | null): string {
+function conclusionOf(q: Quote | null, card: OpportunityCardViewModel | null, momentum: number | null): string {
+  if (card?.decision === 'excellent') return `预计 ${card.expectedDiscountText ?? '--'}，当前属于强机会`;
+  if (card?.decision === 'buy') return `预计 ${card.expectedDiscountText ?? '--'}，可以关注买入`;
+  if (card?.decision === 'watch') return '当前条件适合观察，暂不把它当作确定机会';
+  if (card?.decision === 'avoid') return '预计到账不足以覆盖成本，暂不适合';
   if (!q) return '加载中…';
   if (q.signal === 'buy') return `预计 ${fmtZhe(q.expected_discount)} 即可倒成 Steam 余额，当前看是划算的选择`;
   if (q.signal === 'avoid') return '预计到手可能低于投入，暂时别买，等待价格回落';
@@ -28,10 +38,13 @@ function conclusionOf(q: Quote | null, momentum: number | null): string {
 }
 
 export function DetailScreen({ name, onBack }: Props) {
+  const { width: winWidth } = useWindowDimensions();
+  const chartWidth = Math.max(280, Math.min(winWidth - 56, 640));
   const [quote, setQuote] = useState<Quote | null>(null);
   const [pred, setPred] = useState<Prediction | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [auxLoading, setAuxLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [c5Input, setC5Input] = useState('');
   const [c5Msg, setC5Msg] = useState<string | null>(null);
@@ -43,29 +56,45 @@ export function DetailScreen({ name, onBack }: Props) {
   const [c5StatsLoading, setC5StatsLoading] = useState(false);
   const [c5Advice, setC5Advice] = useState<C5BuyAdvice | null>(null);
   const [skStats, setSkStats] = useState<SkinportStats | null>(null);
+  // v1.8.6：我的持仓（该箱子的买入记录汇总）+ 每分钟 tick 驱动冷却倒计时实时
+  const [holdings, setHoldings] = useState<{ summary: HoldingsSummary; entries: InventoryEntry[] } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const { snapshot: opportunitySnapshot, refreshLive } = useOpportunitySnapshot();
+  const opportunityCard = opportunitySnapshot ? selectOpportunityCard(opportunitySnapshot, name) : null;
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 两段式加载：核心（本地，快）先渲染；辅助（网络）到达后补图表与成交参考
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const [q, p, h, adv, sk] = await Promise.all([
-        api.quote(name),
-        api.prediction(name),
-        api.history(name, 7),
-        api.c5BuyAdvice(name).catch(() => null),
-        api.skinportStats(name).catch(() => null),
-      ]);
-      setQuote(q);
-      setPred(p);
-      setHistory(h);
-      setC5Advice(adv);
-      setSkStats(sk);
-      setC5Input(q.c5_buy_price != null ? String(q.c5_buy_price) : '');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '加载失败');
-    } finally {
-      setLoading(false);
-    }
+    setAuxLoading(true);
+    // 核心：一次取齐报价 + 预测 + 我的持仓（本地 SQLite，含 60s 缓存）
+    // 持仓与核心同批：首帧就位，避免加载完再插入一块导致页面往下跳（v1.8.4 教训）
+    Promise.all([api.detail(name), api.holdingsOf(name).catch(() => null)])
+      .then(([{ quote: q, prediction: p }, h]) => {
+        if (!aliveRef.current) return;
+        setQuote(q);
+        setPred(p);
+        setHoldings(h);
+        setC5Input(q.c5_buy_price != null ? String(q.c5_buy_price) : '');
+        setError(null);
+      })
+      .catch((e) => { if (aliveRef.current) setError(e instanceof Error ? e.message : '加载失败'); })
+      .finally(() => { if (aliveRef.current) setLoading(false); });
+    Promise.allSettled([
+      api.history(name, 120).then((h) => { if (aliveRef.current) setHistory(h); }),
+      api.c5BuyAdvice(name).then((a) => { if (aliveRef.current) setC5Advice(a); }),
+      api.skinportStats(name).then((s) => { if (aliveRef.current) setSkStats(s); }),
+    ]).finally(() => { if (aliveRef.current) setAuxLoading(false); });
   }, [name]);
 
   useEffect(() => {
@@ -101,13 +130,13 @@ export function DetailScreen({ name, onBack }: Props) {
         setC5Msg('刷新失败，请稍后重试');
       }
       await load();
+      void refreshLive(stats.candidateNames);
     } catch (e) {
       setC5Msg(`刷新失败：${e instanceof Error ? e.message : '未知错误'}`);
     } finally {
       setRefreshingOne(false);
     }
   };
-
 
   const queryC5Stats = async () => {
     setC5StatsLoading(true);
@@ -133,19 +162,19 @@ export function DetailScreen({ name, onBack }: Props) {
     return typeof m === 'number' ? m : null;
   }, [pred]);
 
-  // 简单 7 天趋势：历史真实柱（实心）+ 未来预测区间（描边），明显区分
-  const trend = useMemo(() => {
-    const hs = history.map((h) => h.price);
-    const max = Math.max(...hs, pred?.p90 ?? 0, 0.01);
-    const bars = hs.slice(-7).map((p, i) => ({ price: p, h: Math.max(6, (p / max) * 60) }));
-    return {
-      bars,
-      max,
-      p25: pred?.p25 ?? null,
-      p50: pred?.p50 ?? null,
-      p75: pred?.p75 ?? null,
-    };
-  }, [history, pred]);
+  // 为 SVG 趋势图准备数据：历史折线（取近 30 天）+ 预测扇区
+  const chartPoints: ChartPoint[] = useMemo(() => {
+    return history.slice(-30).map((h) => ({
+      date: h.fetchedAt.slice(0, 10),
+      price: h.price,
+      volume: h.volume ?? null,
+    }));
+  }, [history]);
+
+  const predictionBand: PredictionBand | null = useMemo(() => {
+    if (!pred) return null;
+    return { p25: pred.p25, p50: pred.p50, p75: pred.p75, label: '7天预测' };
+  }, [pred]);
 
   const buyDisabled = quote?.c5_buy_price == null || buying;
 
@@ -163,42 +192,67 @@ export function DetailScreen({ name, onBack }: Props) {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
       >
-        {loading ? <Loading /> : null}
+        {loading && !quote ? <Loading /> : null}
         {!loading && error ? <ErrorView message={error} onRetry={load} /> : null}
 
         {quote ? (
           <>
+            {/* 我的持仓（v1.8.6：只有买过的箱子才显示；从市场点进来的未持有箱子整块不出现） */}
+            {holdings ? <HoldingsCard summary={holdings.summary} entries={holdings.entries} now={now} /> : null}
+
             <Card style={styles.hero}>
               <View style={styles.heroHead}>
                 <Text style={styles.heroName} numberOfLines={1}>{displayNameOf(name)}</Text>
-                <SignalBadge signal={quote.signal} />
+                <SignalBadge signal={opportunityCard ? opportunityCard.decision === 'legacy' ? opportunityCard.legacySignal ?? 'waiting' : opportunityCard.decision === 'excellent' || opportunityCard.decision === 'buy' ? 'buy' : opportunityCard.decision === 'watch' ? 'wait' : 'avoid' : quote.signal} />
               </View>
-              <Text style={styles.heroBig}>{fmtZhe(quote.expected_discount)}</Text>
+              <Text style={styles.heroBig}>{opportunityCard?.expectedDiscountText ?? fmtZhe(quote.expected_discount)}</Text>
               <Text style={styles.heroHint}>预计几折余额 · 越低越划算</Text>
-              <Text style={styles.conclusion}>{conclusionOf(quote, momentum)}</Text>
+              <Text style={styles.conclusion}>{conclusionOf(quote, opportunityCard, momentum)}</Text>
             </Card>
 
-            {/* 价格流程 C5 → 7 天 → Steam */}
+            {opportunityCard && opportunitySnapshot?.mode === 'v2' ? (
+              <>
+                <SectionTitle>余额转换结论</SectionTitle>
+                <OpportunityCard card={opportunityCard} />
+              </>
+            ) : null}
+
+            {/* 价格流程 C5 → Steam → 预测 → 到手 */}
             <SectionTitle>价格流程</SectionTitle>
             <Card>
-              <Row label="① C5GAME 买入价" value={fmtMoney(quote.c5_buy_price)} valueColor={colors.warning} />
-              <Row label="C5 买入费用（1%）" value={quote.c5_buy_price != null ? fmtMoney(quote.c5_buy_price * quote.c5_fee_ratio) : '--'} />
-              <Row label="实际总成本" value={quote.c5_buy_price != null ? fmtMoney(quote.c5_buy_price * (1 + quote.c5_fee_ratio)) : '--'} />
-              <Row label="② 当前 Steam 卖价" value={fmtMoney(quote.steam_sell_price)} />
+              <Row label="① C5GAME 买入价" value={opportunitySnapshot?.mode === 'v2' ? opportunityCard?.c5BuyPriceText ?? '--' : fmtMoney(quote.c5_buy_price)} valueColor={colors.warning} />
+              <Row label={opportunitySnapshot?.mode === 'v2' ? '② 当前 Steam 最低卖单' : '② 当前 Steam 卖价'} value={opportunityCard?.steamSellPriceText ?? fmtMoney(quote.steam_sell_price)} />
+              {opportunitySnapshot?.mode === 'v2' && opportunityCard?.steamHighestBuyText ? (
+                <Row label="当前 Steam 最高买单" value={opportunityCard.steamHighestBuyText} />
+              ) : null}
               <Row label="7 天后预计卖价（P50）" value={fmtMoney(pred?.p50 ?? null)} valueColor={colors.info} />
-              <Row label="③ Steam 预计到手（扣费后）" value={fmtMoney(quote.steam_net_receive)} valueColor={colors.success} />
-              <Row label="预计赚/亏" value={quote.net_profit != null ? `${quote.net_profit >= 0 ? '+' : ''}${fmtMoney(quote.net_profit)}` : '--'} valueColor={quote.net_profit != null && quote.net_profit >= 0 ? colors.success : colors.danger} />
+              <Row label="③ Steam 预计到手（扣费后）" value={opportunitySnapshot?.mode === 'v2' ? opportunityCard?.steamNetReceiveText ?? '--' : fmtMoney(quote.steam_net_receive)} valueColor={colors.success} />
+              <Row label="预计赚/亏" value={opportunitySnapshot?.mode === 'v2' ? opportunityCard?.netProfitText ?? '--' : quote.net_profit != null ? `${quote.net_profit >= 0 ? '+' : ''}${fmtMoney(quote.net_profit)}` : '--'} valueColor={colors.success} />
               <Row label="盈亏平衡卖出价" value={fmtMoney(quote.breakeven_sell_price)} valueColor={colors.warning} />
-              <Row label="限制期" value={`约 ${quote.lock_days} 天（168 小时）`} />
+              {opportunityCard?.listingDiscountText && opportunityCard.listingDiscountText !== '--' ? (
+                <Row label="理想挂单参考" value={opportunityCard.listingDiscountText} />
+              ) : null}
             </Card>
 
+            {opportunityCard && opportunitySnapshot?.mode === 'v2' ? (
+              <>
+                <SectionTitle>流动性与风险</SectionTitle>
+                <Card>
+                  <Row label="当前可执行容量" value={opportunityCard.capacityText?.replace('当前可执行容量 ', '') ?? '--'} />
+                  <Row label="买卖价差" value={opportunityCard.spreadText ?? '--'} />
+                  <Row label="市场状态" value={opportunityCard.marketStateText ?? '--'} />
+                  {opportunityCard.warningLabels.map((warning) => <Text key={warning} style={styles.predNote}>{warning}</Text>)}
+                  {opportunityCard.freshnessLabel ? <Text style={styles.predNote}>{opportunityCard.freshnessLabel}</Text> : null}
+                  <Text style={styles.predNote}>当前可执行容量只描述当前 Steam 买盘深度，不代表 7 天后仍有相同流动性。</Text>
+                </Card>
+              </>
+            ) : null}
 
-            {/* C5 买入时机参考（近几天统计 + 较昨日变化 + 事件影响 + 趋势） */}
+            {/* C5 买入时机参考（近几天统计 + 较昨日变化 + 趋势） */}
             {c5Advice ? (
               <>
                 <SectionTitle>C5 买入时机参考</SectionTitle>
                 <Card>
-                  <Row label="当前 C5 价" value={fmtMoney(c5Advice.now)} valueColor={colors.warning} />
                   <Row label="近 7 天均值 / 最低 / 最高" value={`${fmtMoney(c5Advice.avg7d)} / ${fmtMoney(c5Advice.min7d)} / ${fmtMoney(c5Advice.max7d)}`} />
                   {c5Advice.change1d != null ? (
                     <Row
@@ -211,38 +265,22 @@ export function DetailScreen({ name, onBack }: Props) {
                     <Row label="近 7 天价格分位" value={`${c5Advice.percentile7d}%（越低越便宜）`} />
                   ) : null}
                   <Row label="近 7 天趋势" value={c5Advice.trend === 'up' ? '上行 ↗' : c5Advice.trend === 'down' ? '下行 ↘' : '平稳 →'} />
-                  {pred?.features?.event_names ? (
-                    <Row
-                      label="活动影响"
-                      value={String(pred.features.event_names)}
-                      valueColor={colors.info}
-                    />
-                  ) : null}
                   <Text style={[styles.hint, c5Advice.suggested === 'good' && { color: colors.success }, c5Advice.suggested === 'wait' && { color: colors.danger }]}>
                     {c5Advice.suggested === 'good' ? '✅ ' : c5Advice.suggested === 'wait' ? '⏸ ' : '• '}
                     {c5Advice.reason}
                   </Text>
-                  {c5Advice.suggested === 'good' ? (
-                    <Text style={styles.hint}>未来 7 天 Steam 侧预计 {fmtMoney(pred?.p50 ?? null)}（{c5Advice.trend === 'down' ? 'C5 短线仍在走低，可分批买' : '当前价位买入的预计几折见顶部'}）。</Text>
-                  ) : null}
                   {skStats ? (
                     <>
                       <Row
-                        label="实际成交 近7天 均价 / 最低"
+                        label="Skinport 实际成交 近7天 均价 / 最低"
                         value={`${fmtMoney(skStats.d7.avg)} / ${fmtMoney(skStats.d7.min)}`}
                         valueColor={colors.info}
                       />
                       <Row
-                        label="实际成交 近30天 均价 / 最低"
+                        label="Skinport 实际成交 近30天 均价 / 最低"
                         value={`${fmtMoney(skStats.d30.avg)} / ${fmtMoney(skStats.d30.min)}`}
                         valueColor={colors.info}
                       />
-                      <Row
-                        label="实际成交 近90天 均价 / 成交量"
-                        value={`${fmtMoney(skStats.d90.avg)} / ${skStats.d90.volume != null ? skStats.d90.volume : '--'}`}
-                        valueColor={colors.info}
-                      />
-                      <Text style={styles.hint}>「实际成交」来自 Skinport 公开成交数据（免 Key 免登录），反映真实买家成交价，与 C5 挂牌价对照可判断当前挂牌偏贵还是便宜。</Text>
                     </>
                   ) : null}
                 </Card>
@@ -273,68 +311,40 @@ export function DetailScreen({ name, onBack }: Props) {
               {c5StatsMsg ? <Text style={styles.c5Msg}>{c5StatsMsg}</Text> : null}
             </Card>
 
-            {/* 简单 7 天趋势 */}
-
-            <SectionTitle>7 天趋势（历史 vs 预测）</SectionTitle>
+            {/* 价格走势（SVG 折线 + 预测扇区 + 成交量柱，参考 C5 交易详情页） */}
+            <SectionTitle>价格走势（近 30 天）</SectionTitle>
             <Card>
-              <View style={styles.legendRow}>
-                <Text style={[styles.legend, { color: colors.primary }]}>■ 历史真实</Text>
-                <Text style={[styles.legend, { color: colors.gold }]}>▨ 未来预测区</Text>
-              </View>
               {quote.data_insufficient === true ? (
-                <Text style={[styles.predNote, { color: colors.warning }]}>⚠️ 历史数据不足（少于 4 次采集），预测仅供参考，信号已保守处理</Text>
+                <Text style={[styles.predNote, { color: colors.warning }]}>⚠️ 历史数据不足，预测仅供参考，信号已保守处理</Text>
               ) : null}
-              <View style={styles.chart}>
-                <View style={styles.histArea}>
-                  {trend.bars.map((b, i) => (
-                    <View key={i} style={styles.histCol}>
-                      <View style={[styles.histBar, { height: b.h, backgroundColor: colors.primary }]} />
-                      <Text style={styles.barVal} numberOfLines={1}>{b.price.toFixed(1)}</Text>
-                    </View>
-                  ))}
-                </View>
-                <View style={styles.predArea}>
-                  {trend.p25 != null && trend.p75 != null ? (
-                    <>
-                      <View style={styles.predLabelRow}>
-                        <Text style={styles.predLabel}>预测区间</Text>
-                        <Text style={styles.predLabelVal}>{fmtMoney(trend.p25)} ~ {fmtMoney(trend.p75)}</Text>
-                      </View>
-                      <View style={styles.predTrack}>
-                        <View
-                          style={[styles.predRange, {
-                            left: `${Math.max(0, (trend.p25 / trend.max) * 100)}%`,
-                            width: `${Math.max(4, ((trend.p75 - trend.p25) / trend.max) * 100)}%`,
-                          }]}
-                        >
-                          <View style={[styles.predMid, { left: `${((trend.p50 ?? 0) - trend.p25) / Math.max(0.01, trend.p75 - trend.p25) * 100}%` }]} />
-                        </View>
-                      </View>
-                      <Text style={styles.predNote}>P50 预计 {fmtMoney(trend.p50)} · 上涨可能 {fmtPct(pred?.prob_profit ?? null)}</Text>
-                    </>
-                  ) : (
-                    <Text style={styles.predNote}>历史不足，暂无预测区间</Text>
-                  )}
-                </View>
-              </View>
+              {/* v1.8.5 闪退修复：历史未到位时不渲染图表（原来会传空 points + 有预测，
+                  拼出非法 SVG 路径导致 react-native-svg 原生解析抛异常杀进程） */}
+              {chartPoints.length >= 2 ? (
+                <PriceTrendChart
+                  points={chartPoints}
+                  prediction={predictionBand}
+                  width={chartWidth}
+                  height={160}
+                  volumeHeight={40}
+                />
+              ) : (
+                <Text style={styles.predNote}>
+                  {auxLoading ? '正在载入走势…' : '历史数据不足，暂无法绘制走势图。去首页点一次「一键扫描」补齐历史。'}
+                </Text>
+              )}
             </Card>
 
-            {/* 详细数据（折叠） */}
+            {/* 详细数据（折叠）——精简版 */}
             <TouchableOpacity onPress={() => setShowDetails(!showDetails)}>
               <Text style={styles.collapseToggle}>{showDetails ? '▾ 收起详细数据' : '▸ 展开详细数据'}</Text>
             </TouchableOpacity>
             {showDetails && pred ? (
               <Card>
                 <Row label="7 天预测区间" value={`${fmtMoney(pred.p10)} ~ ${fmtMoney(pred.p90)}`} />
-                <Row label="P10 / P25 / P50" value={`${fmtMoney(pred.p10)} / ${fmtMoney(pred.p25)} / ${fmtMoney(pred.p50)}`} />
-                <Row label="P75 / P90" value={`${fmtMoney(pred.p75)} / ${fmtMoney(pred.p90)}`} />
                 <Row label="上涨 / 下跌可能" value={`${fmtPct(pred.prob_profit)} / ${fmtPct(pred.prob_loss)}`} />
-                <Row label="模型置信度" value={fmtPct(pred.confidence)} />
-                <Row label="模型版本" value={pred.model_version} />
                 <Row label="价格稳定程度" value={typeof pred.features.volatility === 'number' ? fmtPct(pred.features.volatility, 2) : '--'} />
                 <Row label="近 24h 成交量" value={quote.steam_volume != null ? String(quote.steam_volume) : '--'} />
                 <Row label="Steam 热门排名" value={quote.popular_rank != null ? `#${quote.popular_rank}` : '--'} />
-                <Row label="预计可卖时点" value={new Date(pred.target_at).toLocaleString()} />
               </Card>
             ) : null}
 
@@ -409,23 +419,6 @@ const styles = StyleSheet.create({
   heroBig: { color: colors.text, fontSize: 56, fontWeight: '900', marginTop: 8, fontVariant: ['tabular-nums'] },
   heroHint: { color: colors.textDim, fontSize: 12, marginTop: 2 },
   conclusion: { color: colors.text, fontSize: 14, marginTop: 10, lineHeight: 20 },
-  legendRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },
-  legend: { fontSize: 12, fontWeight: '600' },
-  chart: { marginTop: 4 },
-  histArea: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 84, gap: 4 },
-  histCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  histBar: { width: '70%', borderRadius: 4, minHeight: 4 },
-  barVal: { color: colors.textDim, fontSize: 9, marginTop: 3 },
-  predArea: { marginTop: 14, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 },
-  predLabelRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  predLabel: { color: colors.gold, fontSize: 12, fontWeight: '700' },
-  predLabelVal: { color: colors.text, fontSize: 12, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  predTrack: { height: 18, backgroundColor: colors.card, borderRadius: 9, marginTop: 8, position: 'relative' },
-  predRange: {
-    position: 'absolute', top: 2, bottom: 2, borderRadius: 8,
-    borderWidth: 1, borderColor: colors.gold, backgroundColor: colors.gold + '18',
-  },
-  predMid: { position: 'absolute', top: 0, bottom: 0, width: 3, backgroundColor: colors.gold },
   predNote: { color: colors.textDim, fontSize: 12, marginTop: 8, lineHeight: 17 },
   collapseToggle: { color: colors.primary, fontSize: 14, fontWeight: '600', textAlign: 'center', paddingVertical: 8 },
   hint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },

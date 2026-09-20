@@ -24,6 +24,11 @@ class RadarInput:
     popular_rank: int | None = None       # Steam 热门榜排名（1 起），未提供不加分
     data_insufficient: bool = False       # 历史不足：信号封顶 wait、评分封顶 40
     event_adjust: float | None = None     # 事件价差修正（预测 event_adjust，如 -0.03）
+    # ---- V4 新增维度（缺省不影响旧行为） ----
+    cv: float | None = None               # 变异系数（近 30 天，越低越稳定）
+    r2: float | None = None               # 趋势拟合度 R²（0-1）
+    pct_365: float | None = None          # 当前价 365 天分位（0-1，>0.8 为高位）
+    market_state: str | None = None       # STABLE/RISING/FALLING/CHAOS，CHAOS 封顶 wait
 
 
 @dataclass
@@ -77,12 +82,26 @@ def evaluate(r: RadarInput) -> RadarOutput:
     pessimistic_roi = _roi_of(p25_sell, r.c5_buy_price, r.seller_receive_ratio, r.c5_fee_ratio)
 
     # 信号规则
+    chaotic = r.market_state == "CHAOS"
+    high_percentile = r.pct_365 is not None and r.pct_365 > 0.8
+    cv_threshold = 0.04 if (p50_sell is not None and p50_sell >= 100) else 0.08
+    cv_unstable = r.cv is not None and r.cv > cv_threshold
     if expected_roi is None:
         signal = "wait"
     elif r.data_insufficient:
         # 历史不足：预测不可信，绝不因预测给 buy；当前价格已明确亏损才 avoid
         signal = "avoid" if expected_roi < 0 else "wait"
-    elif expected_roi >= 0.05 and pessimistic_roi is not None and pessimistic_roi >= -0.02 and risk != "high":
+    elif chaotic:
+        # 走势紊乱：不给买入信号
+        signal = "avoid" if expected_roi < 0 else "wait"
+    elif (
+        expected_roi >= 0.05
+        and pessimistic_roi is not None
+        and pessimistic_roi >= -0.02
+        and risk != "high"
+        and not high_percentile
+        and not cv_unstable
+    ):
         signal = "buy"
     elif expected_roi >= 0.0 or (pessimistic_roi is not None and pessimistic_roi >= -0.05):
         signal = "wait"
@@ -109,6 +128,16 @@ def evaluate(r: RadarInput) -> RadarOutput:
     # 历史数据不足：评分封顶 40（避免「看似高分」误导）
     if r.data_insufficient:
         score = min(score, 40.0)
+    # V4 趋势质量：R² 高加分、低扣分；长周期高位/紊乱扣分
+    if r.r2 is not None:
+        if r.r2 >= 0.6:
+            score += 4
+        elif r.r2 < 0.3:
+            score -= 4
+    if r.pct_365 is not None and r.pct_365 > 0.8:
+        score -= 6
+    if chaotic:
+        score = min(score, 40.0)
     score = max(0.0, min(100.0, round(score, 1)))
 
     return RadarOutput(
@@ -128,5 +157,9 @@ def evaluate(r: RadarInput) -> RadarOutput:
             "popular_rank": r.popular_rank,
             "data_insufficient": r.data_insufficient,
             "event_adjust": r.event_adjust,
+            "cv": r.cv,
+            "r2": r.r2,
+            "pct_365": r.pct_365,
+            "market_state": r.market_state,
         },
     )

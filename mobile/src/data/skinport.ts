@@ -57,6 +57,9 @@ export function parseSkinportHistory(payload: unknown): Record<string, SkinportS
   return out;
 }
 
+/** Skinport 请求超时（毫秒）：不可达时避免详情页 Promise.all 永久挂起 */
+export const SKINPORT_TIMEOUT_MS = 5000;
+
 export async function fetchSkinportHistory(
   names: string[],
   currency = 'CNY',
@@ -64,10 +67,17 @@ export async function fetchSkinportHistory(
   const uniq = [...new Set(names)].filter((n) => !!n).slice(0, 50);
   if (uniq.length === 0) return {};
   const qs = uniq.map((n) => `market_hash_name=${encodeURIComponent(n)}`).join('&');
-  const resp = await fetch(`https://api.skinport.com/v1/sales/history?app_id=730&currency=${encodeURIComponent(currency)}&${qs}`, {
-    headers: { Accept: 'application/json' },
-  });
-  if (!resp.ok) throw new Error(`Skinport 接口返回 ${resp.status}`);
-  const payload = (await resp.json()) as unknown;
-  return parseSkinportHistory(payload);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), SKINPORT_TIMEOUT_MS);
+  try {
+    const resp = await fetch(`https://api.skinport.com/v1/sales/history?app_id=730&currency=${encodeURIComponent(currency)}&${qs}`, {
+      headers: { Accept: 'application/json' },
+      signal: ctrl.signal,
+    });
+    if (!resp.ok) throw new Error(`Skinport 接口返回 ${resp.status}`);
+    const payload = (await resp.json()) as unknown;
+    return parseSkinportHistory(payload);
+  } finally {
+    clearTimeout(timer);
+  }
 }

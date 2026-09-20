@@ -198,3 +198,111 @@ def test_steam_sale_events_2026_has_four():
     assert kinds == {"steam-sale"}
     starts = [ev.start.isoformat() for ev in STEAM_SALE_EVENTS_2026]
     assert "2026-06-25" in starts  # 夏促
+
+
+# ---------------- baseline-robust-v4 ----------------
+
+def _v4_long_series():
+    ts0 = 1735689600000
+    prices = [round(10 + 2 * math.sin(i / 20) + i * 0.002, 6) for i in range(365)]
+    ts = [ts0 + i * 86400000 for i in range(365)]
+    vols = [100 + (i * 7) % 90 for i in range(365)]
+    return prices, ts, vols
+
+
+def test_v4_matches_ts_baseline():
+    from datetime import datetime
+    from app.services.prediction import BaselinePredictorV4, MODEL_VERSION_V4
+
+    b = _baseline()["prediction_v4"]
+    pred = BaselinePredictorV4().predict(
+        "V4 Test Case",
+        [10.0, 10.4, 10.8, 11.3, 11.8],
+        breakeven_price=10.1,
+        predicted_at=datetime(2026, 9, 5),
+        volume=6000.0,
+        volume_history=[2000, 2500, 3000, 5000, 6000],
+        popular_rank=12,
+    )
+    assert pred.model_version == MODEL_VERSION_V4
+    for q in ("p10", "p25", "p50", "p75", "p90"):
+        assert getattr(pred, q) == pytest.approx(b[q], abs=2e-4)
+    assert pred.prob_profit == pytest.approx(b["prob_profit"], abs=2e-4)
+    assert pred.confidence == pytest.approx(b["confidence"], abs=2e-4)
+    assert pred.features["theil_sen_slope"] == pytest.approx(b["features"]["theil_sen_slope"], abs=1e-6)
+    assert pred.features["r2"] == pytest.approx(b["features"]["r2"], abs=1e-4)
+    assert pred.features["market_state"] == b["features"]["market_state"]
+
+
+def test_v4_event_matches_ts_baseline():
+    from datetime import date, datetime
+    from app.services.prediction import BaselinePredictorV4, MarketEvent
+
+    b = _baseline()["prediction_v4_event"]
+    pred = BaselinePredictorV4().predict(
+        "V4 Event Case",
+        [10.0, 10.4, 10.8, 11.3, 11.8],
+        breakeven_price=10.1,
+        predicted_at=datetime(2026, 9, 5),
+        volume=6000.0,
+        volume_history=[2000, 2500, 3000, 5000, 6000],
+        popular_rank=12,
+        events=[MarketEvent(kind="steam-sale", name="Test Sale", start=date(2026, 9, 10), end=date(2026, 9, 16), pressure=0.03, recovery_days=14)],
+    )
+    for q in ("p10", "p25", "p50", "p75", "p90"):
+        assert getattr(pred, q) == pytest.approx(b[q], abs=2e-4)
+    assert pred.features["event_names"] == "Test Sale"
+
+
+def test_v4_low_data_matches_ts_baseline():
+    from datetime import datetime
+    from app.services.prediction import BaselinePredictorV4
+
+    b = _baseline()["prediction_v4_low"]
+    pred = BaselinePredictorV4().predict(
+        "V4 Low", [12.0], breakeven_price=10.1, predicted_at=datetime(2026, 9, 5)
+    )
+    assert pred.p50 == pytest.approx(b["p50"], abs=2e-4)
+    assert pred.features["data_insufficient"] is True
+
+
+def test_v4_long_features_match_ts_baseline():
+    """365 天合成序列：Theil-Sen / R² / CV / 均值回归 / 季节性 / 分位 / 波动比 全特征对拍。"""
+    from datetime import datetime
+    from app.services.prediction import BaselinePredictorV4
+
+    prices, ts, vols = _v4_long_series()
+    b = _baseline()["prediction_v4_long"]
+    pred = BaselinePredictorV4().predict(
+        "V4 Long Case",
+        prices,
+        breakeven_price=prices[-1] * 0.92,
+        predicted_at=datetime(2026, 1, 1),
+        volume=float(vols[-1]),
+        volume_history=[float(v) for v in vols[-60:]],
+        timestamps=ts,
+        volumes=[float(v) for v in vols],
+    )
+    for q in ("p10", "p25", "p50", "p75", "p90"):
+        assert getattr(pred, q) == pytest.approx(b[q], abs=2e-4)
+    assert pred.confidence == pytest.approx(b["confidence"], abs=2e-4)
+    for f in ("theil_sen_slope", "r2", "cv", "mean_rev", "seasonal", "pct_365", "pct_14", "vol_ratio", "sma_365"):
+        assert pred.features[f] == pytest.approx(b["features"][f], abs=1e-4)
+    assert pred.features["market_state"] == b["features"]["market_state"]
+    assert pred.features["history_days"] == 365
+
+
+def test_v4_high_percentile_suppresses_drift():
+    """365 天高位（pct_365 > 0.8）时漂移被压制，P50 低于低位场景。"""
+    from datetime import datetime
+    from app.services.prediction import BaselinePredictorV4
+
+    up = [round(10 + i * 0.02, 6) for i in range(365)]  # 单调上行 → 当前处于 365d 最高位
+    ts = [1735689600000 + i * 86400000 for i in range(365)]
+    pred = BaselinePredictorV4().predict(
+        "V4 High", up, predicted_at=datetime(2026, 1, 1), timestamps=ts
+    )
+    assert pred.features["pct_365"] == pytest.approx(1.0, abs=1e-9)
+    # 高位抑制后漂移应小于纯 Theil-Sen 斜率
+    assert pred.features["trend_daily"] < pred.features["theil_sen_slope"]
+

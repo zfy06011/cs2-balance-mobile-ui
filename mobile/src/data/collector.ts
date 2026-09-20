@@ -9,6 +9,7 @@ import { storage } from './storage';
 import { fetchSteamPrice, searchCases, STEAM_DELAY_MS, SteamCaseHit } from './steam';
 import { fetchC5PricesBulk, fetchC5StatsBulk } from './c5';
 import { mergeZhNames } from './zhNames';
+import { fetchSteamHistorySsr } from './steamHistorySsr';
 
 export interface CollectProgress {
   stage: 'listing' | 'c5' | 'prices' | 'done';
@@ -28,11 +29,8 @@ export interface CollectStats {
   failed: number;
   /** 断点续采跳过数（15 分钟内已采集） */
   skipped: number;
-  /** 历史导入成功件数（由会话内 line1 提取完成，采集阶段不再导入） */
-  histImported: number;
-  /** 历史导入失败件数 */
-  histFailed: number;
   elapsedSec: number;
+  candidateNames: string[];
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -47,8 +45,6 @@ export async function collectCases(opts: {
   cookie?: string;
   onProgress?: (p: CollectProgress) => void;
   sleepMs?: number;
-  /** backfill = 快速补历史：无视 15 分钟新鲜度，只采不足 4 点的箱子 */
-  mode?: 'scan' | 'backfill';
 }): Promise<CollectStats> {
   const { count, onProgress } = opts;
   const sleepMs = opts.sleepMs ?? STEAM_DELAY_MS;
@@ -56,7 +52,6 @@ export async function collectCases(opts: {
   // Steam cookie 以设置为准（App 内一键登录 / 手填都存这里），调用方显式传入时可覆盖
   const cookie = (opts.cookie ?? (settings.steamCookie || '')).trim();
   const want = Math.max(1, Math.min(count, 100));
-  const backfill = opts.mode === 'backfill';
 
   const report = (p: CollectProgress) => onProgress?.(p);
 
@@ -83,7 +78,7 @@ export async function collectCases(opts: {
   const target: SteamCaseHit[] = hits.slice(0, want);
   if (target.length === 0) {
     report({ stage: 'done', done: 0, total: 0, currentName: '', success: 0, failed: 0, skipped: 0, message: '未找到武器箱，请稍后重试' });
-    return { total: 0, success: 0, failed: 0, skipped: 0, histImported: 0, histFailed: 0, elapsedSec: 0 };
+    return { total: 0, success: 0, failed: 0, skipped: 0, elapsedSec: 0, candidateNames: [] };
   }
 
   const startedAt = Date.now();
@@ -115,29 +110,15 @@ export async function collectCases(opts: {
     }
   }
 
-  // 历史价格：通过「会话内导入历史」（line1 提取）单独完成，采集阶段不再调用 pricehistory API
-  const histImported = 0;
-  const histFailed = 0;
-  const histFailReason: string | null = null;
-
   for (let i = 0; i < target.length; i++) {
     const hit = target[i];
 
-    // 断点续采：15 分钟内已成功采集的直接跳过（中断后重扫只补缺失项）；
-    // 补历史模式：无视新鲜度，只精准采不足 4 点的箱子
+    // 断点续采：15 分钟内已成功采集的直接跳过（中断后重扫只补缺失项）
     try {
-      if (backfill) {
-        const pts = await storage.getSteamPrices(hit.name);
-        if (pts.length >= 4) {
-          skipped++;
-          continue;
-        }
-      } else {
-        const latest = await storage.getLatestSteam(hit.name);
-        if (latest && Date.now() - new Date(latest.fetchedAt).getTime() < RESUME_FRESH_MS) {
-          skipped++;
-          continue;
-        }
+      const latest = await storage.getLatestSteam(hit.name);
+      if (latest && Date.now() - new Date(latest.fetchedAt).getTime() < RESUME_FRESH_MS) {
+        skipped++;
+        continue;
       }
     } catch {
       // 读取失败不跳过，照常采集
@@ -160,11 +141,12 @@ export async function collectCases(opts: {
       try {
         const sp = await fetchSteamPrice(hit.name, cookie);
         if (sp.success && sp.lowest_price != null) {
+          const vol = sp.volume ?? hit.volume;
           await storage.addSnapshot({
             name: hit.name,
             source: 'steam',
             price: sp.lowest_price,
-            volume: sp.volume ?? hit.volume,
+            volume: vol,
             fetchedAt: new Date().toISOString(),
             popular_rank: hit.popular_rank,
           });
@@ -192,23 +174,36 @@ export async function collectCases(opts: {
     }
   }
 
-  // 补历史模式收尾：统计本轮目标中仍不足 4 点的剩余数（诊断「补完还是不足」）
-  let backfillRemaining = 0;
-  if (backfill) {
-    for (const t of target) {
-      try {
-        const pts = await storage.getSteamPrices(t.name);
-        if (pts.length < 4) backfillRemaining++;
-      } catch {
-        // 忽略
+  let histSynced = 0;
+  const SSr_MAX = 12;
+  let ssrDone = 0;
+  let ssrFails = 0;
+  for (const t of target) {
+    if (ssrDone >= SSr_MAX || ssrFails >= 2) break;
+    try {
+      const existing = await storage.getSteamHistory(t.name, 15);
+      if (existing.length >= 15) continue;
+      const pts = await fetchSteamHistorySsr(t.name, 365);
+      if (pts.length > 0) {
+        const added = await storage.mergeSteamHistory(t.name, pts);
+        if (added > 0) histSynced++;
       }
+      ssrDone++;
+    } catch {
+      ssrFails++;
     }
   }
 
+  await storage.saveLocalSyncStatus({
+    lastRealtimeRefreshAt: new Date().toISOString(),
+    lastHistoryRefreshAt: histSynced > 0 ? new Date().toISOString() : undefined,
+    historySuccessCount: histSynced,
+    historyFailureCount: ssrFails,
+  });
+
   const failPart = failed > 0 ? `，失败 ${failed} 个` : '';
   const skipPart = skipped > 0 ? `（跳过 ${skipped} 个 15 分钟内已采）` : '';
-  const histPart = '，历史通过「会话内导入历史」单独获取';
-  const remainPart = backfill ? `，仍不足 4 点：${backfillRemaining} 个` : '';
+  const histPart = `，历史同步 ${histSynced} 个`;
   report({
     stage: 'done',
     done: target.length,
@@ -217,16 +212,15 @@ export async function collectCases(opts: {
     success,
     failed,
     skipped,
-    message: `采集完成：成功 ${success} / ${target.length} 个${skipPart}${failPart}${histPart}${remainPart}`,
+    message: `采集完成：成功 ${success} / ${target.length} 个${skipPart}${failPart}${histPart}`,
   });
   return {
     total: target.length,
     success,
     failed,
     skipped,
-    histImported,
-    histFailed,
     elapsedSec: Math.round((Date.now() - startedAt) / 1000),
+    candidateNames: target.map((hit) => hit.name),
   };
 }
 
@@ -267,5 +261,5 @@ export async function collectOne(name: string, cookie = ''): Promise<CollectStat
       // ignore
     }
   }
-  return { total: 1, success, failed, skipped: 0, histImported: 0, histFailed: 0, elapsedSec: Math.round((Date.now() - startedAt) / 1000), c5Price };
+  return { total: 1, success, failed, skipped: 0, elapsedSec: Math.round((Date.now() - startedAt) / 1000), candidateNames: [name], c5Price };
 }

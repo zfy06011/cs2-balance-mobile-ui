@@ -1,0 +1,4181 @@
+{
+  "total": 93,
+  "gateDistribution": {
+    "expected_discount_not_viable": {
+      "count": 93,
+      "rate": 1
+    },
+    "current_capacity_too_small": {
+      "count": 48,
+      "rate": 0.5161290322580645
+    }
+  },
+  "primaryGateDistribution": {
+    "expected_discount_not_viable": {
+      "count": 93,
+      "rate": 1
+    }
+  },
+  "capDistribution": {
+    "chaos_cap_watch": {
+      "count": 22,
+      "rate": 0.23655913978494625
+    },
+    "approximate_fee_low_price_cap_watch": {
+      "count": 47,
+      "rate": 0.5053763440860215
+    }
+  },
+  "rawFinalDistribution": {
+    "avoid->avoid": 88,
+    "watch->avoid": 5
+  },
+  "expectedDistribution": {
+    "count": 93,
+    "min": 3.686151066833641,
+    "p10": 3.882872861977614,
+    "p25": 4.089397850021393,
+    "median": 4.747963978835652,
+    "p75": 5.729520368230461,
+    "p90": 6.2932762332099355,
+    "max": 13.883890833004662
+  },
+  "conservativeDistribution": {
+    "count": 93,
+    "min": 4.126445884103283,
+    "p10": 4.273541241506513,
+    "p25": 4.560228451320133,
+    "median": 5.398197390269861,
+    "p75": 6.55454970459851,
+    "p90": 7.273917912781473,
+    "max": 16.894495808855904
+  },
+  "expectedBands": {
+    "lt075": 0,
+    "b075_080": 0,
+    "b080_085": 0,
+    "b085_090": 0,
+    "b090_095": 0,
+    "b095_100": 0,
+    "ge100": 93
+  },
+  "discountGapTop20": [
+    {
+      "item": "Berlin 2019 Legends Autograph Capsule",
+      "gap": 5.0376472017704454,
+      "expected": 11.856848607085459,
+      "conservative": 16.894495808855904
+    },
+    {
+      "item": "Austin 2025 Legends Autograph Capsule",
+      "gap": 2.206001202327439,
+      "expected": 5.538290926380596,
+      "conservative": 7.744292128708035
+    },
+    {
+      "item": "Copenhagen 2024 Mirage Souvenir Package",
+      "gap": 2.0426808254825577,
+      "expected": 6.063325003485719,
+      "conservative": 8.106005828968277
+    },
+    {
+      "item": "Berlin 2019 Returning Challengers Autograph Capsule",
+      "gap": 1.9956276144988845,
+      "expected": 13.883890833004662,
+      "conservative": 15.879518447503546
+    },
+    {
+      "item": "Budapest 2025 Contenders Autograph Capsule",
+      "gap": 1.8541338100954885,
+      "expected": 5.406373339675349,
+      "conservative": 7.260507149770837
+    },
+    {
+      "item": "Budapest 2025 Mirage Souvenir Highlight Package",
+      "gap": 1.3392460570060472,
+      "expected": 5.608847892825095,
+      "conservative": 6.948093949831142
+    },
+    {
+      "item": "Paris 2023 Legends Autograph Capsule",
+      "gap": 1.20642478094814,
+      "expected": 5.95935542588986,
+      "conservative": 7.165780206838
+    },
+    {
+      "item": "Paris 2023 Contenders Autograph Capsule",
+      "gap": 1.1976954964924476,
+      "expected": 5.526509219529437,
+      "conservative": 6.724204716021885
+    },
+    {
+      "item": "Paris 2023 Challengers Autograph Capsule",
+      "gap": 1.173910670388798,
+      "expected": 6.605627069593175,
+      "conservative": 7.779537739981973
+    },
+    {
+      "item": "Shanghai 2024 Contenders Autograph Capsule",
+      "gap": 1.096329148217607,
+      "expected": 6.207564652820473,
+      "conservative": 7.30389380103808
+    },
+    {
+      "item": "Collectible Pins Capsule Series 3",
+      "gap": 1.084640714377036,
+      "expected": 5.751554451814,
+      "conservative": 6.836195166191036
+    },
+    {
+      "item": "Stockholm 2021 Legends Sticker Capsule",
+      "gap": 1.0742984411585494,
+      "expected": 5.38367542019228,
+      "conservative": 6.45797386135083
+    },
+    {
+      "item": "CS:GO Weapon Case",
+      "gap": 1.0493504848504118,
+      "expected": 4.245516794478693,
+      "conservative": 5.294867279329105
+    },
+    {
+      "item": "Austin 2025 Mirage Souvenir Highlight Package",
+      "gap": 0.9815072177993391,
+      "expected": 5.416807298838333,
+      "conservative": 6.398314516637672
+    },
+    {
+      "item": "Copenhagen 2024 Contenders Autograph Capsule",
+      "gap": 0.9806416795715371,
+      "expected": 6.2932762332099355,
+      "conservative": 7.273917912781473
+    },
+    {
+      "item": "Antwerp 2022 Champions Autograph Capsule",
+      "gap": 0.9804588935989287,
+      "expected": 6.252035689401636,
+      "conservative": 7.232494583000564
+    },
+    {
+      "item": "Budapest 2025 Challengers Sticker Capsule",
+      "gap": 0.933048573313406,
+      "expected": 5.777361368092092,
+      "conservative": 6.710409941405498
+    },
+    {
+      "item": "Paris 2023 Overpass Souvenir Package",
+      "gap": 0.8938342558657144,
+      "expected": 6.761346070284116,
+      "conservative": 7.65518032614983
+    },
+    {
+      "item": "CS20 Sticker Capsule",
+      "gap": 0.8865162915007767,
+      "expected": 5.158763697691706,
+      "conservative": 6.045279989192482
+    },
+    {
+      "item": "Shanghai 2024 Champions Autograph Capsule",
+      "gap": 0.8595404156952373,
+      "expected": 4.641302821091203,
+      "conservative": 5.50084323678644
+    }
+  ],
+  "nearMissTop20": [],
+  "topRawScore": [
+    {
+      "item": "Chroma 3 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 52.68215837499999,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 52.68215837499999,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.232673574493724,
+      "expectedDiscount": 3.805387560305486,
+      "listingDiscount": 3.7732066929878925,
+      "spreadPct": 0.008456659619450324,
+      "currentLiquidityCapacity": 133.7442,
+      "volume24h": 3147,
+      "c5AvailableQuantity": 1049,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4704,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "liquidity_strong",
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 287,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Clutch Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 51.85015882352941,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 51.85015882352941,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.662922501145517,
+      "expectedDiscount": 4.1578002794183595,
+      "listingDiscount": 3.717562602774063,
+      "spreadPct": 0.10588235294117644,
+      "currentLiquidityCapacity": 2824.5760999999998,
+      "volume24h": 7178,
+      "c5AvailableQuantity": 7887,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.445,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 294,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Kilowatt Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 51.52230234210526,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 51.52230234210526,
+      "suggestedMaxBudget": 78.90119999999999,
+      "conservativeDiscount": 4.497039914618844,
+      "expectedDiscount": 4.01960242173191,
+      "listingDiscount": 3.808044399535494,
+      "spreadPct": 0.05263157894736847,
+      "currentLiquidityCapacity": 157.80239999999998,
+      "volume24h": 87077,
+      "c5AvailableQuantity": 88260,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4561,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 975,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Glove Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 51.13770159474672,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 51.13770159474672,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 5.137068988714532,
+      "expectedDiscount": 4.522480519607694,
+      "listingDiscount": 4.242477035279262,
+      "spreadPct": 0.061913696060037535,
+      "currentLiquidityCapacity": 2332.595,
+      "volume24h": 1210,
+      "c5AvailableQuantity": 7497,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3906,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "liquidity_strong",
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "coverage_single_unit_neutral",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 363,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Dreams & Nightmares Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 50.556075,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 50.556075,
+      "suggestedMaxBudget": 32.451299999999996,
+      "conservativeDiscount": 4.126445884103283,
+      "expectedDiscount": 3.7186572362893866,
+      "listingDiscount": 3.6965223717876636,
+      "spreadPct": 0.005952380952380958,
+      "currentLiquidityCapacity": 36.056999999999995,
+      "volume24h": 123671,
+      "c5AvailableQuantity": 45404,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4772,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1027,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Gamma 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 49.73155,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 49.73155,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.983293769905063,
+      "expectedDiscount": 4.427887940357294,
+      "listingDiscount": 3.845773361991358,
+      "spreadPct": 0.1314655172413792,
+      "currentLiquidityCapacity": 2611.3752,
+      "volume24h": 2992,
+      "c5AvailableQuantity": 2661,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4207,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 297,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Operation Wildfire Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 49.21594699198218,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 49.21594699198218,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.742594806374104,
+      "expectedDiscount": 4.269905956578392,
+      "listingDiscount": 3.803925128354915,
+      "spreadPct": 0.10913140311804014,
+      "currentLiquidityCapacity": 854.7024,
+      "volume24h": 909,
+      "c5AvailableQuantity": 1730,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4803,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 281,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Danger Zone Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 49.11847325,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 49.11847325,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.549305691987956,
+      "expectedDiscount": 4.089397850021393,
+      "listingDiscount": 3.6220380957332345,
+      "spreadPct": 0.11428571428571425,
+      "currentLiquidityCapacity": 285.1836,
+      "volume24h": 8065,
+      "c5AvailableQuantity": 4856,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.472,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 321,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Fracture Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 48.79523333333333,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 48.79523333333333,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.162745264368805,
+      "expectedDiscount": 3.7460813323880178,
+      "listingDiscount": 3.6940524249937394,
+      "spreadPct": 0.013888888888888902,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 28522,
+      "c5AvailableQuantity": 12256,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4701,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1463,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Shadow Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 48.471058875,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 48.471058875,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.58430474948337,
+      "expectedDiscount": 4.078979799335382,
+      "listingDiscount": 3.703713657796527,
+      "spreadPct": 0.092,
+      "currentLiquidityCapacity": 398.86920000000003,
+      "volume24h": 2068,
+      "c5AvailableQuantity": 862,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4354,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 313,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Prisma Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 48.0670282051282,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 48.0670282051282,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.233296671919082,
+      "expectedDiscount": 3.8278839971823913,
+      "listingDiscount": 3.749363299804291,
+      "spreadPct": 0.02051282051282053,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 9999,
+      "c5AvailableQuantity": 4622,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4884,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 312,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Stockholm 2021 Finalists Autograph Capsule",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 47.929346307692306,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 47.929346307692306,
+      "suggestedMaxBudget": 39.4506,
+      "conservativeDiscount": 6.325768849546315,
+      "expectedDiscount": 6.003729708114865,
+      "listingDiscount": 5.818999563249793,
+      "spreadPct": 0.030769230769230795,
+      "currentLiquidityCapacity": 78.9012,
+      "c5AvailableQuantity": 505,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.6744,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 304,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Operation Vanguard Weapon Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 47.01985,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 47.01985,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.827273215445888,
+      "expectedDiscount": 4.431240097209348,
+      "listingDiscount": 3.7789255651328455,
+      "spreadPct": 0.1472081218274112,
+      "currentLiquidityCapacity": 1215.333,
+      "c5AvailableQuantity": 430,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5569,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 278,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Revolution Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.8633693548387,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.8633693548387,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.138512620414724,
+      "expectedDiscount": 3.720782435225061,
+      "listingDiscount": 3.6007571953790913,
+      "spreadPct": 0.03225806451612906,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 94827,
+      "c5AvailableQuantity": 56505,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4613,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 710,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Prisma 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.86121216216216,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.86121216216216,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.258583746125877,
+      "expectedDiscount": 3.86171103783323,
+      "listingDiscount": 3.736466355525125,
+      "spreadPct": 0.03243243243243246,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 8824,
+      "c5AvailableQuantity": 17141,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4995,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 392,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Snakebite Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.54808333333333,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.54808333333333,
+      "suggestedMaxBudget": 6.666,
+      "conservativeDiscount": 4.1628513292362035,
+      "expectedDiscount": 3.752825758283342,
+      "listingDiscount": 3.574119769793659,
+      "spreadPct": 0.04761904761904766,
+      "currentLiquidityCapacity": 13.332,
+      "volume24h": 9065,
+      "c5AvailableQuantity": 7615,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4945,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 361,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Spectrum 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.30844820627803,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.30844820627803,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.494843851523391,
+      "expectedDiscount": 4.03812754912685,
+      "listingDiscount": 3.884207889182553,
+      "spreadPct": 0.038116591928251106,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 5016,
+      "c5AvailableQuantity": 3867,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4543,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 317,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Fever Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.13575217391304,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.13575217391304,
+      "suggestedMaxBudget": 7.1447400000000005,
+      "conservativeDiscount": 4.262227810605007,
+      "expectedDiscount": 3.849000045776227,
+      "listingDiscount": 3.6816522176989994,
+      "spreadPct": 0.04347826086956525,
+      "currentLiquidityCapacity": 15.8772,
+      "volume24h": 57911,
+      "c5AvailableQuantity": 40347,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5004,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 285,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Copenhagen 2024 Contenders Sticker Capsule",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.095614000000005,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.095614000000005,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 6.07905500515417,
+      "expectedDiscount": 5.621224346681296,
+      "listingDiscount": 4.918571303346133,
+      "spreadPct": 0.1250000000000001,
+      "currentLiquidityCapacity": 398.18240000000003,
+      "c5AvailableQuantity": 1994,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5988,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 971,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Recoil Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.05289481707318,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.05289481707318,
+      "suggestedMaxBudget": 12.476025000000002,
+      "conservativeDiscount": 4.338753260922587,
+      "expectedDiscount": 3.9091286378151375,
+      "listingDiscount": 3.7184394359704966,
+      "spreadPct": 0.04878048780487796,
+      "currentLiquidityCapacity": 27.724500000000003,
+      "volume24h": 25165,
+      "c5AvailableQuantity": 16900,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4699,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 324,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    }
+  ],
+  "topExpectedDiscount": [
+    {
+      "item": "Sealed Dead Hand Terminal",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 37.14920000000001,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 37.14920000000001,
+      "suggestedMaxBudget": 0.694375,
+      "conservativeDiscount": 4.175487280192427,
+      "expectedDiscount": 3.686151066833641,
+      "listingDiscount": 3.475513863014575,
+      "spreadPct": 0.05714285714285704,
+      "currentLiquidityCapacity": 5.555,
+      "volume24h": 60013,
+      "c5AvailableQuantity": 16098,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3018,
+      "forecastAvailable": true,
+      "marketState": "CHAOS",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "chaos_cap_watch",
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 403,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Dreams & Nightmares Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 50.556075,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 50.556075,
+      "suggestedMaxBudget": 32.451299999999996,
+      "conservativeDiscount": 4.126445884103283,
+      "expectedDiscount": 3.7186572362893866,
+      "listingDiscount": 3.6965223717876636,
+      "spreadPct": 0.005952380952380958,
+      "currentLiquidityCapacity": 36.056999999999995,
+      "volume24h": 123671,
+      "c5AvailableQuantity": 45404,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4772,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1027,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Revolution Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.8633693548387,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.8633693548387,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.138512620414724,
+      "expectedDiscount": 3.720782435225061,
+      "listingDiscount": 3.6007571953790913,
+      "spreadPct": 0.03225806451612906,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 94827,
+      "c5AvailableQuantity": 56505,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4613,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 710,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Fracture Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 48.79523333333333,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 48.79523333333333,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.162745264368805,
+      "expectedDiscount": 3.7460813323880178,
+      "listingDiscount": 3.6940524249937394,
+      "spreadPct": 0.013888888888888902,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 28522,
+      "c5AvailableQuantity": 12256,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4701,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1463,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Snakebite Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.54808333333333,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.54808333333333,
+      "suggestedMaxBudget": 6.666,
+      "conservativeDiscount": 4.1628513292362035,
+      "expectedDiscount": 3.752825758283342,
+      "listingDiscount": 3.574119769793659,
+      "spreadPct": 0.04761904761904766,
+      "currentLiquidityCapacity": 13.332,
+      "volume24h": 9065,
+      "c5AvailableQuantity": 7615,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4945,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 361,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Chroma 3 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 52.68215837499999,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 52.68215837499999,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.232673574493724,
+      "expectedDiscount": 3.805387560305486,
+      "listingDiscount": 3.7732066929878925,
+      "spreadPct": 0.008456659619450324,
+      "currentLiquidityCapacity": 133.7442,
+      "volume24h": 3147,
+      "c5AvailableQuantity": 1049,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4704,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "liquidity_strong",
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 287,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Prisma Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 48.0670282051282,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 48.0670282051282,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.233296671919082,
+      "expectedDiscount": 3.8278839971823913,
+      "listingDiscount": 3.749363299804291,
+      "spreadPct": 0.02051282051282053,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 9999,
+      "c5AvailableQuantity": 4622,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4884,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 312,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Fever Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.13575217391304,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.13575217391304,
+      "suggestedMaxBudget": 7.1447400000000005,
+      "conservativeDiscount": 4.262227810605007,
+      "expectedDiscount": 3.849000045776227,
+      "listingDiscount": 3.6816522176989994,
+      "spreadPct": 0.04347826086956525,
+      "currentLiquidityCapacity": 15.8772,
+      "volume24h": 57911,
+      "c5AvailableQuantity": 40347,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5004,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 285,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Prisma 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.86121216216216,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.86121216216216,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.258583746125877,
+      "expectedDiscount": 3.86171103783323,
+      "listingDiscount": 3.736466355525125,
+      "spreadPct": 0.03243243243243246,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 8824,
+      "c5AvailableQuantity": 17141,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4995,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 392,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Operation Breakout Weapon Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 44.2867285,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 44.2867285,
+      "suggestedMaxBudget": 47.93157,
+      "conservativeDiscount": 4.303631694460904,
+      "expectedDiscount": 3.882872861977614,
+      "listingDiscount": 3.8795313190671346,
+      "spreadPct": 0.0008605851979345772,
+      "currentLiquidityCapacity": 53.2573,
+      "c5AvailableQuantity": 2232,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4831,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "coverage_single_unit_neutral",
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 295,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Recoil Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.05289481707318,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.05289481707318,
+      "suggestedMaxBudget": 12.476025000000002,
+      "conservativeDiscount": 4.338753260922587,
+      "expectedDiscount": 3.9091286378151375,
+      "listingDiscount": 3.7184394359704966,
+      "spreadPct": 0.04878048780487796,
+      "currentLiquidityCapacity": 27.724500000000003,
+      "volume24h": 25165,
+      "c5AvailableQuantity": 16900,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4699,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 324,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Sealed Genesis Terminal",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 38.63095565,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 38.63095565,
+      "suggestedMaxBudget": 90.49095,
+      "conservativeDiscount": 4.273541241506513,
+      "expectedDiscount": 3.923829533305154,
+      "listingDiscount": 3.139063626644123,
+      "spreadPct": 0.20000000000000004,
+      "currentLiquidityCapacity": 723.9276,
+      "c5AvailableQuantity": 18651,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3558,
+      "forecastAvailable": true,
+      "marketState": "CHAOS",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "chaos_cap_watch",
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 419,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Gallery Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 44.3154,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 44.3154,
+      "suggestedMaxBudget": 8.490060000000001,
+      "conservativeDiscount": 4.373867776527932,
+      "expectedDiscount": 3.9410141567837322,
+      "listingDiscount": 3.9038347779461504,
+      "spreadPct": 0.009433962264150952,
+      "currentLiquidityCapacity": 9.4334,
+      "c5AvailableQuantity": 7282,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4716,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1224,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Operation Phoenix Weapon Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 43.90146304347826,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 43.90146304347826,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.401931397778718,
+      "expectedDiscount": 3.9415668482975876,
+      "listingDiscount": 3.859308061898333,
+      "spreadPct": 0.020869565217391323,
+      "currentLiquidityCapacity": 0,
+      "c5AvailableQuantity": 1293,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4677,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 280,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Spectrum Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 44.3768,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 44.3768,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.560228451320133,
+      "expectedDiscount": 3.9590889752678664,
+      "listingDiscount": 3.9449493717847677,
+      "spreadPct": 0.0035714285714284954,
+      "currentLiquidityCapacity": 0,
+      "c5AvailableQuantity": 1940,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3272,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 751,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Chroma 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 37.45879955595027,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 37.45879955595027,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.4656703689721775,
+      "expectedDiscount": 3.982339424496651,
+      "listingDiscount": 3.6569617805768533,
+      "spreadPct": 0.0817051509769094,
+      "currentLiquidityCapacity": 0,
+      "c5AvailableQuantity": 738,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4407,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 287,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Paris 2023 Challengers Sticker Capsule",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 38.26940909090909,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 38.26940909090909,
+      "suggestedMaxBudget": 1.3332000000000002,
+      "conservativeDiscount": 4.374657698516961,
+      "expectedDiscount": 4.001021453803769,
+      "listingDiscount": 3.6372922307306994,
+      "spreadPct": 0.09090909090909087,
+      "currentLiquidityCapacity": 2.6664000000000003,
+      "c5AvailableQuantity": 21519,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.489,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 882,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Kilowatt Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 51.52230234210526,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 51.52230234210526,
+      "suggestedMaxBudget": 78.90119999999999,
+      "conservativeDiscount": 4.497039914618844,
+      "expectedDiscount": 4.01960242173191,
+      "listingDiscount": 3.808044399535494,
+      "spreadPct": 0.05263157894736847,
+      "currentLiquidityCapacity": 157.80239999999998,
+      "volume24h": 87077,
+      "c5AvailableQuantity": 88260,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4561,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 975,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "CS20 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 40.59655000000001,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 40.59655000000001,
+      "suggestedMaxBudget": 6.1913,
+      "conservativeDiscount": 4.397162857031755,
+      "expectedDiscount": 4.025846882437962,
+      "listingDiscount": 3.7670424399955222,
+      "spreadPct": 0.06428571428571418,
+      "currentLiquidityCapacity": 6.1913,
+      "c5AvailableQuantity": 1531,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5437,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 336,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Spectrum 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.30844820627803,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.30844820627803,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.494843851523391,
+      "expectedDiscount": 4.03812754912685,
+      "listingDiscount": 3.884207889182553,
+      "spreadPct": 0.038116591928251106,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 5016,
+      "c5AvailableQuantity": 3867,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4543,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 317,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    }
+  ],
+  "topConservativeDiscount": [
+    {
+      "item": "Dreams & Nightmares Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 50.556075,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 50.556075,
+      "suggestedMaxBudget": 32.451299999999996,
+      "conservativeDiscount": 4.126445884103283,
+      "expectedDiscount": 3.7186572362893866,
+      "listingDiscount": 3.6965223717876636,
+      "spreadPct": 0.005952380952380958,
+      "currentLiquidityCapacity": 36.056999999999995,
+      "volume24h": 123671,
+      "c5AvailableQuantity": 45404,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4772,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1027,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Revolution Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.8633693548387,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.8633693548387,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.138512620414724,
+      "expectedDiscount": 3.720782435225061,
+      "listingDiscount": 3.6007571953790913,
+      "spreadPct": 0.03225806451612906,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 94827,
+      "c5AvailableQuantity": 56505,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4613,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 710,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Fracture Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 48.79523333333333,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 48.79523333333333,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.162745264368805,
+      "expectedDiscount": 3.7460813323880178,
+      "listingDiscount": 3.6940524249937394,
+      "spreadPct": 0.013888888888888902,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 28522,
+      "c5AvailableQuantity": 12256,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4701,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1463,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Snakebite Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.54808333333333,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.54808333333333,
+      "suggestedMaxBudget": 6.666,
+      "conservativeDiscount": 4.1628513292362035,
+      "expectedDiscount": 3.752825758283342,
+      "listingDiscount": 3.574119769793659,
+      "spreadPct": 0.04761904761904766,
+      "currentLiquidityCapacity": 13.332,
+      "volume24h": 9065,
+      "c5AvailableQuantity": 7615,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4945,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 361,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Sealed Dead Hand Terminal",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 37.14920000000001,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 37.14920000000001,
+      "suggestedMaxBudget": 0.694375,
+      "conservativeDiscount": 4.175487280192427,
+      "expectedDiscount": 3.686151066833641,
+      "listingDiscount": 3.475513863014575,
+      "spreadPct": 0.05714285714285704,
+      "currentLiquidityCapacity": 5.555,
+      "volume24h": 60013,
+      "c5AvailableQuantity": 16098,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3018,
+      "forecastAvailable": true,
+      "marketState": "CHAOS",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "chaos_cap_watch",
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 403,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Chroma 3 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 52.68215837499999,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 52.68215837499999,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.232673574493724,
+      "expectedDiscount": 3.805387560305486,
+      "listingDiscount": 3.7732066929878925,
+      "spreadPct": 0.008456659619450324,
+      "currentLiquidityCapacity": 133.7442,
+      "volume24h": 3147,
+      "c5AvailableQuantity": 1049,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4704,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "liquidity_strong",
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 287,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Prisma Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 48.0670282051282,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 48.0670282051282,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.233296671919082,
+      "expectedDiscount": 3.8278839971823913,
+      "listingDiscount": 3.749363299804291,
+      "spreadPct": 0.02051282051282053,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 9999,
+      "c5AvailableQuantity": 4622,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4884,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 312,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Prisma 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.86121216216216,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.86121216216216,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.258583746125877,
+      "expectedDiscount": 3.86171103783323,
+      "listingDiscount": 3.736466355525125,
+      "spreadPct": 0.03243243243243246,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 8824,
+      "c5AvailableQuantity": 17141,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4995,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 392,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Fever Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.13575217391304,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.13575217391304,
+      "suggestedMaxBudget": 7.1447400000000005,
+      "conservativeDiscount": 4.262227810605007,
+      "expectedDiscount": 3.849000045776227,
+      "listingDiscount": 3.6816522176989994,
+      "spreadPct": 0.04347826086956525,
+      "currentLiquidityCapacity": 15.8772,
+      "volume24h": 57911,
+      "c5AvailableQuantity": 40347,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5004,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 285,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Sealed Genesis Terminal",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 38.63095565,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 38.63095565,
+      "suggestedMaxBudget": 90.49095,
+      "conservativeDiscount": 4.273541241506513,
+      "expectedDiscount": 3.923829533305154,
+      "listingDiscount": 3.139063626644123,
+      "spreadPct": 0.20000000000000004,
+      "currentLiquidityCapacity": 723.9276,
+      "c5AvailableQuantity": 18651,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3558,
+      "forecastAvailable": true,
+      "marketState": "CHAOS",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "chaos_cap_watch",
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 419,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Operation Breakout Weapon Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 44.2867285,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 44.2867285,
+      "suggestedMaxBudget": 47.93157,
+      "conservativeDiscount": 4.303631694460904,
+      "expectedDiscount": 3.882872861977614,
+      "listingDiscount": 3.8795313190671346,
+      "spreadPct": 0.0008605851979345772,
+      "currentLiquidityCapacity": 53.2573,
+      "c5AvailableQuantity": 2232,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4831,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "coverage_single_unit_neutral",
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 295,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Recoil Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.05289481707318,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.05289481707318,
+      "suggestedMaxBudget": 12.476025000000002,
+      "conservativeDiscount": 4.338753260922587,
+      "expectedDiscount": 3.9091286378151375,
+      "listingDiscount": 3.7184394359704966,
+      "spreadPct": 0.04878048780487796,
+      "currentLiquidityCapacity": 27.724500000000003,
+      "volume24h": 25165,
+      "c5AvailableQuantity": 16900,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4699,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 324,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Gallery Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 44.3154,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 44.3154,
+      "suggestedMaxBudget": 8.490060000000001,
+      "conservativeDiscount": 4.373867776527932,
+      "expectedDiscount": 3.9410141567837322,
+      "listingDiscount": 3.9038347779461504,
+      "spreadPct": 0.009433962264150952,
+      "currentLiquidityCapacity": 9.4334,
+      "c5AvailableQuantity": 7282,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4716,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "spread_tight",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1224,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Paris 2023 Challengers Sticker Capsule",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 38.26940909090909,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 38.26940909090909,
+      "suggestedMaxBudget": 1.3332000000000002,
+      "conservativeDiscount": 4.374657698516961,
+      "expectedDiscount": 4.001021453803769,
+      "listingDiscount": 3.6372922307306994,
+      "spreadPct": 0.09090909090909087,
+      "currentLiquidityCapacity": 2.6664000000000003,
+      "c5AvailableQuantity": 21519,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.489,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 882,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "CS20 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 40.59655000000001,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 40.59655000000001,
+      "suggestedMaxBudget": 6.1913,
+      "conservativeDiscount": 4.397162857031755,
+      "expectedDiscount": 4.025846882437962,
+      "listingDiscount": 3.7670424399955222,
+      "spreadPct": 0.06428571428571418,
+      "currentLiquidityCapacity": 6.1913,
+      "c5AvailableQuantity": 1531,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5437,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 336,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Operation Phoenix Weapon Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 43.90146304347826,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 43.90146304347826,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.401931397778718,
+      "expectedDiscount": 3.9415668482975876,
+      "listingDiscount": 3.859308061898333,
+      "spreadPct": 0.020869565217391323,
+      "currentLiquidityCapacity": 0,
+      "c5AvailableQuantity": 1293,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4677,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 280,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Paris 2023 Contenders Sticker Capsule",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 43.121319375,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 43.121319375,
+      "suggestedMaxBudget": 56.2065,
+      "conservativeDiscount": 4.442718466124743,
+      "expectedDiscount": 4.16611570228454,
+      "listingDiscount": 3.7495041320560856,
+      "spreadPct": 0.10000000000000009,
+      "currentLiquidityCapacity": 112.413,
+      "c5AvailableQuantity": 66813,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5874,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 341,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Chroma 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 37.45879955595027,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 37.45879955595027,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.4656703689721775,
+      "expectedDiscount": 3.982339424496651,
+      "listingDiscount": 3.6569617805768533,
+      "spreadPct": 0.0817051509769094,
+      "currentLiquidityCapacity": 0,
+      "c5AvailableQuantity": 738,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4407,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 287,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Spectrum 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.30844820627803,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.30844820627803,
+      "suggestedMaxBudget": 0,
+      "conservativeDiscount": 4.494843851523391,
+      "expectedDiscount": 4.03812754912685,
+      "listingDiscount": 3.884207889182553,
+      "spreadPct": 0.038116591928251106,
+      "currentLiquidityCapacity": 0,
+      "volume24h": 5016,
+      "c5AvailableQuantity": 3867,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4543,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable",
+        "current_capacity_too_small"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 317,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Kilowatt Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 51.52230234210526,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 51.52230234210526,
+      "suggestedMaxBudget": 78.90119999999999,
+      "conservativeDiscount": 4.497039914618844,
+      "expectedDiscount": 4.01960242173191,
+      "listingDiscount": 3.808044399535494,
+      "spreadPct": 0.05263157894736847,
+      "currentLiquidityCapacity": 157.80239999999998,
+      "volume24h": 87077,
+      "c5AvailableQuantity": 88260,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4561,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 975,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    }
+  ],
+  "topCapacity": [
+    {
+      "item": "Clutch Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 51.85015882352941,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 51.85015882352941,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.662922501145517,
+      "expectedDiscount": 4.1578002794183595,
+      "listingDiscount": 3.717562602774063,
+      "spreadPct": 0.10588235294117644,
+      "currentLiquidityCapacity": 2824.5760999999998,
+      "volume24h": 7178,
+      "c5AvailableQuantity": 7887,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.445,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 294,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Chroma Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 44.7654,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 44.7654,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 6.272613234578954,
+      "expectedDiscount": 5.497478483119066,
+      "listingDiscount": 4.762396011692051,
+      "spreadPct": 0.13371266002844956,
+      "currentLiquidityCapacity": 2753.1792,
+      "c5AvailableQuantity": 233,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3616,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 904,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Gamma 2 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 49.73155,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 49.73155,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.983293769905063,
+      "expectedDiscount": 4.427887940357294,
+      "listingDiscount": 3.845773361991358,
+      "spreadPct": 0.1314655172413792,
+      "currentLiquidityCapacity": 2611.3752,
+      "volume24h": 2992,
+      "c5AvailableQuantity": 2661,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4207,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 297,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Glove Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 51.13770159474672,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 51.13770159474672,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 5.137068988714532,
+      "expectedDiscount": 4.522480519607694,
+      "listingDiscount": 4.242477035279262,
+      "spreadPct": 0.061913696060037535,
+      "currentLiquidityCapacity": 2332.595,
+      "volume24h": 1210,
+      "c5AvailableQuantity": 7497,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3906,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "liquidity_strong",
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "coverage_single_unit_neutral",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 363,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "eSports 2013 Winter Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 44.08005,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 44.08005,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 6.380945022372836,
+      "expectedDiscount": 5.52511866707734,
+      "listingDiscount": 4.785122763640694,
+      "spreadPct": 0.13393303348325852,
+      "currentLiquidityCapacity": 2305.8906,
+      "c5AvailableQuantity": 492,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.2877,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "coverage_single_unit_neutral",
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 971,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Operation Vanguard Weapon Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 47.01985,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 47.01985,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.827273215445888,
+      "expectedDiscount": 4.431240097209348,
+      "listingDiscount": 3.7789255651328455,
+      "spreadPct": 0.1472081218274112,
+      "currentLiquidityCapacity": 1215.333,
+      "c5AvailableQuantity": 430,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5569,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 278,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Operation Wildfire Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 49.21594699198218,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 49.21594699198218,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.742594806374104,
+      "expectedDiscount": 4.269905956578392,
+      "listingDiscount": 3.803925128354915,
+      "spreadPct": 0.10913140311804014,
+      "currentLiquidityCapacity": 854.7024,
+      "volume24h": 909,
+      "c5AvailableQuantity": 1730,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4803,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 281,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Sealed Genesis Terminal",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 38.63095565,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 38.63095565,
+      "suggestedMaxBudget": 90.49095,
+      "conservativeDiscount": 4.273541241506513,
+      "expectedDiscount": 3.923829533305154,
+      "listingDiscount": 3.139063626644123,
+      "spreadPct": 0.20000000000000004,
+      "currentLiquidityCapacity": 723.9276,
+      "c5AvailableQuantity": 18651,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3558,
+      "forecastAvailable": true,
+      "marketState": "CHAOS",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "chaos_cap_watch",
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 419,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Huntsman Weapon Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 42.2704924,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 42.2704924,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 5.398197390269861,
+      "expectedDiscount": 4.747963978835652,
+      "listingDiscount": 4.016922211444758,
+      "spreadPct": 0.15396952686447474,
+      "currentLiquidityCapacity": 655.4496,
+      "c5AvailableQuantity": 248,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3759,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "coverage_single_unit_neutral",
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 279,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Shattered Web Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 45.77217347439302,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 45.77217347439302,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 5.028031499394216,
+      "expectedDiscount": 4.449456123182972,
+      "listingDiscount": 3.936317025516954,
+      "spreadPct": 0.11532625189681332,
+      "currentLiquidityCapacity": 478.6996,
+      "c5AvailableQuantity": 4961,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4052,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 297,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Shadow Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 48.471058875,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 48.471058875,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.58430474948337,
+      "expectedDiscount": 4.078979799335382,
+      "listingDiscount": 3.703713657796527,
+      "spreadPct": 0.092,
+      "currentLiquidityCapacity": 398.86920000000003,
+      "volume24h": 2068,
+      "c5AvailableQuantity": 862,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4354,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 313,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Copenhagen 2024 Contenders Sticker Capsule",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 46.095614000000005,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 46.095614000000005,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 6.07905500515417,
+      "expectedDiscount": 5.621224346681296,
+      "listingDiscount": 4.918571303346133,
+      "spreadPct": 0.1250000000000001,
+      "currentLiquidityCapacity": 398.18240000000003,
+      "c5AvailableQuantity": 1994,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.5988,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 971,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Operation Bravo Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 35.84681496144381,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 35.84681496144381,
+      "suggestedMaxBudget": 93.740625,
+      "conservativeDiscount": 4.73436951509893,
+      "expectedDiscount": 4.251431590605997,
+      "listingDiscount": 4.002937545569354,
+      "spreadPct": 0.05844949865492787,
+      "currentLiquidityCapacity": 374.9625,
+      "c5AvailableQuantity": 147,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3171,
+      "forecastAvailable": true,
+      "marketState": "CHAOS",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "chaos_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "coverage_single_unit_neutral",
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 1256,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Danger Zone Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 49.11847325,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 49.11847325,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.549305691987956,
+      "expectedDiscount": 4.089397850021393,
+      "listingDiscount": 3.6220380957332345,
+      "spreadPct": 0.11428571428571425,
+      "currentLiquidityCapacity": 285.1836,
+      "volume24h": 8065,
+      "c5AvailableQuantity": 4856,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.472,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 321,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Falchion Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 42.801401,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 42.801401,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.776628630657623,
+      "expectedDiscount": 4.323189026862996,
+      "listingDiscount": 3.690527218053778,
+      "spreadPct": 0.1463414634146341,
+      "currentLiquidityCapacity": 252.58079999999998,
+      "c5AvailableQuantity": 625,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4964,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 328,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Sticker Capsule 2",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 32.1218345,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 32.1218345,
+      "suggestedMaxBudget": 61.5494,
+      "conservativeDiscount": 6.1329287877337535,
+      "expectedDiscount": 5.729520368230461,
+      "listingDiscount": 4.8265195669057706,
+      "spreadPct": 0.15760495526496898,
+      "currentLiquidityCapacity": 246.1976,
+      "c5AvailableQuantity": 309,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4015,
+      "forecastAvailable": true,
+      "marketState": "CHAOS",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "chaos_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "coverage_single_unit_neutral",
+        "volume_missing",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 657,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Kilowatt Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 51.52230234210526,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 51.52230234210526,
+      "suggestedMaxBudget": 78.90119999999999,
+      "conservativeDiscount": 4.497039914618844,
+      "expectedDiscount": 4.01960242173191,
+      "listingDiscount": 3.808044399535494,
+      "spreadPct": 0.05263157894736847,
+      "currentLiquidityCapacity": 157.80239999999998,
+      "volume24h": 87077,
+      "c5AvailableQuantity": 88260,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4561,
+      "forecastAvailable": true,
+      "marketState": "STABLE",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available",
+        "market_stable"
+      ],
+      "warnings": [
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 975,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Austin 2025 Contenders Autograph Capsule",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 39.39232857211538,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 39.39232857211538,
+      "suggestedMaxBudget": 19.0549125,
+      "conservativeDiscount": 6.831240998496842,
+      "expectedDiscount": 6.212942869845014,
+      "listingDiscount": 5.973983528697129,
+      "spreadPct": 0.03846153846153849,
+      "currentLiquidityCapacity": 152.4393,
+      "c5AvailableQuantity": 3050,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.3362,
+      "forecastAvailable": true,
+      "marketState": "CHAOS",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [
+        "chaos_cap_watch",
+        "approximate_fee_low_price_cap_watch"
+      ],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "volume_missing",
+        "steam_fee_model_approximate",
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 267,
+        "http429": false,
+        "stale": false,
+        "missingFields": [
+          "volume24h"
+        ],
+        "errorCode": "priceoverview:Error"
+      }
+    },
+    {
+      "item": "Horizon Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 45.83065382944915,
+      "rawDecision": "avoid",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 45.83065382944915,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.552256978802763,
+      "expectedDiscount": 4.07847958200067,
+      "listingDiscount": 3.681000639687045,
+      "spreadPct": 0.09745762711864407,
+      "currentLiquidityCapacity": 151.0455,
+      "volume24h": 4447,
+      "c5AvailableQuantity": 1089,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4529,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 289,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    },
+    {
+      "item": "Chroma 3 Case",
+      "oldRadarSignal": "avoid",
+      "oldRadarScore": 0,
+      "oldRadarClass": "negative",
+      "rawScore": 52.68215837499999,
+      "rawDecision": "watch",
+      "opportunityDecision": "avoid",
+      "opportunityScore": 52.68215837499999,
+      "suggestedMaxBudget": 100,
+      "conservativeDiscount": 4.232673574493724,
+      "expectedDiscount": 3.805387560305486,
+      "listingDiscount": 3.7732066929878925,
+      "spreadPct": 0.008456659619450324,
+      "currentLiquidityCapacity": 133.7442,
+      "volume24h": 3147,
+      "c5AvailableQuantity": 1049,
+      "marketDataQuality": 1,
+      "forecastQuality": 0.4704,
+      "forecastAvailable": true,
+      "marketState": "RISING",
+      "hardGates": [
+        "expected_discount_not_viable"
+      ],
+      "caps": [],
+      "primaryGate": "expected_discount_not_viable",
+      "poolSource": "frozen_bundle",
+      "reasons": [
+        "liquidity_strong",
+        "spread_tight",
+        "volume_high",
+        "c5_supply_available"
+      ],
+      "warnings": [
+        "future_orderbook_not_predicted",
+        "future_liquidity_not_guaranteed"
+      ],
+      "disagreement": "AGREE_NEGATIVE",
+      "diagnostics": {
+        "orderbookOk": true,
+        "discountOk": true,
+        "opportunityOk": true,
+        "latencyMs": 287,
+        "http429": false,
+        "stale": false,
+        "missingFields": []
+      }
+    }
+  ],
+  "lowPriceApproxItems": [
+    "Kilowatt Case",
+    "Revolution Case",
+    "Fracture Case",
+    "Sealed Dead Hand Terminal",
+    "Fever Case",
+    "Snakebite Case",
+    "Clutch Case",
+    "Recoil Case",
+    "Sealed Genesis Terminal",
+    "Berlin 2019 Returning Challengers Autograph Capsule",
+    "Paris 2023 Legends Autograph Capsule",
+    "Paris 2023 Legends Sticker Capsule",
+    "Austin 2025 Contenders Autograph Capsule",
+    "Paris 2023 Challengers Sticker Capsule",
+    "Paris 2023 Contenders Sticker Capsule",
+    "Budapest 2025 Legends Sticker Capsule",
+    "Budapest 2025 Legends Autograph Capsule",
+    "Ambush Sticker Capsule",
+    "Budapest 2025 Contenders Sticker Capsule",
+    "10 Year Birthday Sticker Capsule",
+    "Paris 2023 Challengers Autograph Capsule",
+    "Austin 2025 Contenders Sticker Capsule",
+    "Austin 2025 Legends Sticker Capsule",
+    "Austin 2025 Legends Autograph Capsule",
+    "Shanghai 2024 Champions Autograph Capsule",
+    "Austin 2025 Challengers Sticker Capsule",
+    "Jackass Sticker Capsule",
+    "Antwerp 2022 Contenders Sticker Capsule",
+    "Shanghai 2024 Legends Autograph Capsule",
+    "Budapest 2025 Contenders Autograph Capsule",
+    "Antwerp 2022 Challengers Sticker Capsule",
+    "Paris 2023 Contenders Autograph Capsule",
+    "Copenhagen 2024 Challengers Sticker Capsule",
+    "Copenhagen 2024 Contenders Autograph Capsule",
+    "Shanghai 2024 Contenders Autograph Capsule",
+    "Rio 2022 Challengers Sticker Capsule",
+    "Paris 2023 Champions Autograph Capsule",
+    "Budapest 2025 Challengers Sticker Capsule",
+    "Antwerp 2022 Champions Autograph Capsule",
+    "Shanghai 2024 Contenders Sticker Capsule",
+    "Rio 2022 Contenders Sticker Capsule",
+    "Antwerp 2022 Contenders Autograph Capsule",
+    "Copenhagen 2024 Contenders Sticker Capsule",
+    "Stockholm 2021 Finalists Autograph Capsule",
+    "Espionage Sticker Capsule",
+    "CS20 Sticker Capsule",
+    "Shanghai 2024 Legends Sticker Capsule"
+  ],
+  "highRiskRecommendations": []
+}

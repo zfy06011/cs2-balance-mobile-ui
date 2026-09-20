@@ -568,3 +568,351 @@ class BaselinePredictorV3:
             confidence=confidence,
             features=features,
         )
+
+
+MODEL_VERSION_V4 = "baseline-robust-v4"
+
+
+def _median(xs: list[float]) -> float:
+    if not xs:
+        return 0.0
+    return statistics.median(xs)
+
+
+def _stddev(xs: list[float]) -> float:
+    n = len(xs)
+    if n < 2:
+        return 0.0
+    mean = sum(xs) / n
+    return math.sqrt(sum((x - mean) ** 2 for x in xs) / n)
+
+
+def _log_returns(prices: list[float]) -> list[float]:
+    out: list[float] = []
+    for i in range(1, len(prices)):
+        if prices[i - 1] > 0 and prices[i] > 0:
+            out.append(math.log(prices[i] / prices[i - 1]))
+    return out
+
+
+def theil_sen_slope(ys: list[float]) -> float:
+    """所有点对 (j,i) 斜率的中位数（对异常值鲁棒）。"""
+    n = len(ys)
+    if n < 2:
+        return 0.0
+    slopes: list[float] = []
+    for i in range(1, n):
+        for j in range(i):
+            if ys[j] > 0 and ys[i] > 0:
+                slopes.append((math.log(ys[i]) - math.log(ys[j])) / (i - j))
+    return _median(slopes) if slopes else 0.0
+
+
+def _r_squared(ys: list[float]) -> float:
+    n = len(ys)
+    if n < 3:
+        return 0.0
+    logs = [math.log(y) if y > 0 else 0.0 for y in ys]
+    mx = sum(range(n)) / n
+    my = sum(logs) / n
+    sxx = sum((i - mx) ** 2 for i in range(n))
+    sxy = sum((i - mx) * (logs[i] - my) for i in range(n))
+    slope = sxy / sxx if sxx > 0 else 0.0
+    ss_tot = sum((logs[i] - my) ** 2 for i in range(n))
+    ss_res = sum((logs[i] - (my + slope * (i - mx))) ** 2 for i in range(n))
+    if ss_tot <= 0:
+        return 0.0
+    return max(0.0, min(1.0, 1.0 - ss_res / ss_tot))
+
+
+def _percentile_of(window: list[float], latest: float) -> float | None:
+    if not window:
+        return None
+    below = sum(1 for p in window if p <= latest)
+    return below / len(window)
+
+
+class BaselinePredictorV4:
+    """V4：长周期鲁棒预测器（借鉴 steam-skin-ops / AetherSwap / cs2-market-bot）。
+    与 mobile/src/core/prediction.ts#BaselinePredictorV4 逐位对齐。"""
+
+    def __init__(
+        self,
+        horizon_days: int = 7,
+        trend_days: int = 21,
+        momentum_decay: float = 0.5,
+        min_history: int = 15,
+        min_trend_points: int = 3,
+        ewma_lambda: float = 0.94,
+        kappa: float = 0.02,
+        seasonal_weight: float = 0.5,
+        min_long_history: int = 180,
+        momentum_blend: float = 0.6,
+    ):
+        self.horizon_days = horizon_days
+        self.trend_days = trend_days
+        self.momentum_decay = momentum_decay
+        self.min_history = min_history
+        self.min_trend_points = min_trend_points
+        self.ewma_lambda = ewma_lambda
+        self.kappa = kappa
+        self.seasonal_weight = seasonal_weight
+        self.min_long_history = min_long_history
+        self.momentum_blend = momentum_blend
+
+    def predict(
+        self,
+        market_hash_name: str,
+        prices: list[float],
+        breakeven_price: float | None = None,
+        item_id: int | None = None,
+        predicted_at: datetime | None = None,
+        volume: float | None = None,
+        volume_history: list[float] | None = None,
+        popular_rank: int | None = None,
+        timestamps: list[int] | None = None,
+        volumes: list[float | None] | None = None,
+        events: list[MarketEvent] | None = None,
+    ) -> PredictionResult:
+        if len(prices) < 1:
+            raise ValueError("至少需要 1 条历史价格才能预测")
+
+        # 按 UTC 日去重（每日保留最后一个点）
+        # v1.8.1：同步生成日级规范时间戳（day*86400000），否则两数组长度不等会让
+        # _seasonal_daily 直接返回 0（季节性特征永远失效）。
+        day_ts = timestamps
+        if timestamps is not None and len(timestamps) == len(prices):
+            by_day: dict[int, float] = {}
+            for i in range(len(prices)):
+                t = timestamps[i]
+                if not math.isfinite(t):
+                    continue
+                day = int(t // 86400000)
+                by_day[day] = prices[i]
+            order = sorted(by_day.keys())
+            prices = [by_day[d] for d in order]
+            day_ts = [d * 86400000 for d in order]
+
+        latest = prices[-1]
+        log_returns = _log_returns(prices)
+
+        ew_var = 0.0
+        has_ew = False
+        for r in log_returns:
+            ew_var = self.ewma_lambda * ew_var + (1 - self.ewma_lambda) * r * r if has_ew else r * r
+            has_ew = True
+        ewma_vol = math.sqrt(ew_var) if has_ew else 0.05
+        if len(prices) < self.min_history:
+            ewma_vol = max(ewma_vol, 0.05) * 1.5
+
+        window = prices[-self.trend_days:]
+        insufficient = len(prices) < self.min_trend_points
+        drift_clamp = min(0.02, max(0.005, 3 * ewma_vol))
+
+        trend_slope = 0.0
+        if len(window) >= self.min_trend_points:
+            trend_slope = theil_sen_slope(window)
+        elif len(window) >= 2 and window[0] > 0:
+            trend_slope = math.log(window[-1] / window[0]) / (len(window) - 1)
+        r2 = _r_squared(window)
+
+        # 方向补充：近 7 日对数动量（Theil-Sen 偏平，混入它以提升方向准确率）
+        momentum_daily = 0.0
+        mom_idx = max(0, len(prices) - 7)
+        if len(prices) >= 2 and prices[mom_idx] > 0 and latest > 0:
+            momentum_daily = math.log(latest / prices[mom_idx]) / (len(prices) - 1 - mom_idx)
+        trend_mixed = (1 - self.momentum_blend) * trend_slope + self.momentum_blend * momentum_daily
+
+        win30 = prices[-30:]
+        cv = 0.0
+        if len(win30) >= 2:
+            mean30 = sum(win30) / len(win30)
+            if mean30 > 0:
+                cv = _stddev(win30) / mean30
+        cv_threshold = 0.04 if latest >= 100 else 0.08
+
+        win365 = prices[-365:]
+        win14 = prices[-14:]
+        pct365 = _percentile_of(win365, latest)
+        pct14 = _percentile_of(win14, latest)
+
+        mean_rev = 0.0
+        sma365: float | None = None
+        if len(win365) >= self.min_long_history:
+            sma365 = sum(win365) / len(win365)
+            if sma365 > 0 and latest > 0:
+                mean_rev = -self.kappa * math.log(latest / sma365)
+
+        vol30 = 0.0
+        vol365 = 0.0
+        ret30 = _log_returns(prices[-31:])
+        ret365 = _log_returns(prices[-366:])
+        if len(ret30) >= 2:
+            vol30 = _stddev(ret30)
+        if len(ret365) >= 2:
+            vol365 = _stddev(ret365)
+        vol_ratio: float | None = None
+        if vol30 > 0 and vol365 > 0:
+            vol_ratio = vol30 / vol365
+
+        seasonal = self._seasonal_daily(prices, day_ts, predicted_at or datetime.utcnow())
+
+        volume_ratio: float | None = None
+        volume_confirm = 1.0
+        if volume is not None and volume > 0 and volume_history and len(volume_history) >= 2:
+            base = volume_history[:-1]
+            pos = [v for v in base if v and v > 0]
+            avg = sum(pos) / len(pos) if pos else 0.0
+            if avg > 0:
+                volume_ratio = volume / avg
+                if abs(trend_slope) > 0.0005:
+                    volume_confirm = max(0.85, min(1.15, 1 + 0.15 * math.tanh((volume_ratio - 1) / 0.35)))
+
+        trend_eps = 0.0005
+        if cv > cv_threshold * 2 or (len(window) >= 3 and r2 < 0.3 and abs(trend_slope) > trend_eps * 4):
+            market_state = "CHAOS"
+        elif trend_slope > trend_eps and r2 >= 0.6:
+            market_state = "RISING"
+        elif trend_slope < -trend_eps and r2 >= 0.6:
+            market_state = "FALLING"
+        else:
+            market_state = "STABLE"
+
+        drift_daily = trend_mixed + mean_rev
+        if pct365 is not None and pct365 > 0.8:
+            drift_daily *= 0.5
+        if vol_ratio is not None and vol_ratio > 1.5:
+            drift_daily *= 0.7
+        drift_daily *= volume_confirm
+        drift_daily += seasonal
+        trend_clamped = False
+        if drift_daily > drift_clamp:
+            drift_daily = drift_clamp
+            trend_clamped = True
+        elif drift_daily < -drift_clamp:
+            drift_daily = -drift_clamp
+            trend_clamped = True
+
+        sigma_daily = max(ewma_vol, vol30, 0.5 * vol365 if vol365 > 0 else 0.0)
+        if sigma_daily <= 0:
+            sigma_daily = 0.05
+        regime_factor = 1.2 if (vol_ratio is not None and vol_ratio > 1.5) else 1.0
+        sigma_total = sigma_daily * regime_factor * math.sqrt(self.horizon_days)
+
+        drift = drift_daily * self.horizon_days * self.momentum_decay
+        pred_at = predicted_at or datetime.utcnow()
+        target_at = pred_at + timedelta(days=self.horizon_days)
+        event_res = compute_event_adjust(target_at, events or [])
+        p50 = latest * math.exp(drift) * event_res.factor
+
+        quantiles = {q: max(round(p50 * math.exp(_Z[q] * sigma_total), 4), 0.0) for q in _Z}
+
+        prob_profit = 0.5
+        if breakeven_price and breakeven_price > 0:
+            if sigma_total < 1e-9:
+                prob_profit = 1.0 if p50 > breakeven_price else (0.0 if p50 < breakeven_price else 0.5)
+            else:
+                prob_profit = 1.0 - _normal_cdf((math.log(breakeven_price) - math.log(p50)) / sigma_total)
+        prob_profit = max(0.0, min(1.0, prob_profit))
+        prob_loss = 1.0 - prob_profit
+
+        confidence = max(0.1, min(0.95, 1.0 - sigma_total * 3.0))
+        len_factor = 0.6 + 0.4 * min(1.0, max(1, len(prices)) / self.min_history)
+        confidence *= len_factor
+        confidence *= 0.8 + 0.2 * r2
+        confidence *= 0.7 if market_state == "CHAOS" else (1.0 if market_state == "STABLE" else 0.95)
+        if regime_factor > 1:
+            confidence /= regime_factor
+        if insufficient:
+            confidence = min(confidence, 0.25)
+        if volume_confirm > 1.03:
+            confidence += 0.05
+        elif volume_confirm < 0.97:
+            confidence -= 0.05
+        confidence = max(0.1, min(0.95, confidence))
+        if event_res.count > 0:
+            confidence = max(0.1, min(0.95, confidence * 0.9))
+        confidence = round(confidence, 4)
+
+        anchor = max(0, len(prices) - 7)
+        momentum = math.log(latest / prices[anchor]) if len(prices) >= 2 and prices[anchor] > 0 else 0.0
+
+        features: dict = {
+            "latest_price": round(latest, 4),
+            "momentum": round(momentum, 6),
+            "trend_daily": round(drift_daily, 6),
+            "theil_sen_slope": round(trend_slope, 6),
+            "momentum_daily": round(momentum_daily, 6),
+            "r2": round(r2, 4),
+            "cv": round(cv, 6),
+            "volatility": round(sigma_daily, 6),
+            "history_len": len(prices),
+            "history_days": len(prices),
+            "data_insufficient": insufficient,
+            "trend_clamped": trend_clamped,
+            "volume_confirm": round(volume_confirm, 4),
+            "trend_points": len(window),
+            "drift_clamp": round(drift_clamp, 6),
+            "market_state": market_state,
+            "mean_rev": round(mean_rev, 6),
+            "seasonal": round(seasonal, 6),
+        }
+        if pct365 is not None:
+            features["pct_365"] = round(pct365, 4)
+        if pct14 is not None:
+            features["pct_14"] = round(pct14, 4)
+        if vol_ratio is not None:
+            features["vol_ratio"] = round(vol_ratio, 4)
+        if sma365 is not None:
+            features["sma_365"] = round(sma365, 4)
+        if volume_ratio is not None:
+            features["volume_ratio"] = round(volume_ratio, 3)
+        if popular_rank is not None and popular_rank > 0:
+            features["popular_rank"] = popular_rank
+        if event_res.count > 0:
+            features["event_active"] = True
+            features["event_count"] = event_res.count
+            features["event_adjust"] = round(event_res.factor - 1.0, 6)
+            features["event_kinds"] = ",".join(event_res.kinds)
+            features["event_names"] = ",".join(event_res.names)
+
+        return PredictionResult(
+            item_id=item_id,
+            market_hash_name=market_hash_name,
+            model_version=MODEL_VERSION_V4,
+            predicted_at=pred_at,
+            target_at=target_at,
+            horizon_days=self.horizon_days,
+            **quantiles,
+            prob_profit=round(prob_profit, 4),
+            prob_loss=round(prob_loss, 4),
+            confidence=confidence,
+            features=features,
+        )
+
+    def _seasonal_daily(
+        self, prices: list[float], timestamps: list[int] | None, pred_at: datetime
+    ) -> float:
+        """目标月份在往年同月的对数收益均值 ÷ 30 × 权重；需 ≥min_long_history 点。"""
+        if not timestamps or len(timestamps) != len(prices) or len(prices) < self.min_long_history:
+            return 0.0
+        target_month = pred_at.month
+        by_year: dict[int, list[float]] = {}
+        for i in range(len(prices)):
+            t = timestamps[i]
+            if not math.isfinite(t) or prices[i] <= 0:
+                continue
+            d = datetime.utcfromtimestamp(t / 1000.0)
+            if d.month != target_month:
+                continue
+            by_year.setdefault(d.year, []).append(prices[i])
+        rets: list[float] = []
+        for y, vals in by_year.items():
+            if y >= pred_at.year:
+                continue
+            if vals and vals[0] > 0 and vals[-1] > 0:
+                rets.append(math.log(vals[-1] / vals[0]))
+        if not rets:
+            return 0.0
+        mean_ret = sum(rets) / len(rets)
+        return (mean_ret / 30.0) * self.seasonal_weight

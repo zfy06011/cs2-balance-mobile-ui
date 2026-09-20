@@ -1,23 +1,23 @@
 import React from 'react';
-import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { colors } from '../theme/colors';
 
-export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export const Card = React.memo(function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.card, style]}>{children}</View>;
-}
+});
 
-export function SectionTitle({ children }: { children: React.ReactNode }) {
+export const SectionTitle = React.memo(function SectionTitle({ children }: { children: React.ReactNode }) {
   return <Text style={styles.sectionTitle}>{children}</Text>;
-}
+});
 
-export function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+export const Row = React.memo(function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <Text style={[styles.value, valueColor ? { color: valueColor } : null]}>{value}</Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

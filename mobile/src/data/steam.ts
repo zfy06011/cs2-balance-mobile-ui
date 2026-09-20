@@ -29,6 +29,7 @@ const MARKET_BASE = 'https://steamcommunity.com/market';
 const APPID = 730;
 const CURRENCY = 23;
 export const STEAM_DELAY_MS = 1800;
+import { isTrackedCase } from './caseFilter';
 
 function headers(cookie: string): Record<string, string> {
   const h: Record<string, string> = {
@@ -97,10 +98,7 @@ function parseResults(data: { results?: Record<string, unknown>[] }, offset: num
   return hits;
 }
 
-/** 武器箱/收藏包类名称的宽松判断（回退模式过滤用） */
-function isCaseLikeName(name: string): boolean {
-  return /case/i.test(name) || /package/i.test(name) || name.includes('武器箱') || name.includes('胶囊') || name.includes('收藏包');
-}
+// 受监控武器箱判定复用统一模块（白名单优先 + 词法兜底），避免与 c5.ts/radar.ts 口径不一致
 
 /**
  * 热门榜/成交量搜索（自动翻页）。
@@ -159,7 +157,7 @@ async function searchPopular(count: number, cookie: string): Promise<SteamCaseHi
 /** 回退：按近 24h 成交量倒序搜索 + 武器箱过滤 */
 async function searchByVolume(count: number, cookie: string): Promise<SteamCaseHit[]> {
   const hits = await searchPaged(count, cookie, false);
-  return hits.filter((h) => isCaseLikeName(h.name));
+  return hits.filter((h) => isTrackedCase(h.name));
 }
 
 /**

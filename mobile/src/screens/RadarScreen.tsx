@@ -1,57 +1,64 @@
 /** 机会雷达：全池信号列表（PRD 第八节） */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Linking, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  FlatList, Linking, RefreshControl, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, RadarItem } from '../api/client';
 import { refreshMarketNews, MarketNews } from '../data/eventFeed';
 import { Card, Row } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
 import { colors, riskColors } from '../theme/colors';
-import { displayNameOf, fmtMoney, fmtZhe, SIGNAL_TEXT } from '../utils/format';
+import { SIGNAL_TEXT } from '../utils/format';
+import { OpportunityCard } from '../ui/opportunity/OpportunityCard';
+import { useOpportunitySnapshot } from '../ui/opportunity/useOpportunitySnapshot';
+import { selectOpportunityCards, type OpportunityCardViewModel } from '../ui/opportunity/opportunityViewModel';
 
 interface Props {
   onOpenDetail: (name: string) => void;
 }
 
+/**
+ * v1.8.4：市场事件缓存到模块级。雷达页每次切入都会重挂载，
+ * 原来 news 初值 null → 异步到达后这张几百像素的卡片插到列表最上方，
+ * 把下面内容整体推下去（每次进雷达页必然跳动）。有缓存则首帧即稳定。
+ */
+let newsCache: MarketNews | null = null;
+
 export function RadarScreen({ onOpenDetail }: Props) {
-  const [items, setItems] = useState<RadarItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'buy' | 'wait' | 'avoid'>('all');
-  const [news, setNews] = useState<MarketNews | null>(null);
+  const [news, setNews] = useState<MarketNews | null>(newsCache);
+  const { snapshot, loading, refreshing, error, reload } = useOpportunitySnapshot();
 
   useEffect(() => {
-    refreshMarketNews().then(setNews).catch(() => undefined);
+    // 已有缓存：后台静默刷新（不改变首帧高度）；无缓存：加载后写入
+    refreshMarketNews()
+      .then((n) => { newsCache = n; setNews(n); })
+      .catch(() => undefined);
   }, []);
 
-  const load = useCallback(async () => {
-    try {
-      const data = await api.radar();
-      setItems(data);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '加载失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const shown = items.filter((i) => filter === 'all' || i.signal === filter);
-  const counts = {
-    all: items.length,
-    buy: items.filter((i) => i.signal === 'buy').length,
-    wait: items.filter((i) => i.signal === 'wait').length,
-    avoid: items.filter((i) => i.signal === 'avoid').length,
+  const cards = useMemo(() => snapshot ? selectOpportunityCards(snapshot) : [], [snapshot]);
+  const filterSignal = (card: OpportunityCardViewModel): string => {
+    if (card.legacySignal) return card.legacySignal;
+    if (card.decision === 'excellent' || card.decision === 'buy') return 'buy';
+    if (card.decision === 'watch') return 'wait';
+    return 'avoid';
   };
-  const insufficientCount = items.filter((i) => i.details?.data_insufficient === true).length;
-  const mostlyInsufficient = items.length > 0 && insufficientCount / items.length > 0.5;
+  const shown = useMemo(
+    () => cards.filter((card) => filter === 'all' || filterSignal(card) === filter),
+    [cards, filter],
+  );
+  // v1.8.3：计数只在数据变化时重算（原来每次渲染跑 5 遍全量过滤）
+  const { counts, insufficientCount, mostlyInsufficient } = useMemo(() => ({
+    counts: {
+      all: cards.length,
+      buy: cards.filter((i) => filterSignal(i) === 'buy').length,
+      wait: cards.filter((i) => filterSignal(i) === 'wait').length,
+      avoid: cards.filter((i) => filterSignal(i) === 'avoid').length,
+    },
+    insufficientCount: cards.filter((i) => i.dataInsufficient === true).length,
+    mostlyInsufficient: cards.length > 0 && cards.filter((i) => i.dataInsufficient === true).length / cards.length > 0.5,
+  }), [cards]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -69,91 +76,128 @@ export function RadarScreen({ onOpenDetail }: Props) {
           </TouchableOpacity>
         ))}
       </View>
-      <ScrollView
+      <FlatList
+        data={shown}
+        keyExtractor={(r) => r.item}
+        renderItem={({ item: r }) => (
+          <TouchableOpacity onPress={() => onOpenDetail(r.item)}>
+            {snapshot?.mode === 'v2' ? <OpportunityCard card={r} /> : <RadarRow card={r} />}
+          </TouchableOpacity>
+        )}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={loading}
+            refreshing={refreshing}
             onRefresh={() => {
-              setLoading(true);
-              load();
+              // v1.8.4：不再 setLoading(true)（那会让头部 Loading 重新插入导致高度突变）
+              void reload();
               refreshMarketNews(true).then(setNews).catch(() => undefined);
             }}
           />
         }
-      >
-        {/* 市场事件（实时拉取：官方博客 + Steam 新闻） */}
-        {news && news.items.length > 0 ? (
-          <Card>
-            <View style={styles.newsHead}>
-              <Text style={styles.newsTitle}>📰 市场事件</Text>
-              <Text style={styles.newsMeta}>
-                {news.failed > 0 ? `${news.failed} 个源失败 · ` : ''}
-                {new Date(news.fetchedAt).toLocaleString()}
-              </Text>
-            </View>
-            {news.items.slice(0, 6).map((it, i) => (
-              <TouchableOpacity key={`${it.link}-${i}`} onPress={() => it.link && Linking.openURL(it.link)}>
-                <View style={styles.newsItem}>
-                  <View style={styles.newsTags}>
-                    {it.tags.map((t) => (
-                      <Text key={t} style={[styles.newsTag, t === 'policy' && styles.newsTagPolicy]}>
-                        {t === 'policy' ? '政策/更新' : t === 'boost' ? '赛事提振' : t === 'sale' ? '特卖' : t === 'case' ? '箱子' : t === 'op' ? '行动' : t}
-                      </Text>
-                    ))}
-                  </View>
-                  <Text style={styles.newsItemTitle} numberOfLines={2}>{it.title}</Text>
-                  <Text style={styles.newsItemMeta}>
-                    {it.source}
-                    {it.date ? ` · ${new Date(it.date).toLocaleDateString()}` : ''}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-            <Text style={styles.newsHint}>标签为关键词推断：政策/更新类事件需警惕价格波动；赛事/节日通常提振需求。点击可打开原文。</Text>
-          </Card>
-        ) : null}
-        {loading ? <Loading /> : null}
-        {mostlyInsufficient && !loading ? (
-          <Card>
-            <Text style={styles.insufficientBanner}>
-              ⚠ {insufficientCount}/{items.length} 个箱子历史不足。解决：到「我的 → 设置」完成「Steam 一键登录」，
-              再到首页点一次「一键扫描」——会自动导入近 120 天官方历史，历史即刻补齐。
-            </Text>
-          </Card>
-        ) : null}
-        {!loading && error ? <ErrorView message={error} onRetry={load} /> : null}
-        {!loading && !error && shown.length === 0 ? (
-          <Card><Text style={styles.empty}>暂无数据。先到「首页」点击「一键扫描」拉取行情，采集后自动生成雷达信号。</Text></Card>
-        ) : null}
-        {shown.map((r) => (
-          <TouchableOpacity key={r.market_hash_name} onPress={() => onOpenDetail(r.market_hash_name)}>
-            <Card>
-              <View style={styles.itemHeader}>
-                <Text style={styles.name} numberOfLines={1}>{displayNameOf(r.market_hash_name)}</Text>
-                <SignalBadge signal={r.signal} />
-              </View>
-              <Row label="预计几折（越低越划算）" value={fmtZhe(r.expected_discount)} valueColor={r.expected_discount != null && r.expected_discount <= 0.95 ? colors.success : colors.warning} />
-              <Row label="预计回报 (7日)" value={r.expected_roi != null ? `${(r.expected_roi * 100).toFixed(1)}%` : '--'} valueColor={r.expected_roi != null && r.expected_roi >= 0 ? colors.success : colors.danger} />
-              <Row
-                label="C5 买入 / Steam 到手"
-                value={`${r.c5_buy_price != null ? fmtMoney(r.c5_buy_price) : '--'} / ${r.steam_sell_price != null ? fmtMoney(r.steam_sell_price) : '--'}`}
-              />
-              <View style={styles.tagsRow}>
-                <Text style={[styles.tag, { color: riskColors[r.risk_level] ?? colors.textDim }]}>风险 {r.risk_level}</Text>
-                <Text style={[styles.tag, { color: colors.info }]}>流动性 {r.liquidity}</Text>
-                <Text style={[styles.tag, { color: colors.gold }]}>评分 {r.score}</Text>
-                {r.details.data_insufficient === true ? (
-                  <Text style={[styles.tag, { color: colors.warning }]}>历史不足</Text>
-                ) : null}
-              </View>
-            </Card>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        // v1.8.3 切页提速：只渲染可见行（原来 ScrollView+map 一次性挂载全部 1900+ 视图）
+        // v1.8.4：不加 removeClippedSubviews（Android 会脱离屏外子视图导致首帧内容上跳）
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={10}
+        ListHeaderComponent={
+          <RadarHeader
+            news={news}
+            mostlyInsufficient={mostlyInsufficient}
+            insufficientCount={insufficientCount}
+            itemCount={cards.length}
+          />
+        }
+        ListEmptyComponent={
+          // v1.8.4：加载/错误/空态只在「列表无数据」时占位，有数据时头部高度恒定，切页不再上跳
+          loading ? <Loading height={160} /> : error ? <ErrorView message={error} onRetry={reload} /> : (
+            <Card><Text style={styles.empty}>暂无数据。先到「首页」点击「一键扫描」拉取行情，采集后自动生成雷达信号。</Text></Card>
+          )
+        }
+      />
     </SafeAreaView>
   );
 }
+
+interface HeaderProps {
+  news: MarketNews | null;
+  mostlyInsufficient: boolean;
+  insufficientCount: number;
+  itemCount: number;
+}
+
+/** 列表头部（事件卡 + 历史不足提示）：高度只随 news 变化，且 news 有模块级缓存，首帧即稳定 */
+function RadarHeader({ news, mostlyInsufficient, insufficientCount, itemCount }: HeaderProps) {
+  return (
+    <>
+      {/* 市场事件（实时拉取：官方博客 + Steam 新闻） */}
+      {news && news.items.length > 0 ? (
+        <Card>
+          <View style={styles.newsHead}>
+            <Text style={styles.newsTitle}>📰 市场事件</Text>
+            <Text style={styles.newsMeta}>
+              {news.failed > 0 ? `${news.failed} 个源失败 · ` : ''}
+              {new Date(news.fetchedAt).toLocaleString()}
+            </Text>
+          </View>
+          {news.items.slice(0, 6).map((it, i) => (
+            <TouchableOpacity key={`${it.link}-${i}`} onPress={() => it.link && Linking.openURL(it.link)}>
+              <View style={styles.newsItem}>
+                <View style={styles.newsTags}>
+                  {it.tags.map((t) => (
+                    <Text key={t} style={[styles.newsTag, t === 'policy' && styles.newsTagPolicy]}>
+                      {t === 'policy' ? '政策/更新' : t === 'boost' ? '赛事提振' : t === 'sale' ? '特卖' : t === 'case' ? '箱子' : t === 'op' ? '行动' : t}
+                    </Text>
+                  ))}
+                </View>
+                <Text style={styles.newsItemTitle} numberOfLines={2}>{it.title}</Text>
+                <Text style={styles.newsItemMeta}>
+                  {it.source}
+                  {it.date ? ` · ${new Date(it.date).toLocaleDateString()}` : ''}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+          <Text style={styles.newsHint}>标签为关键词推断：政策/更新类事件需警惕价格波动；赛事/节日通常提振需求。点击可打开原文。</Text>
+        </Card>
+      ) : null}
+      {mostlyInsufficient ? (
+        <Card>
+          <Text style={styles.insufficientBanner}>
+            ⚠ {insufficientCount}/{itemCount} 个箱子历史不足。解决：到首页点一次「一键扫描」——
+            扫描完成后会自动从 Steam 补齐官方历史，历史数据保存在本机。
+          </Text>
+        </Card>
+      ) : null}
+    </>
+  );
+}
+
+/** 单行（React.memo：滚动/筛选时不重复渲染未变化的行） */
+const RadarRow = React.memo(function RadarRow({ card }: { card: OpportunityCardViewModel }) {
+  return (
+      <Card>
+        <View style={styles.itemHeader}>
+          <Text style={styles.name} numberOfLines={1}>{card.displayNameZh}</Text>
+          <SignalBadge signal={card.legacySignal ?? 'waiting'} />
+        </View>
+        <Row label="预计几折（越低越划算）" value={card.expectedDiscountText ?? '--'} valueColor={card.expectedDiscountText === '--' ? colors.textDim : colors.warning} />
+        <Row label="预计回报 (7日)" value={card.expectedRoiText ?? '--'} valueColor={colors.textDim} />
+        <Row
+          label="C5 买入 / Steam 到手"
+          value={`${card.c5BuyPriceText ?? '--'} / ${card.steamNetReceiveText ?? '--'}`}
+        />
+        <View style={styles.tagsRow}>
+          <Text style={[styles.tag, { color: riskColors[card.riskText ?? ''] ?? colors.textDim }]}>风险 {card.riskText ?? '--'}</Text>
+          <Text style={[styles.tag, { color: colors.info }]}>流动性 {card.liquidityText ?? '--'}</Text>
+          <Text style={[styles.tag, { color: colors.gold }]}>评分 {card.scoreText ?? '--'}</Text>
+          {card.dataInsufficient === true ? (
+            <Text style={[styles.tag, { color: colors.warning }]}>历史不足</Text>
+          ) : null}
+        </View>
+      </Card>
+  );
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
@@ -188,4 +232,3 @@ const styles = StyleSheet.create({
   tag: { fontSize: 12 },
   empty: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
 });
-

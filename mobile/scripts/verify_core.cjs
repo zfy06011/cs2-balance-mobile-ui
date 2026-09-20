@@ -14,7 +14,7 @@ const baselinePath = path.resolve(root, '..', 'backend', 'scripts', 'baseline.js
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 
-const tscArgs = ['profit.ts', 'prediction.ts', 'radar.ts', 'simulation.ts', 'fees.ts', 'types.ts', 'buy.ts', 'steamSync.ts', 'advice.ts', 'rss.ts']
+const tscArgs = ['profit.ts', 'prediction.ts', 'radar.ts', 'simulation.ts', 'fees.ts', 'types.ts', 'buy.ts', 'steamSync.ts', 'advice.ts', 'rss.ts', 'holdings.ts']
   .map((f) => JSON.stringify(path.join(coreDir, f)))
   .join(' ');
 execSync('npx tsc --ignoreConfig --module commonjs --target es2020 --skipLibCheck --outDir ' + JSON.stringify(outDir) + ' ' + tscArgs, {
@@ -45,7 +45,7 @@ execSync('npx tsc --ignoreConfig --module commonjs --target es2020 --skipLibChec
 
 const p = (f) => require(path.join(outDir, f));
 const { ProfitCalculator } = p('profit.js');
-const { BaselinePredictor, BaselinePredictorV2, BaselinePredictorV3, normalCdf, computeEventAdjust, STEAM_SALE_EVENTS_2026, MARKET_EVENTS } = p('prediction.js');
+const { BaselinePredictor, BaselinePredictorV2, BaselinePredictorV3, BaselinePredictorV4, normalCdf, computeEventAdjust, STEAM_SALE_EVENTS_2026, MARKET_EVENTS } = p('prediction.js');
 const { evaluateRadar } = p('radar.js');
 const { simulate, reverseTarget } = p('simulation.js');
 const { DEFAULT_FEES } = p('fees.js');
@@ -206,6 +206,106 @@ assert('pred_v3_low.confidence=' + pl3.confidence, near(v3low.confidence, pl3.co
 assert('pred_v3_low.data_insufficient=true', v3low.features.data_insufficient === true, v3low.features.data_insufficient);
 assert('pred_v2_low.trend_daily=0', Number(v2low.features.trend_daily) === 0, v2low.features.trend_daily);
 
+// ---------- 2e. 预测 V4（Theil-Sen + R² + CV + 分位 + 均值回归 + 波动比 + 季节性 + 市场状态） ----------
+const V4_TS0 = 1735689600000;
+const v4LongPrices = [];
+const v4LongTs = [];
+const v4LongVols = [];
+for (let i = 0; i < 365; i++) {
+  v4LongPrices.push(Math.round((10 + 2 * Math.sin(i / 20) + i * 0.002) * 1e6) / 1e6);
+  v4LongTs.push(V4_TS0 + i * 86400000);
+  v4LongVols.push(100 + (i * 7) % 90);
+}
+const v4 = new BaselinePredictorV4().predict({
+  marketHashName: 'V4 Test Case',
+  prices: [10, 10.4, 10.8, 11.3, 11.8],
+  breakevenPrice: 10.1,
+  predictedAt: new Date('2026-09-05T00:00:00Z'),
+  volume: 6000,
+  volumeHistory: [2000, 2500, 3000, 5000, 6000],
+  popularRank: 12,
+});
+const pb4 = BASELINE.prediction_v4;
+assert('pred_v4.model_version=' + pb4.model_version, v4.model_version === pb4.model_version, v4.model_version);
+assert('pred_v4.target_at +7d', v4.target_at === '2026-09-12T00:00:00.000Z', v4.target_at);
+for (const q of ['p10', 'p25', 'p50', 'p75', 'p90']) {
+  assert('pred_v4.' + q + '=' + pb4[q], near(v4[q], pb4[q], 1e-4), v4[q]);
+}
+assert('pred_v4.prob_profit=' + pb4.prob_profit, near(v4.prob_profit, pb4.prob_profit, 1e-4), v4.prob_profit);
+assert('pred_v4.confidence=' + pb4.confidence, near(v4.confidence, pb4.confidence, 1e-4), v4.confidence);
+assert('pred_v4.features.theil_sen_slope=' + pb4.features.theil_sen_slope, near(Number(v4.features.theil_sen_slope), pb4.features.theil_sen_slope, 1e-6), v4.features.theil_sen_slope);
+assert('pred_v4.features.r2=' + pb4.features.r2, near(Number(v4.features.r2), pb4.features.r2, 1e-4), v4.features.r2);
+assert('pred_v4.features.cv=' + pb4.features.cv, near(Number(v4.features.cv), pb4.features.cv, 1e-6), v4.features.cv);
+assert('pred_v4.features.market_state=' + pb4.features.market_state, v4.features.market_state === pb4.features.market_state, v4.features.market_state);
+
+const v4ev = new BaselinePredictorV4().predict({
+  marketHashName: 'V4 Event Case',
+  prices: [10, 10.4, 10.8, 11.3, 11.8],
+  breakevenPrice: 10.1,
+  predictedAt: new Date('2026-09-05T00:00:00Z'),
+  volume: 6000,
+  volumeHistory: [2000, 2500, 3000, 5000, 6000],
+  popularRank: 12,
+  events: [{ kind: 'steam-sale', name: 'Test Sale', start: '2026-09-10', end: '2026-09-16', pressure: 0.03, recoveryDays: 14 }],
+});
+const pb4e = BASELINE.prediction_v4_event;
+for (const q of ['p10', 'p25', 'p50', 'p75', 'p90']) {
+  assert('pred_v4_event.' + q + '=' + pb4e[q], near(v4ev[q], pb4e[q], 1e-4), v4ev[q]);
+}
+assert('pred_v4_event.event_names', v4ev.features.event_names === 'Test Sale', String(v4ev.features.event_names));
+
+const v4low = new BaselinePredictorV4().predict({
+  marketHashName: 'V4 Low',
+  prices: [12],
+  breakevenPrice: 10.1,
+  predictedAt: new Date('2026-09-05T00:00:00Z'),
+});
+const pb4l = BASELINE.prediction_v4_low;
+assert('pred_v4_low.p50=' + pb4l.p50, near(v4low.p50, pb4l.p50, 1e-4), v4low.p50);
+assert('pred_v4_low.data_insufficient=true', v4low.features.data_insufficient === true, v4low.features.data_insufficient);
+
+const v4long = new BaselinePredictorV4().predict({
+  marketHashName: 'V4 Long Case',
+  prices: v4LongPrices,
+  breakevenPrice: v4LongPrices[364] * 0.92,
+  predictedAt: new Date('2026-01-01T00:00:00Z'),
+  volume: v4LongVols[364],
+  volumeHistory: v4LongVols.slice(-60),
+  timestamps: v4LongTs,
+  volumes: v4LongVols,
+});
+const pb4g = BASELINE.prediction_v4_long;
+for (const q of ['p10', 'p25', 'p50', 'p75', 'p90']) {
+  assert('pred_v4_long.' + q + '=' + pb4g[q], near(v4long[q], pb4g[q], 1e-4), v4long[q]);
+}
+assert('pred_v4_long.confidence=' + pb4g.confidence, near(v4long.confidence, pb4g.confidence, 1e-4), v4long.confidence);
+for (const f of ['theil_sen_slope', 'momentum_daily', 'r2', 'cv', 'mean_rev', 'seasonal', 'pct_365', 'pct_14', 'vol_ratio', 'sma_365']) {
+  assert('pred_v4_long.features.' + f + '=' + pb4g.features[f], near(Number(v4long.features[f]), Number(pb4g.features[f]), 1e-4), v4long.features[f]);
+}
+assert('pred_v4_long.features.market_state=' + pb4g.features.market_state, v4long.features.market_state === pb4g.features.market_state, v4long.features.market_state);
+assert('pred_v4_long.history_days=365', Number(v4long.features.history_days) === 365, v4long.features.history_days);
+
+// v1.8.1：日内点（同一天多条）去重后，季节性仍须生效（此前 timestamps 长度不匹配 → 恒为 0）
+{
+  const intraPrices = [];
+  const intraTs = [];
+  for (let i = 0; i < 400; i++) {
+    const dayStart = V4_TS0 + i * 86400000;
+    intraPrices.push(10 + i * 0.003);      // 当日 08:00 点
+    intraTs.push(dayStart + 8 * 3600000);
+    intraPrices.push(10 + i * 0.003 + 0.01); // 当日 20:00 点（日内）
+    intraTs.push(dayStart + 20 * 3600000);
+  }
+  const p = new BaselinePredictorV4().predict({
+    marketHashName: 'V4 Intraday Case',
+    prices: intraPrices,
+    predictedAt: new Date('2026-01-01T00:00:00Z'),
+    timestamps: intraTs,
+  });
+  assert('pred_v4_intraday.history_days=400(去重后)', Number(p.features.history_days) === 400, p.features.history_days);
+  assert('pred_v4_intraday.seasonal_nonzero', Number(p.features.seasonal) !== 0, p.features.seasonal);
+}
+
 // ---------- 2c. 预测 V2 + 事件窗口价差修正（Steam 大促等） ----------
 const v2ev = new BaselinePredictorV2().predict({
   marketHashName: 'V2 Event Case',
@@ -343,6 +443,30 @@ const rEvNone = evaluateRadar({
   volatility: 0.02,
 });
 assert('radar_event.offset_vs_none=+6', near(rEv.score - rEvNone.score, 6, 1e-6), rEv.score - rEvNone.score);
+
+// 3d. 雷达-V4 维度：CHAOS 封顶 wait、365d 高位/高 CV 不给 buy、R² 影响评分
+const rBase = {
+  market_hash_name: 'V4 Radar',
+  c5_buy_price: 10,
+  steam_sell_price: 15,
+  steam_volume: 8000,
+  predicted_p50: 16,
+  predicted_p25: 14.5,
+  breakeven_price: 11.6,
+  volatility: 0.02,
+};
+const rBuy = evaluateRadar(rBase);
+assert('radar_v4.baseline_buy', rBuy.signal === 'buy', rBuy.signal);
+const rChaos = evaluateRadar({ ...rBase, market_state: 'CHAOS' });
+assert('radar_v4.chaos_capped_wait', rChaos.signal === 'wait', rChaos.signal);
+const rHigh = evaluateRadar({ ...rBase, pct_365: 0.9 });
+assert('radar_v4.pct365_high_no_buy', rHigh.signal === 'wait', rHigh.signal);
+const rCv = evaluateRadar({ ...rBase, cv: 0.2 });
+assert('radar_v4.cv_unstable_no_buy', rCv.signal === 'wait', rCv.signal);
+const rR2High = evaluateRadar({ ...rBase, r2: 0.9 });
+const rR2Low = evaluateRadar({ ...rBase, r2: 0.1 });
+assert('radar_v4.r2_score_delta=+8', near(rR2High.score - rR2Low.score, 8, 1e-6), rR2High.score - rR2Low.score);
+assert('radar_v4.details_fields', Number(rR2High.details.r2) === 0.9, JSON.stringify(rR2High.details));
 
 // ---------- 4. 模拟 ----------
 const sim = simulate(1000, [
@@ -521,18 +645,56 @@ assert('price_hist.volume', histPts[0].volume === 123 && histPts[2].volume === n
 assert('price_hist.days_slice', parsePriceHistory(histSample, 2).length === 2 && parsePriceHistory(histSample, 2)[0].date === '2026-06-02');
 assert('price_hist.empty', parsePriceHistory(null, 60).length === 0 && parsePriceHistory([], 60).length === 0);
 
-// ---------- 9. C5 官方历史价格解析（弹性提取 dates/prices） ----------
-const { parseC5Trend } = require(path.join(outDirC5, 'c5.js'));
-const c5Wrapped = {
-  status: 200,
-  data: { data: { dates: [1756752000, 1756838400, 'invalid', 1757011200000], prices: ['8.50', 9.2, 9.9, '-'] } },
+// ---------- 9. C5 官方历史价格解析（已随 C5 历史导入链路移除，v1.8.0） ----------
+
+// ---------- 9b. Steam SSR 直连历史解析（App 端兜底通道，零 cookie） ----------
+// 该模块为纯解析函数，无 RN 依赖，单独编译对拍。
+const outDirSsr = path.join(__dirname, '.verify-ssr');
+fs.rmSync(outDirSsr, { recursive: true, force: true });
+fs.mkdirSync(outDirSsr, { recursive: true });
+execSync('npx tsc --ignoreConfig --module commonjs --target es2020 --skipLibCheck --outDir ' + JSON.stringify(outDirSsr) + ' ' + JSON.stringify(path.join(root, 'src', 'data', 'steamHistorySsr.ts')), {
+  cwd: root,
+  stdio: 'pipe',
+  shell: true,
+});
+const { parseSsrContext, extractSsrPriceHistory, extractLine1: extractLine1Ssr, toDailyHistory, parseListingHistory } = require(path.join(outDirSsr, 'steamHistorySsr.js'));
+// 构造最小 SSR 页：renderContext 为双重编码 JSON
+const ssrInner = {
+  queryData: JSON.stringify({
+    queries: [{
+      queryKey: ['market', 'pricehistory', 730, 'Test Case'],
+      state: { data: { ecurrency: 23, prices: [
+        { time: 1756684800, price_median: 10.5, purchases: 12 },
+        { time: 1756771200, price_median: 11.2, purchases: 8 },
+        { time: 1756774800, price_median: 11.5, purchases: 3 },
+        { time: 1756857600, price_median: 'bad', purchases: 1 },
+      ] } },
+    }],
+  }),
 };
-const c5Pts = parseC5Trend(c5Wrapped, 60);
-assert('c5_hist.parse_len=2', c5Pts.length === 2, JSON.stringify(c5Pts));
-assert('c5_hist.date', c5Pts[0].date === '2025-09-01' && c5Pts[1].date === '2025-09-02', JSON.stringify(c5Pts));
-assert('c5_hist.price', near(c5Pts[0].price, 8.5, 1e-9) && near(c5Pts[1].price, 9.2, 1e-9));
-assert('c5_hist.days_slice', parseC5Trend(c5Wrapped, 1).length === 1 && parseC5Trend(c5Wrapped, 1)[0].price === 9.2);
-assert('c5_hist.empty', parseC5Trend({ data: {} }, 60).length === 0 && parseC5Trend(null, 60).length === 0);
+const ssrHtml = '<html><script>window.SSR.renderContext=JSON.parse(' + JSON.stringify(JSON.stringify(ssrInner)) + ');</script></html>';
+const ssrCtx = parseSsrContext(ssrHtml);
+assert('ssr.parse_context', ssrCtx != null && typeof ssrCtx === 'object', typeof ssrCtx);
+const ssrPts = extractSsrPriceHistory(ssrCtx);
+assert('ssr.pricehistory_len=3', Array.isArray(ssrPts) && ssrPts.length === 3, ssrPts && ssrPts.length);
+assert('ssr.price_median', near(ssrPts[0].price, 10.5, 1e-9) && near(ssrPts[1].price, 11.2, 1e-9), JSON.stringify(ssrPts));
+assert('ssr.purchases', ssrPts[0].volume === 12, JSON.stringify(ssrPts[0]));
+// 同日聚合：1756771200 与 1756774800 同属 UTC 2025-09-02 → 取后点价格、成交量求和
+const daily = toDailyHistory(ssrPts, 365);
+assert('ssr.daily_len=2', daily.length === 2, JSON.stringify(daily));
+assert('ssr.daily_date', daily[0].date === '2025-09-01' && daily[1].date === '2025-09-02', JSON.stringify(daily));
+assert('ssr.daily_last_price', near(daily[1].price, 11.5, 1e-9), daily[1].price);
+assert('ssr.daily_volume_sum', daily[1].volume === 11, daily[1].volume);
+// line1 兜底
+const line1Html = '<html><script>var line1=[["Jun 01 2014 01: +0",0.12,15],["Jun 02 2014 01: +0",0.13,20]];</script></html>';
+const l1 = extractLine1Ssr(line1Html);
+assert('ssr.line1_len=2', Array.isArray(l1) && l1.length === 2, l1 && l1.length);
+assert('ssr.line1_date', new Date(l1[0].ts * 1000).toISOString().slice(0, 10) === '2014-06-01', new Date(l1[0].ts * 1000).toISOString());
+// 综合：SSR 优先
+const combined = parseListingHistory(ssrHtml);
+assert('ssr.parse_listing_ssr_first', Array.isArray(combined) && combined.length === 3, combined && combined.length);
+assert('ssr.parse_listing_line1_fallback', parseListingHistory(line1Html).length === 2);
+assert('ssr.parse_empty_safe', parseListingHistory('<html>nothing</html>') === null);
 const NOW = new Date('2026-09-05T12:00:00.000Z');
 const syncItems = [
   { name: 'Kilowatt Case', cnName: '千瓦武器箱', amount: 2, tradable: false, tradableRestrictionDays: 5 },
@@ -561,6 +723,79 @@ assert('steam_sync.unlocked=1', plan.unlocked === 1, plan.unlocked);
 assert('steam_sync.no_dup_import', plan.newEntries.every((e) => e.item_name !== 'Kilowatt Case'));
 assert('steam_sync.est_unlocked_now', estimateCooldown({ tradable: true, tradableRestrictionDays: null }, null, NOW).estAt === NOW.toISOString());
 assert('steam_sync.est_default_7d', estimateCooldown({ tradable: false, tradableRestrictionDays: null }, null, NOW).estAt === '2026-09-12T12:00:00.000Z');
+
+// ---- v1.8.6：自动移除已不在 Steam 库存的箱子 ----
+// id=3「不存在的箱子」没有 steam_first_seen_at → 是纯手动录入，绝不自动删
+assert('steam_sync.removeIds 不含手动录入（无 first_seen）', plan.removeIds.length === 0, plan.removeIds);
+assert('steam_sync.removed=0', plan.removed === 0, plan.removed);
+// 之前确实在 Steam 见过（有 steam_first_seen_at）、这次不在库 → 应移除
+const rowsSeen = [
+  { id: 10, item_name: 'Kilowatt Case', steam_first_seen_at: '2026-08-01T00:00:00.000Z' }, // 仍在库 → 保留
+  { id: 11, item_name: 'Sold Case', steam_first_seen_at: '2026-08-01T00:00:00.000Z' }, // 已不在库 → 移除
+  { id: 12, item_name: '手动录入箱' }, // 从没在 Steam 见过 → 不移除
+];
+const planSeen = planSteamSync(rowsSeen, syncItems, NOW);
+assert('steam_sync.removeIds 只含见过 Steam 且已不在库的', JSON.stringify(planSeen.removeIds) === '[11]', planSeen.removeIds);
+assert('steam_sync.removed=1', planSeen.removed === 1, planSeen.removed);
+assert('steam_sync.notFound=2（已卖 + 手动）', planSeen.notFound === 2, planSeen.notFound);
+// 显式 allowRemoval=false（C5 返回空库存时）→ 一个都不删
+const planNoRemove = planSteamSync(rowsSeen, syncItems, NOW, { allowRemoval: false });
+assert('steam_sync.allowRemoval=false 时不删任何记录', planNoRemove.removeIds.length === 0, planNoRemove.removeIds);
+
+// ---- v1.8.6：持仓汇总（库存页每行 + 详情页持仓块共用） ----
+const { summarizeHoldings, summarizePortfolio, cooldownProgress, fmtRemainHours, fmtAgo } = p('holdings.js');
+const mkEntry = (o) => Object.assign({
+  id: 1, item_name: 'X', quantity: 1, buy_price: 10, buy_at: '2026-09-01T00:00:00.000Z', source: 'c5game',
+  unlock_at: '2026-09-08T00:00:00.000Z', days_left: 7, hours_left: 168, steam_synced: false,
+  steam_tradable: null, unlock_source: 'estimate', current_estimate: null, net_receive_estimate: null,
+  net_profit_estimate: null, roi_estimate: null, expected_discount_estimate: null,
+}, o);
+const H_NOW = new Date('2026-09-05T00:00:00.000Z').getTime();
+assert('holdings.空数组→null', summarizeHoldings([], H_NOW) === null);
+const h1 = summarizeHoldings([
+  mkEntry({ id: 1, quantity: 2, buy_price: 10, current_estimate: 15 }),
+  mkEntry({ id: 2, quantity: 6, buy_price: 20, current_estimate: 25 }),
+], H_NOW);
+assert('holdings.件数=8', h1.quantity === 8, h1.quantity);
+assert('holdings.笔数=2', h1.records === 2, h1.records);
+// 加权均价 = (2*10 + 6*20)/8 = 140/8 = 17.5
+assert('holdings.加权均价=17.5', Math.abs(h1.avgBuyPrice - 17.5) < 1e-9, h1.avgBuyPrice);
+// 含费成本 = 140 * 1.01 = 141.4
+assert('holdings.含费成本=141.4', Math.abs(h1.totalCost - 141.4) < 1e-9, h1.totalCost);
+// 当前估值 = 2*15 + 6*25 = 180
+assert('holdings.当前估值=180', h1.currentValue === 180, h1.currentValue);
+assert('holdings.净利=38.6', Math.abs(h1.netProfit - 38.6) < 1e-9, h1.netProfit);
+assert('holdings.回报率≈0.2730', Math.abs(h1.roi - 38.6 / 141.4) < 1e-9, h1.roi);
+assert('holdings.最早解锁=09-08', h1.earliestUnlockAt === '2026-09-08T00:00:00.000Z', h1.earliestUnlockAt);
+assert('holdings.剩余小时=72', Math.abs(h1.hoursLeft - 72) < 1e-9, h1.hoursLeft);
+assert('holdings.全部冷却中（无 steam_tradable）', h1.allTradable === false, h1.allTradable);
+// 全部可上架
+const h2 = summarizeHoldings([mkEntry({ steam_tradable: true, current_estimate: 12 })], H_NOW);
+assert('holdings.全部可上架=true', h2.allTradable === true, h2.allTradable);
+assert('holdings.可上架剩余=0', h2.hoursLeft === 0, h2.hoursLeft);
+// 无行情 → currentValue/netProfit 为 null，不影响成本
+const h3 = summarizeHoldings([mkEntry({ quantity: 3, buy_price: 10, current_estimate: null })], H_NOW);
+assert('holdings.无行情 currentValue=null', h3.currentValue === null, h3.currentValue);
+assert('holdings.无行情 netProfit=null', h3.netProfit === null, h3.netProfit);
+assert('holdings.无行情仍算成本=30.3', Math.abs(h3.totalCost - 30.3) < 1e-9, h3.totalCost);
+// 总览
+const ov = summarizePortfolio([h1, h2, h3]);
+assert('holdings.总览种类=3', ov.kinds === 3, ov.kinds);
+assert('holdings.总览件数=8+1+3=12', ov.quantity === 12, ov.quantity);
+assert('holdings.总览可上架种类=1', ov.tradableKinds === 1, ov.tradableKinds);
+assert('holdings.总览冷却种类=2', ov.coolingKinds === 2, ov.coolingKinds);
+// 冷却进度：买入 09-01 → 解锁 09-08，now=09-05 = 4/7
+const prog = cooldownProgress([mkEntry({})], H_NOW);
+assert('holdings.冷却进度=4/7', Math.abs(prog - 4 / 7) < 1e-9, prog);
+assert('holdings.已解锁进度=1', cooldownProgress([mkEntry({})], new Date('2026-09-20T00:00:00.000Z').getTime()) === 1);
+// 文案
+assert('holdings.剩余文案 3天0小时', fmtRemainHours(72) === '3 天', fmtRemainHours(72));
+assert('holdings.剩余文案 3天5小时', fmtRemainHours(77) === '3 天 5 小时', fmtRemainHours(77));
+assert('holdings.剩余文案 5小时', fmtRemainHours(5) === '5 小时', fmtRemainHours(5));
+assert('holdings.剩余文案 可上架', fmtRemainHours(0) === '可上架', fmtRemainHours(0));
+assert('holdings.相对时间 刚刚', fmtAgo('2026-09-05T00:00:30.000Z', H_NOW) === '刚刚', fmtAgo('2026-09-05T00:00:30.000Z', H_NOW));
+assert('holdings.相对时间 3分钟前', fmtAgo('2026-09-04T23:57:00.000Z', H_NOW) === '3 分钟前', fmtAgo('2026-09-04T23:57:00.000Z', H_NOW));
+assert('holdings.相对时间 从未同步', fmtAgo(null, H_NOW) === '从未同步', fmtAgo(null, H_NOW));
 
 // 空库存诊断（v1.5.9）：C5 app-key 通道能看到保护期箱子，返回空 = SteamID 非本人 / C5 未绑定该账号
 assert('empty_reason.c5_zero', buildC5EmptySyncReason({ total: 0, assetCount: 0 }).includes('C5 服务端未返回任何物品') && buildC5EmptySyncReason({ total: 0, assetCount: 0 }).includes('Steam 侧共报 0 件资产') && buildC5EmptySyncReason({ total: 0, assetCount: 0 }).includes('SteamID64 不是本人账号'));

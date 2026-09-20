@@ -8,6 +8,8 @@
 import { AppState } from 'react-native';
 import { storage, ScanStateRecord } from './storage';
 import { collectCases, CollectStats } from './collector';
+import { clearDetailCache } from '../core/detailCache';
+import { bumpAnalysisGeneration } from '../core/analysisCache';
 
 export interface ScanState {
   running: boolean;
@@ -85,40 +87,6 @@ export const scanService = {
     notify();
   },
 
-  /** 快速补历史：连续最多 4 轮（无视新鲜度，只采不足 4 点的箱子），全部补齐提前结束 */
-  async quickBackfill(count: number): Promise<{ rounds: number; success: number; failed: number }> {
-    if (state.running && startedHere) {
-      throw new Error('扫描进行中，请稍候');
-    }
-    let rounds = 0;
-    let totalSuccess = 0;
-    let totalFailed = 0;
-    state = { running: true, progress: null, startedAt: new Date().toISOString(), count };
-    startedHere = true;
-    notify();
-    await persist();
-    try {
-      for (let round = 1; round <= 4; round++) {
-        rounds = round;
-        state = { ...state, progress: { stage: 'listing', done: 0, total: count, currentName: '', success: 0, failed: 0, message: `快速补历史 第 ${round}/4 轮…` } };
-        notify();
-        await persist();
-        const stats = await collectCases({ count, mode: 'backfill', onProgress: (p) => { state = { ...state, progress: p }; notify(); persist(); } });
-        totalSuccess += stats.success;
-        totalFailed += stats.failed;
-        // 本轮没采到任何新点 = 全部已补齐
-        if (stats.success === 0 && stats.skipped > 0) break;
-        if (round < 4) await new Promise<void>((r) => setTimeout(r, 5000));
-      }
-    } finally {
-      startedHere = false;
-      state = { ...state, running: false };
-      notify();
-      await persist();
-    }
-    return { rounds, success: totalSuccess, failed: totalFailed };
-  },
-
   /** 发起扫描；已在进行中时抛错。auto=true 表示断点续扫 */
   async start(count: number, auto = false): Promise<CollectStats> {
     if (state.running && startedHere) {
@@ -138,6 +106,8 @@ export const scanService = {
           persist();
         },
       });
+      clearDetailCache();
+      bumpAnalysisGeneration();
       return stats;
     } finally {
       startedHere = false;

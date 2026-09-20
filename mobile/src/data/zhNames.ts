@@ -7,10 +7,10 @@
  * - displayName() 为同步函数，这里用「内存缓存 + 启动预热」配合：
  *     warmZhNames()  App 启动时把持久化缓存加载进内存
  *     mergeZhNames() 每次采集后合并新中文名并落盘
+ * - v1.7.0 起持久化介质由 AsyncStorage 改为 SQLite（zh_names 表）。
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const K_ZH_NAMES = '@cs2balance/zh_names_v1';
+import { ensureDb } from './db';
+import { enqueueWrite } from './writeQueue';
 
 /** 内存缓存：App 启动后由 warmZhNames() 预热，采集后由 mergeZhNames() 增量更新 */
 let cache: Record<string, string> | null = null;
@@ -23,18 +23,17 @@ function hasChinese(text: string): boolean {
 /** 预热：读持久化缓存到内存（App 启动时调用一次） */
 export async function warmZhNames(): Promise<void> {
   try {
-    const raw = await AsyncStorage.getItem(K_ZH_NAMES);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      const next: Record<string, string> = {};
-      for (const key of Object.keys(parsed)) {
-        const v = parsed[key];
-        if (typeof v === 'string' && v && hasChinese(v)) next[key] = v;
+    const db = await ensureDb();
+    const rows = await db.getAllAsync<{ market_hash_name: string; cn_name: string }>(
+      'SELECT market_hash_name, cn_name FROM zh_names',
+    );
+    const next: Record<string, string> = {};
+    for (const r of rows) {
+      if (r.market_hash_name && r.cn_name && hasChinese(r.cn_name)) {
+        next[r.market_hash_name] = r.cn_name;
       }
-      cache = next;
-    } else {
-      cache = cache ?? {};
     }
+    cache = next;
   } catch {
     cache = cache ?? {};
   }
@@ -43,19 +42,32 @@ export async function warmZhNames(): Promise<void> {
 /** 合并一批 { 英文MarketHashName: 中文名 } 进缓存并落盘 */
 export async function mergeZhNames(map: Record<string, string>): Promise<void> {
   if (!cache) await warmZhNames();
-  let changed = false;
+  const changed: Array<[string, string]> = [];
   for (const key of Object.keys(map)) {
     const v = map[key];
     if (key && v && hasChinese(v)) {
       if (cache![key] !== v) {
         cache![key] = v;
-        changed = true;
+        changed.push([key, v]);
       }
     }
   }
-  if (changed) {
+  if (changed.length > 0) {
     try {
-      await AsyncStorage.setItem(K_ZH_NAMES, JSON.stringify(cache));
+      // v1.8.5：并入全局写队列（原来自行开事务，会与详情页补历史/后台扫描的事务交错
+      // → 嵌套 BEGIN → 原生层闪退；见 data/writeQueue.ts）
+      await enqueueWrite(async () => {
+        const db = await ensureDb();
+        await db.withTransactionAsync(async () => {
+          for (const [k, v] of changed) {
+            await db.runAsync(
+              'INSERT OR REPLACE INTO zh_names (market_hash_name, cn_name) VALUES (?, ?)',
+              k,
+              v,
+            );
+          }
+        });
+      });
     } catch {
       // 缓存写失败不阻断主流程，内存仍可用
     }

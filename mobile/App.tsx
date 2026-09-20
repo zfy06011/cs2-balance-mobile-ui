@@ -3,12 +3,14 @@
  * 底部 Tab（HANDOFF v2.0 第 14 节）：首页 / 市场 / 库存 / 雷达 / 我的。
  * 资金模拟不作为一级导航，作为工具入口（从首页进入，全屏覆盖）。
  */
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from './src/theme/colors';
 import { warmZhNames } from './src/data/zhNames';
+import { initStorage } from './src/data/migrate';
+import { seedWebDemoData } from './src/data/webSeed';
 import { attachScanLifecycle, scanService } from './src/data/scanService';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
@@ -17,7 +19,8 @@ import { DetailScreen } from './src/screens/DetailScreen';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { SimulateScreen } from './src/screens/SimulateScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
-import { CookieLoginScreen, CookieLoginKind } from './src/screens/CookieLoginScreen';
+import { CookieLoginScreen } from './src/screens/CookieLoginScreen';
+import { QualificationScreen } from './src/screens/QualificationScreen';
 
 type TabKey = 'home' | 'market' | 'inventory' | 'radar' | 'settings';
 
@@ -33,17 +36,50 @@ export default function App() {
   const [tab, setTab] = useState<TabKey>('home');
   const [detailName, setDetailName] = useState<string | null>(null);
   const [simOpen, setSimOpen] = useState(false);
-  const [cookieLogin, setCookieLogin] = useState<CookieLoginKind | null>(null);
-  const [histPull, setHistPull] = useState(false);
+  const [cookieLoginOpen, setCookieLoginOpen] = useState(false);
+  const [qualificationOpen, setQualificationOpen] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
   // 登录弹窗关闭后强制重挂载设置页，让 cookie 方框立即刷新为已保存值
   const [settingsTick, setSettingsTick] = useState(0);
+  // v1.8.4：切页淡入过渡（纯原生驱动，不阻塞 JS 线程）
+  const fade = useRef(new Animated.Value(1)).current;
+  const slide = useRef(new Animated.Value(0)).current;
 
-  // 启动即预热 Steam 官方中文名缓存（采集后会自动更新）
+  const switchTab = (next: TabKey) => {
+    if (next === tab) return;
+    setTab(next);
+    fade.setValue(0);
+    slide.setValue(6);
+    Animated.parallel([
+      Animated.timing(fade, { toValue: 1, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(slide, { toValue: 0, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  };
+
   useEffect(() => {
-    warmZhNames().catch(() => undefined);
-    scanService.restoreAndResume().catch(() => undefined);
+    (async () => {
+      try {
+        await initStorage();
+        await seedWebDemoData();
+        await warmZhNames();
+      } finally {
+        setStorageReady(true);
+      }
+      void scanService.restoreAndResume();
+    })().catch(() => setStorageReady(true));
     return attachScanLifecycle();
   }, []);
+
+  if (!storageReady) {
+    return (
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <StatusBar style="light" />
+        <View style={styles.bootstrap}>
+          <Text style={styles.bootstrapText}>正在初始化本地数据…</Text>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   if (detailName) {
     return (
@@ -57,27 +93,31 @@ export default function App() {
   const openDetail = (name: string) => setDetailName(name);
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <StatusBar style="light" />
       <View style={styles.root}>
-        <View style={styles.content}>
+        <Animated.View
+          style={[
+            styles.content,
+            { opacity: fade, transform: [{ translateY: slide }] },
+          ]}
+        >
           {tab === 'home' ? (
             <HomeScreen
-              onOpenMarket={() => setTab('market')}
-              onOpenRadar={() => setTab('radar')}
               onOpenSimulate={() => setSimOpen(true)}
               onOpenDetail={openDetail}
-              onOpenHistImport={() => setHistPull(true)}
             />
           ) : null}
           {tab === 'market' ? <MarketScreen onOpenDetail={openDetail} /> : null}
           {tab === 'radar' ? <RadarScreen onOpenDetail={openDetail} /> : null}
-          {tab === 'inventory' ? <InventoryScreen /> : null}
-          {tab === 'settings' ? <SettingsScreen key={settingsTick} onCookieLogin={setCookieLogin} /> : null}
-        </View>
+          {tab === 'inventory' ? <InventoryScreen onOpenDetail={openDetail} /> : null}
+          {tab === 'settings' ? (
+            <SettingsScreen key={settingsTick} onCookieLogin={() => setCookieLoginOpen(true)} onOpenQualification={() => setQualificationOpen(true)} />
+          ) : null}
+        </Animated.View>
         <View style={styles.tabBar}>
           {TABS.map((t) => (
-            <TouchableOpacity key={t.key} style={styles.tabItem} onPress={() => setTab(t.key)}>
+            <TouchableOpacity key={t.key} style={styles.tabItem} onPress={() => switchTab(t.key)}>
               <Text style={styles.tabIcon}>{t.icon}</Text>
               <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
             </TouchableOpacity>
@@ -88,20 +128,19 @@ export default function App() {
             <SimulateScreen onBack={() => setSimOpen(false)} />
           </View>
         ) : null}
-        {cookieLogin ? (
+        {cookieLoginOpen ? (
           <View style={styles.overlay}>
             <CookieLoginScreen
-              kind={cookieLogin}
               onClose={() => {
-                setCookieLogin(null);
+                setCookieLoginOpen(false);
                 setSettingsTick((t) => t + 1);
               }}
             />
           </View>
         ) : null}
-        {histPull ? (
+        {qualificationOpen ? (
           <View style={styles.overlay}>
-            <CookieLoginScreen kind="steam-hist" onClose={() => setHistPull(false)} />
+            <QualificationScreen onBack={() => setQualificationOpen(false)} />
           </View>
         ) : null}
       </View>
@@ -111,6 +150,8 @@ export default function App() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  bootstrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  bootstrapText: { color: colors.textDim, fontSize: 15, fontWeight: '600' },
   content: { flex: 1 },
   tabBar: {
     flexDirection: 'row',

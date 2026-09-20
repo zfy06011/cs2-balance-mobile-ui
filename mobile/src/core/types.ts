@@ -26,6 +26,8 @@ export interface RadarItem {
   market_hash_name: string;
   c5_buy_price: number | null;
   steam_sell_price: number | null;
+  /** Steam 卖出后实际到手（扣 15% 平台费，卖家实得 86.96%） */
+  steam_net_receive: number | null;
   expected_roi: number | null;
   /** 预计几折（0.926 = 9.26 折，越低越划算） */
   expected_discount: number | null;
@@ -73,6 +75,8 @@ export interface InventoryEntry {
   hours_left: number;
   /** 是否经过 Steam 库存同步 */
   steam_synced: boolean;
+  /** 最近一次 Steam 同步时刻（ISO；未同步为 null）——库存页「上次同步」用 */
+  steam_synced_at?: string | null;
   /** 最近同步是否可交易/可上架（null = 未同步） */
   steam_tradable: boolean | null;
   /** 解锁时间来源：steam=Steam 真实冷却；estimate=买入时间+7天估算 */
@@ -85,6 +89,35 @@ export interface InventoryEntry {
   /** 最佳卖出时机建议（结合活动窗口） */
   sell_advice_code?: 'sell_now' | 'sell_at_unlock' | 'wait_recovery' | 'wait_event_pass';
   sell_advice_text?: string;
+}
+
+/** 同种武器箱的持仓汇总（库存页每行 + 详情页「我的持仓」共用；core/holdings.ts 计算） */
+export interface HoldingsSummary {
+  itemName: string;
+  /** 总件数 */
+  quantity: number;
+  /** 本地记录笔数 */
+  records: number;
+  /** 加权买入均价（未含手续费） */
+  avgBuyPrice: number;
+  /** 总成本（含 C5 1% 买入手续费） */
+  totalCost: number;
+  /** 当前估值（Steam 到手价 × 件数；无行情为 null） */
+  currentValue: number | null;
+  /** 浮动盈亏（当前估值 − 含费成本） */
+  netProfit: number | null;
+  /** 回报率 */
+  roi: number | null;
+  /** 最早解锁时刻（ISO） */
+  earliestUnlockAt: string;
+  /** 距最早解锁剩余毫秒（基于调用时传入的 now 现算） */
+  msLeft: number;
+  hoursLeft: number;
+  /** 是否全部记录都已可上架 */
+  allTradable: boolean;
+  anyTradable: boolean;
+  sellAdviceText?: string;
+  sellAdviceCode?: InventoryEntry['sell_advice_code'];
 }
 
 /** 本地购买记录（一键买入成功后写入，随订单留存） */
@@ -102,6 +135,7 @@ export interface OrderRecord {
 export interface HistoryPoint {
   price: number;
   fetchedAt: string;
+  volume?: number | null;
 }
 
 export interface Simulation {

@@ -1,0 +1,31 @@
+{
+  "single": {
+    "item": "Fixture Case",
+    "c5": { "unitPrice": 1, "feeRatio": 0.01, "availableQuantity": 100, "fetchedAt": 1700000000000 },
+    "steam": {
+      "highestBuy": 1.5,
+      "lowestSell": 1.55,
+      "buyLevels": [{ "price": 1.5, "quantity": 100, "cumulativeQuantity": 100 }],
+      "sellLevels": [{ "price": 1.55, "quantity": 100, "cumulativeQuantity": 100 }],
+      "fetchedAt": 1700000000000,
+      "currency": "CNY",
+      "currencyId": 23,
+      "quality": 1
+    },
+    "forecast": { "p25": 1.2, "p50": 1.5, "p75": 1.8 },
+    "quantity": 10,
+    "now": 1700000001000
+  },
+  "slippageBuy": [
+    { "price": 10, "quantity": 1, "cumulativeQuantity": 1 },
+    { "price": 9.8, "quantity": 2, "cumulativeQuantity": 3 },
+    { "price": 9.5, "quantity": 100, "cumulativeQuantity": 103 }
+  ],
+  "capacityBuy": [
+    { "price": 10, "quantity": 20, "cumulativeQuantity": 20 },
+    { "price": 9.99, "quantity": 50, "cumulativeQuantity": 70 },
+    { "price": 9.95, "quantity": 100, "cumulativeQuantity": 170 },
+    { "price": 9.91, "quantity": 200, "cumulativeQuantity": 370 },
+    { "price": 9.8, "quantity": 1000, "cumulativeQuantity": 1370 }
+  ]
+}

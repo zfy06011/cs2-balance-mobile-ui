@@ -13,12 +13,10 @@
  */
 const C5_API_BASE = 'https://openapi.c5game.com';
 const C5_WEB_BASE = 'https://www.c5game.com';
+import { isTrackedCase } from './caseFilter';
 const C5_APP_ID = '730'; // CS:GO / CS2
 
-/** 与 steam.ts#isCaseLikeName 同口径的武器箱判断（c5.ts 独立编译，不引入 steam.ts） */
-function isCaseLikeName(name: string): boolean {
-  return /case/i.test(name) || /package/i.test(name) || name.includes('武器箱') || name.includes('胶囊') || name.includes('收藏包');
-}
+// 统一的受监控武器箱判定（白名单优先、词法兜底，见 caseFilter.ts）
 /** 单次批量上限（保守，官方限流 50 QPS） */
 export const C5_BULK_CHUNK = 30;
 
@@ -46,8 +44,9 @@ function toNumber(v: unknown): number | null {
 }
 
 /**
- * 真正批量查询：一次 POST 多个 MarketHashName，自动分批（每批 C5_BULK_CHUNK 个）。
+ * 批量查 C5 买入价（POST /merchant/product/price/batch，需 app-key）。
  * 返回 { name: price|null }，单个失败置 null（不阻塞整批）。
+ * 内置 1 次重试（429/网络错误时）。
  */
 export async function fetchC5PricesBulk(
   names: string[],
@@ -62,23 +61,30 @@ export async function fetchC5PricesBulk(
   for (let i = 0; i < uniq.length; i += chunkSize) {
     const chunk = uniq.slice(i, i + chunkSize);
     let map: Record<string, number | null> = {};
-    try {
-      const resp = await fetch(`${C5_API_BASE}/merchant/product/price/batch?app-key=${encodeURIComponent(key)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ appId: C5_APP_ID, marketHashNames: chunk }),
-      });
-      if (resp.ok) {
-        const data = (await resp.json()) as C5BatchResponse;
-        if (data && data.success === true && data.data) {
-          for (const n of chunk) {
-            const item = data.data[n];
-            map[n] = item ? toNumber(item.price) : null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const resp = await fetch(`${C5_API_BASE}/merchant/product/price/batch?app-key=${encodeURIComponent(key)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ appId: C5_APP_ID, marketHashNames: chunk }),
+        });
+        if (resp.ok) {
+          const data = (await resp.json()) as C5BatchResponse;
+          if (data && data.success === true && data.data) {
+            for (const n of chunk) {
+              const item = data.data[n];
+              map[n] = item ? toNumber(item.price) : null;
+            }
           }
+          break; // 成功，跳出重试循环
         }
+        // 429/5xx 时重试一次
+        if (resp.status === 429 || resp.status >= 500) continue;
+        break; // 其他错误不重试
+      } catch {
+        if (attempt === 0) continue; // 网络错误重试一次
       }
-    } catch {
-      map = {};
     }
     for (const n of chunk) out[n] = map[n] ?? null;
   }
@@ -92,64 +98,8 @@ export async function fetchC5Price(name: string, appKey: string): Promise<number
 }
 
 // ---------------------------------------------------------------------------
-// C5 历史价格（网页端趋势图接口，需 C5 网页登录 cookie；OpenAPI 无历史接口，实测确认）
-// GET https://www.c5game.com/trade-flex/order/price-trend/chart?itemId=<id>&period=<7|30|...>
-// 响应里嵌着 { dates: [unix 秒], prices: [元] }（网页图表组件消费同一结构）
+// C5 求购/出售统计
 // ---------------------------------------------------------------------------
-
-export interface C5HistoryPoint {
-  /** YYYY-MM-DD */
-  date: string;
-  price: number;
-}
-
-/** 递归在响应 JSON 中找 dates/prices 平行数组（响应包装层级可能变化，弹性解析） */
-export function parseC5Trend(json: unknown, days: number): C5HistoryPoint[] {
-  const found: Array<{ dates: unknown[]; prices: unknown[] }> = [];
-  const visit = (node: unknown, depth: number) => {
-    if (found.length > 0 || node == null || typeof node !== 'object' || depth > 6) return;
-    const o = node as Record<string, unknown>;
-    if (Array.isArray(o.dates) && Array.isArray(o.prices) && o.dates.length === o.prices.length && o.dates.length > 0) {
-      found.push({ dates: o.dates, prices: o.prices });
-      return;
-    }
-    for (const k of Object.keys(o)) visit(o[k], depth + 1);
-  };
-  visit(json, 0);
-  if (found.length === 0) return [];
-  const dates = found[0].dates;
-  const prices = found[0].prices;
-  const out: C5HistoryPoint[] = [];
-  for (let i = 0; i < dates.length; i++) {
-    let ts = Number(dates[i]);
-    const price = Number(prices[i]);
-    if (!Number.isFinite(ts) || ts <= 0 || !Number.isFinite(price) || price <= 0) continue;
-    if (ts > 1e12) ts = ts / 1000; // 毫秒时间戳兼容
-    out.push({ date: new Date(ts * 1000).toISOString().slice(0, 10), price });
-  }
-  return out.slice(-days);
-}
-
-export async function fetchC5PriceTrend(itemId: string, cookie: string, period = '30', days = 60): Promise<C5HistoryPoint[]> {  if (!cookie || !cookie.trim()) throw new Error('需要 C5GAME 网页登录 cookie 才能获取历史价格');
-  const url = `${C5_WEB_BASE}/trade-flex/order/price-trend/chart?itemId=${encodeURIComponent(itemId)}&period=${encodeURIComponent(period)}`;
-  const resp = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36',
-      Accept: 'application/json',
-      Referer: 'https://www.c5game.com/',
-      Cookie: cookie.trim(),
-    },
-  });
-  if (!resp.ok) throw new Error(`C5 历史接口返回 ${resp.status}`);
-  let json: unknown;
-  try {
-    json = await resp.json();
-  } catch {
-    throw new Error('C5 cookie 已失效（返回了登录页），请更新设置页的 C5 Cookie');
-  }
-  return parseC5Trend(json, days);
-}
-
 /**
  * 求购/出售统计（HANDOFF 实测：POST /merchant/market/v2/item/stat/hash/name）。
  * 返回每件商品的 itemId、在售最低价、在售数量、求购最高价、求购数量；
@@ -198,7 +148,7 @@ function statsOf(item: C5StatsRawItem, name: string): C5StatsResult {
   };
 }
 
-/** 批量查询求购/出售统计；自动分批，单条失败置 null（不阻塞整批）。 */
+/** 批量查询求购/出售统计；自动分批，单条失败置 null（不阻塞整批）。内置 1 次重试。 */
 export async function fetchC5StatsBulk(
   names: string[],
   appKey: string,
@@ -210,30 +160,36 @@ export async function fetchC5StatsBulk(
 
   for (let i = 0; i < uniq.length; i += C5_BULK_CHUNK) {
     const chunk = uniq.slice(i, i + C5_BULK_CHUNK);
-    try {
-      const resp = await fetch(`${C5_API_BASE}/merchant/market/v2/item/stat/hash/name?app-key=${encodeURIComponent(key)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ appId: C5_APP_ID, marketHashNames: chunk }),
-      });
-      if (resp.ok) {
-        const data = (await resp.json()) as C5StatsResponse;
-        if (data && data.success === true && data.data) {
-          if (Array.isArray(data.data)) {
-            for (const item of data.data) {
-              const n = item.marketHashName || '';
-              if (n) out[n] = statsOf(item, n);
-            }
-          } else {
-            for (const n of chunk) {
-              const item = data.data[n];
-              out[n] = item ? statsOf(item, n) : null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const resp = await fetch(`${C5_API_BASE}/merchant/market/v2/item/stat/hash/name?app-key=${encodeURIComponent(key)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ appId: C5_APP_ID, marketHashNames: chunk }),
+        });
+        if (resp.ok) {
+          const data = (await resp.json()) as C5StatsResponse;
+          if (data && data.success === true && data.data) {
+            if (Array.isArray(data.data)) {
+              for (const item of data.data) {
+                const n = item.marketHashName || '';
+                if (n) out[n] = statsOf(item, n);
+              }
+            } else {
+              for (const n of chunk) {
+                const item = data.data[n];
+                out[n] = item ? statsOf(item, n) : null;
+              }
             }
           }
+          break; // 成功
         }
+        if (resp.status === 429 || resp.status >= 500) continue;
+        break;
+      } catch {
+        if (attempt === 0) continue;
       }
-    } catch {
-      // 网络异常：该批视为无数据
     }
     for (const n of chunk) if (!(n in out)) out[n] = null;
   }
@@ -241,74 +197,10 @@ export async function fetchC5StatsBulk(
 }
 
 // ---------------------------------------------------------------------------
-// C5 itemId 查询（网页搜索接口）：GET {C5_WEB_BASE}/steamtrade/sga/item-search/v1/list
-// 前端 bundle 接口 keywordSearch（trade base = /steamtrade）。需 C5 网页登录 cookie，
-// 匿名访问会返回登录页。仅当 OpenAPI app-key 拿不到 itemId 时使用。
-// ---------------------------------------------------------------------------
-export async function fetchC5ItemIdViaWeb(marketHashName: string, cookie: string): Promise<string> {
-  if (!marketHashName || !cookie || !cookie.trim()) return '';
-  const url = `${C5_WEB_BASE}/steamtrade/sga/item-search/v1/list?appId=${C5_APP_ID}&keyword=${encodeURIComponent(marketHashName)}&pageIndex=1&pageSize=10`;
-  try {
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36',
-        Accept: 'application/json',
-        Referer: 'https://www.c5game.com/',
-        Cookie: cookie.trim(),
-      },
-    });
-    if (!resp.ok) return '';
-    let json: unknown;
-    try {
-      json = await resp.json();
-    } catch {
-      return '';
-    }
-    return extractC5ItemId(json, marketHashName);
-  } catch {
-    return '';
-  }
-}
-
-/** 弹性提取 itemId：优先找 marketHashName 命中条目的 itemId；否则取第一个数字型 itemId */
-function extractC5ItemId(json: unknown, marketHashName: string): string {
-  const kw = marketHashName.toLowerCase();
-  let firstId = '';
-  let matchId = '';
-  const visit = (node: unknown, depth: number) => {
-    if (matchId || node == null || typeof node !== 'object' || depth > 7) return;
-    const o = node as Record<string, unknown>;
-    if (!Array.isArray(o)) {
-      let name = '';
-      for (const key of ['marketHashName', 'market_hash_name', 'itemName', 'item_name', 'name']) {
-        if (typeof o[key] === 'string') {
-          name = o[key];
-          break;
-        }
-      }
-      let id = '';
-      for (const key of ['itemId', 'item_id', 'id']) {
-        if (o[key] != null) {
-          id = String(o[key]).trim();
-          if (id) break;
-        }
-      }
-      if (id) {
-        if (!firstId) firstId = id;
-        if (name && name.toLowerCase().includes(kw)) matchId = id;
-      }
-    }
-    for (const k of Object.keys(o)) visit(o[k], depth + 1);
-  };
-  visit(json, 0);
-  return matchId || firstId;
-}
-
-// ---------------------------------------------------------------------------
 // C5 库存（官方 OpenAPI：GET /merchant/inventory/v2/{steamId}/{appId}）
 // v1.5.9 起库存仅走 C5 app-key：C5 服务端从 Steam 高权限通道拉库存，能看到交易保护中的
 // 物品（status=4 暂时不可交易/冷却中），Steam Web API 对保护期账号返回空对象
-// （用户实测 {"response":{}}），已移除。历史价格仍走 C5 网页 cookie（OpenAPI 无历史端点）。
+// （用户实测 {"response":{}}），已移除。
 //
 // 响应：{ success, data: { steamId, appId, total, lastAssetId, list: [...] } }
 //   list[] 每项 = 一个独立资产；status 枚举：
@@ -350,7 +242,7 @@ interface C5InventoryRaw {
 /** 从 C5 单个资产对象提取字段；非武器箱返回 null（与 steam.ts#isCaseLikeName 同口径） */
 function c5AssetItemOf(o: Record<string, unknown>, now: number): C5InventoryItem | null {
   const mhn = String(o.marketHashName ?? o.market_hash_name ?? '').trim();
-  if (!mhn || !isCaseLikeName(mhn)) return null;
+  if (!mhn || !isTrackedCase(mhn)) return null;
   let status = typeof o.status === 'number' ? o.status : parseInt(String(o.status), 10);
   if (!Number.isFinite(status)) status = 0;
   const ifTradable = o.ifTradable === true || o.ifTradable === 1 || String(o.ifTradable) === '1';

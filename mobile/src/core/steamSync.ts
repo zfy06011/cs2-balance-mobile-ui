@@ -59,6 +59,9 @@ export function buildC5EmptySyncReason(c: C5EmptySyncContext): string {
 export interface SteamSyncPlan {
   updates: Array<{ id: number; patch: SteamCooldownPatch }>;
   newEntries: SteamSyncNewEntry[];
+  /** v1.8.6：本次应移除的本地库存 id（之前确实在 Steam 见过、这次已不在库 = 已卖出/已移走）。
+   *  只含 steam_first_seen_at != null 的条目——纯手动录入、从没在 Steam 见过的记录绝不自动删。 */
+  removeIds: number[];
   /** 本地记录在 Steam 库存中匹配到的条数 */
   matched: number;
   /** 其中已可上架的条数（含新导入且已解锁的） */
@@ -67,6 +70,8 @@ export interface SteamSyncPlan {
   imported: number;
   /** 本地记录未在 Steam 库存中找到的条数 */
   notFound: number;
+  /** 实际从本地移除的条数（= removeIds.length） */
+  removed: number;
 }
 
 const DAY_MS = 86400000;
@@ -88,11 +93,13 @@ export function estimateCooldown(
   return { tradableNow: false, estAt: new Date(hasPrev ? Math.min(prevMs, estThis) : estThis).toISOString() };
 }
 
-/** 规划一次 Steam 库存同步：对既有记录产出 patch，对 Steam 独有的箱子产出新条目 */
+/** 规划一次 Steam 库存同步：对既有记录产出 patch，对 Steam 独有的箱子产出新条目，
+ *  并列出「已不在 Steam 库存」的本地记录（v1.8.6：自动移除已卖出的箱子）。 */
 export function planSteamSync(
   rows: SteamSyncRow[],
   items: SteamSyncInputItem[],
   now: Date = new Date(),
+  opts: { allowRemoval?: boolean } = {},
 ): SteamSyncPlan {
   const byKey = new Map<string, SteamSyncInputItem>();
   for (const it of items) {
@@ -101,15 +108,21 @@ export function planSteamSync(
   }
 
   const updates: SteamSyncPlan['updates'] = [];
+  const removeIds: number[] = [];
   const matchedSteam = new Set<string>();
   let matched = 0;
   let unlocked = 0;
   let notFound = 0;
 
+  // allowRemoval 默认 true；调用方在「C5 返回空库存」时必须显式传 false（疑似接口异常，不能据此删数据）
+  const allowRemoval = opts.allowRemoval !== false;
+
   for (const r of rows) {
     const st = byKey.get(r.item_name);
     if (!st) {
       notFound++;
+      // 之前确实在 Steam 见过（有首次观察时间）→ 现在不在库了，说明已卖出/移走
+      if (allowRemoval && r.steam_first_seen_at) removeIds.push(r.id);
       continue;
     }
     matched++;
@@ -145,5 +158,14 @@ export function planSteamSync(
     });
   }
 
-  return { updates, newEntries, matched, unlocked, imported: newEntries.length, notFound };
+  return {
+    updates,
+    newEntries,
+    removeIds,
+    matched,
+    unlocked,
+    imported: newEntries.length,
+    notFound,
+    removed: removeIds.length,
+  };
 }

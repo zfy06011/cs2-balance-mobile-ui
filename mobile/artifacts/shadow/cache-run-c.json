@@ -1,0 +1,2249 @@
+{
+  "createdAt": 1789276271416,
+  "modelVersion": "baseline-robust-v4",
+  "candidateHash": "e6dc7387",
+  "manifest": {
+    "candidateCount": 93,
+    "readyCount": 93,
+    "unsupportedCount": 0,
+    "failedCount": 0,
+    "startedAt": 1789276271330,
+    "completedAt": 1789276271416,
+    "prepareCompleted": true,
+    "inFlightAtFreeze": 0
+  },
+  "items": {
+    "CS:GO Weapon Case": {
+      "item": "CS:GO Weapon Case",
+      "readiness": {
+        "item": "CS:GO Weapon Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 183.3917,
+        "p50": 214.9977,
+        "p75": 252.0507,
+        "confidence": 0.1502,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "Dreams & Nightmares Case": {
+      "item": "Dreams & Nightmares Case",
+      "readiness": {
+        "item": "Dreams & Nightmares Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 1.9487,
+        "p50": 2.1938,
+        "p75": 2.4697,
+        "confidence": 0.3457,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Kilowatt Case": {
+      "item": "Kilowatt Case",
+      "readiness": {
+        "item": "Kilowatt Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2264,
+        "p50": 0.2545,
+        "p75": 0.286,
+        "confidence": 0.3589,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Revolution Case": {
+      "item": "Revolution Case",
+      "readiness": {
+        "item": "Revolution Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.3831,
+        "p50": 0.4215,
+        "p75": 0.4638,
+        "confidence": 0.5116,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Fracture Case": {
+      "item": "Fracture Case",
+      "readiness": {
+        "item": "Fracture Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.8781,
+        "p50": 0.9621,
+        "p75": 1.0542,
+        "confidence": 0.5307,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Sealed Dead Hand Terminal": {
+      "item": "Sealed Dead Hand Terminal",
+      "readiness": {
+        "item": "Sealed Dead Hand Terminal",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 187,
+        "requiredPointCount": 3,
+        "historyStartAt": 1773187200000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.8155,
+        "p50": 0.9266,
+        "p75": 1.0528,
+        "confidence": 0.3932,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Fever Case": {
+      "item": "Fever Case",
+      "readiness": {
+        "item": "Fever Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 1.0834,
+        "p50": 1.2088,
+        "p75": 1.3487,
+        "confidence": 0.3877,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Prisma 2 Case": {
+      "item": "Prisma 2 Case",
+      "readiness": {
+        "item": "Prisma 2 Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.1616,
+        "p50": 2.3956,
+        "p75": 2.6549,
+        "confidence": 0.411,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Snakebite Case": {
+      "item": "Snakebite Case",
+      "readiness": {
+        "item": "Snakebite Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.7696,
+        "p50": 0.8592,
+        "p75": 0.9592,
+        "confidence": 0.3781,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Clutch Case": {
+      "item": "Clutch Case",
+      "readiness": {
+        "item": "Clutch Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789264800000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.9916,
+        "p50": 1.1205,
+        "p75": 1.2662,
+        "confidence": 0.3404,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Danger Zone Case": {
+      "item": "Danger Zone Case",
+      "readiness": {
+        "item": "Danger Zone Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.0847,
+        "p50": 2.3255,
+        "p75": 2.594,
+        "confidence": 0.369,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Horizon Case": {
+      "item": "Horizon Case",
+      "readiness": {
+        "item": "Horizon Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.7287,
+        "p50": 3.0564,
+        "p75": 3.4235,
+        "confidence": 0.3667,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Prisma Case": {
+      "item": "Prisma Case",
+      "readiness": {
+        "item": "Prisma Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.2676,
+        "p50": 2.5212,
+        "p75": 2.8032,
+        "confidence": 0.4005,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Spectrum 2 Case": {
+      "item": "Spectrum 2 Case",
+      "readiness": {
+        "item": "Spectrum 2 Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 361,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1788994800000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 5.0257,
+        "p50": 5.6919,
+        "p75": 6.4465,
+        "confidence": 0.3098,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Gamma 2 Case": {
+      "item": "Gamma 2 Case",
+      "readiness": {
+        "item": "Gamma 2 Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 5.4954,
+        "p50": 6.0892,
+        "p75": 6.7471,
+        "confidence": 0.4971,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Glove Case": {
+      "item": "Glove Case",
+      "readiness": {
+        "item": "Glove Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 18.2364,
+        "p50": 20.3957,
+        "p75": 22.8107,
+        "confidence": 0.4407,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Chroma 3 Case": {
+      "item": "Chroma 3 Case",
+      "readiness": {
+        "item": "Chroma 3 Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 5.853,
+        "p50": 6.5626,
+        "p75": 7.3582,
+        "confidence": 0.3594,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Operation Wildfire Case": {
+      "item": "Operation Wildfire Case",
+      "readiness": {
+        "item": "Operation Wildfire Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 5.3687,
+        "p50": 5.8874,
+        "p75": 6.4563,
+        "confidence": 0.5191,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Shadow Case": {
+      "item": "Shadow Case",
+      "readiness": {
+        "item": "Shadow Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.8644,
+        "p50": 3.2345,
+        "p75": 3.6524,
+        "confidence": 0.3437,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Recoil Case": {
+      "item": "Recoil Case",
+      "readiness": {
+        "item": "Recoil Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.5274,
+        "p50": 0.5783,
+        "p75": 0.6342,
+        "confidence": 0.5244,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Spectrum Case": {
+      "item": "Spectrum Case",
+      "readiness": {
+        "item": "Spectrum Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 361,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1788994800000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 6.0311,
+        "p50": 7.0758,
+        "p75": 8.3015,
+        "confidence": 0.1414,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "Chroma 2 Case": {
+      "item": "Chroma 2 Case",
+      "readiness": {
+        "item": "Chroma 2 Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 6.4455,
+        "p50": 7.252,
+        "p75": 8.1595,
+        "confidence": 0.3465,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Operation Breakout Weapon Case": {
+      "item": "Operation Breakout Weapon Case",
+      "readiness": {
+        "item": "Operation Breakout Weapon Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 13.4192,
+        "p50": 14.9439,
+        "p75": 16.6419,
+        "confidence": 0.3814,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Gamma Case": {
+      "item": "Gamma Case",
+      "readiness": {
+        "item": "Gamma Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 5.537,
+        "p50": 6.1162,
+        "p75": 6.756,
+        "confidence": 0.4905,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Revolver Case": {
+      "item": "Revolver Case",
+      "readiness": {
+        "item": "Revolver Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 4.935,
+        "p50": 5.3979,
+        "p75": 5.9041,
+        "confidence": 0.5334,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Operation Phoenix Weapon Case": {
+      "item": "Operation Phoenix Weapon Case",
+      "readiness": {
+        "item": "Operation Phoenix Weapon Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 6.6087,
+        "p50": 7.415,
+        "p75": 8.3197,
+        "confidence": 0.3637,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Gallery Case": {
+      "item": "Gallery Case",
+      "readiness": {
+        "item": "Gallery Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 1.2458,
+        "p50": 1.39,
+        "p75": 1.5508,
+        "confidence": 0.3806,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Operation Broken Fang Case": {
+      "item": "Operation Broken Fang Case",
+      "readiness": {
+        "item": "Operation Broken Fang Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 11.0148,
+        "p50": 12.1559,
+        "p75": 13.4151,
+        "confidence": 0.4945,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Sealed Genesis Terminal": {
+      "item": "Sealed Genesis Terminal",
+      "readiness": {
+        "item": "Sealed Genesis Terminal",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 363,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757980800000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1195,
+        "p50": 0.1335,
+        "p75": 0.1492,
+        "confidence": 0.3028,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "Chroma Case": {
+      "item": "Chroma Case",
+      "readiness": {
+        "item": "Chroma Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 7.6193,
+        "p50": 8.8283,
+        "p75": 10.2292,
+        "confidence": 0.2591,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Berlin 2019 Returning Challengers Autograph Capsule": {
+      "item": "Berlin 2019 Returning Challengers Autograph Capsule",
+      "readiness": {
+        "item": "Berlin 2019 Returning Challengers Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.6898,
+        "p50": 0.8031,
+        "p75": 0.9351,
+        "confidence": 0.2437,
+        "marketState": "FALLING",
+        "direction": "DOWN"
+      }
+    },
+    "Falchion Case": {
+      "item": "Falchion Case",
+      "readiness": {
+        "item": "Falchion Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.925,
+        "p50": 3.2049,
+        "p75": 3.5116,
+        "confidence": 0.5271,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "CS20 Case": {
+      "item": "CS20 Case",
+      "readiness": {
+        "item": "CS20 Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 1.7377,
+        "p50": 1.874,
+        "p75": 2.0209,
+        "confidence": 0.5976,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Anubis Collection Package": {
+      "item": "Anubis Collection Package",
+      "readiness": {
+        "item": "Anubis Collection Package",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 3.1669,
+        "p50": 3.3447,
+        "p75": 3.5324,
+        "confidence": 0.6222,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Operation Hydra Case": {
+      "item": "Operation Hydra Case",
+      "readiness": {
+        "item": "Operation Hydra Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 48.3851,
+        "p50": 56.9482,
+        "p75": 67.0268,
+        "confidence": 0.2005,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Paris 2023 Legends Autograph Capsule": {
+      "item": "Paris 2023 Legends Autograph Capsule",
+      "readiness": {
+        "item": "Paris 2023 Legends Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1556,
+        "p50": 0.1871,
+        "p75": 0.225,
+        "confidence": 0.126,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Rio 2022 Dust II Souvenir Package": {
+      "item": "Rio 2022 Dust II Souvenir Package",
+      "readiness": {
+        "item": "Rio 2022 Dust II Souvenir Package",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 4.1501,
+        "p50": 4.3762,
+        "p75": 4.6145,
+        "confidence": 0.6962,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Paris 2023 Legends Sticker Capsule": {
+      "item": "Paris 2023 Legends Sticker Capsule",
+      "readiness": {
+        "item": "Paris 2023 Legends Sticker Capsule",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1441,
+        "p50": 0.153,
+        "p75": 0.1624,
+        "confidence": 0.4401,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Budapest 2025 Mirage Souvenir Highlight Package": {
+      "item": "Budapest 2025 Mirage Souvenir Highlight Package",
+      "readiness": {
+        "item": "Budapest 2025 Mirage Souvenir Highlight Package",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 262,
+        "requiredPointCount": 3,
+        "historyStartAt": 1766707200000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 3.9929,
+        "p50": 4.9463,
+        "p75": 6.1272,
+        "confidence": 0.1,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Operation Bravo Case": {
+      "item": "Operation Bravo Case",
+      "readiness": {
+        "item": "Operation Bravo Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 91.8432,
+        "p50": 105.1111,
+        "p75": 120.2957,
+        "confidence": 0.2895,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Austin 2025 Contenders Autograph Capsule": {
+      "item": "Austin 2025 Contenders Autograph Capsule",
+      "readiness": {
+        "item": "Austin 2025 Contenders Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2281,
+        "p50": 0.2508,
+        "p75": 0.2758,
+        "confidence": 0.3362,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Shattered Web Case": {
+      "item": "Shattered Web Case",
+      "readiness": {
+        "item": "Shattered Web Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 7.0705,
+        "p50": 8.0469,
+        "p75": 9.1581,
+        "confidence": 0.2943,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Paris 2023 Mirage Souvenir Package": {
+      "item": "Paris 2023 Mirage Souvenir Package",
+      "readiness": {
+        "item": "Paris 2023 Mirage Souvenir Package",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 4.172,
+        "p50": 4.3417,
+        "p75": 4.5184,
+        "confidence": 0.7199,
+        "marketState": "FALLING",
+        "direction": "DOWN"
+      }
+    },
+    "Sticker Capsule 2": {
+      "item": "Sticker Capsule 2",
+      "readiness": {
+        "item": "Sticker Capsule 2",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 13.7,
+        "p50": 14.6646,
+        "p75": 15.697,
+        "confidence": 0.4015,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "Paris 2023 Challengers Sticker Capsule": {
+      "item": "Paris 2023 Challengers Sticker Capsule",
+      "readiness": {
+        "item": "Paris 2023 Challengers Sticker Capsule",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1241,
+        "p50": 0.1388,
+        "p75": 0.1552,
+        "confidence": 0.3353,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Paris 2023 Contenders Sticker Capsule": {
+      "item": "Paris 2023 Contenders Sticker Capsule",
+      "readiness": {
+        "item": "Paris 2023 Contenders Sticker Capsule",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1252,
+        "p50": 0.1298,
+        "p75": 0.1347,
+        "confidence": 0.6884,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Paris 2023 Inferno Souvenir Package": {
+      "item": "Paris 2023 Inferno Souvenir Package",
+      "readiness": {
+        "item": "Paris 2023 Inferno Souvenir Package",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.384,
+        "p50": 2.5834,
+        "p75": 2.7995,
+        "confidence": 0.5722,
+        "marketState": "FALLING",
+        "direction": "DOWN"
+      }
+    },
+    "Budapest 2025 Legends Sticker Capsule": {
+      "item": "Budapest 2025 Legends Sticker Capsule",
+      "readiness": {
+        "item": "Budapest 2025 Legends Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 298,
+        "requiredPointCount": 3,
+        "historyStartAt": 1763596800000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2184,
+        "p50": 0.2429,
+        "p75": 0.2701,
+        "confidence": 0.425,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Budapest 2025 Legends Autograph Capsule": {
+      "item": "Budapest 2025 Legends Autograph Capsule",
+      "readiness": {
+        "item": "Budapest 2025 Legends Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 298,
+        "requiredPointCount": 3,
+        "historyStartAt": 1763596800000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.3506,
+        "p50": 0.3789,
+        "p75": 0.4095,
+        "confidence": 0.3861,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "eSports 2014 Summer Case": {
+      "item": "eSports 2014 Summer Case",
+      "readiness": {
+        "item": "eSports 2014 Summer Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 361,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1788994800000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 23.0245,
+        "p50": 25.8174,
+        "p75": 28.949,
+        "confidence": 0.4074,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Ambush Sticker Capsule": {
+      "item": "Ambush Sticker Capsule",
+      "readiness": {
+        "item": "Ambush Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.9324,
+        "p50": 1.0382,
+        "p75": 1.156,
+        "confidence": 0.3658,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Operation Riptide Case": {
+      "item": "Operation Riptide Case",
+      "readiness": {
+        "item": "Operation Riptide Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 15.0431,
+        "p50": 17.3367,
+        "p75": 19.9801,
+        "confidence": 0.272,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Huntsman Weapon Case": {
+      "item": "Huntsman Weapon Case",
+      "readiness": {
+        "item": "Huntsman Weapon Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 12.8295,
+        "p50": 14.8026,
+        "p75": 17.0792,
+        "confidence": 0.2689,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Budapest 2025 Contenders Sticker Capsule": {
+      "item": "Budapest 2025 Contenders Sticker Capsule",
+      "readiness": {
+        "item": "Budapest 2025 Contenders Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 298,
+        "requiredPointCount": 3,
+        "historyStartAt": 1763596800000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1797,
+        "p50": 0.1912,
+        "p75": 0.2033,
+        "confidence": 0.5849,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Austin 2025 Mirage Souvenir Highlight Package": {
+      "item": "Austin 2025 Mirage Souvenir Highlight Package",
+      "readiness": {
+        "item": "Austin 2025 Mirage Souvenir Highlight Package",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 3.6419,
+        "p50": 4.3018,
+        "p75": 5.0813,
+        "confidence": 0.1244,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "10 Year Birthday Sticker Capsule": {
+      "item": "10 Year Birthday Sticker Capsule",
+      "readiness": {
+        "item": "10 Year Birthday Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.746,
+        "p50": 0.7818,
+        "p75": 0.8192,
+        "confidence": 0.7226,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Paris 2023 Challengers Autograph Capsule": {
+      "item": "Paris 2023 Challengers Autograph Capsule",
+      "readiness": {
+        "item": "Paris 2023 Challengers Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1041,
+        "p50": 0.1226,
+        "p75": 0.1444,
+        "confidence": 0.1991,
+        "marketState": "FALLING",
+        "direction": "DOWN"
+      }
+    },
+    "Austin 2025 Contenders Sticker Capsule": {
+      "item": "Austin 2025 Contenders Sticker Capsule",
+      "readiness": {
+        "item": "Austin 2025 Contenders Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2858,
+        "p50": 0.3168,
+        "p75": 0.3511,
+        "confidence": 0.4817,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Austin 2025 Legends Sticker Capsule": {
+      "item": "Austin 2025 Legends Sticker Capsule",
+      "readiness": {
+        "item": "Austin 2025 Legends Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2616,
+        "p50": 0.2862,
+        "p75": 0.3132,
+        "confidence": 0.3571,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "Austin 2025 Legends Autograph Capsule": {
+      "item": "Austin 2025 Legends Autograph Capsule",
+      "readiness": {
+        "item": "Austin 2025 Legends Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2616,
+        "p50": 0.3658,
+        "p75": 0.5115,
+        "confidence": 0.1,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Shanghai 2024 Champions Autograph Capsule": {
+      "item": "Shanghai 2024 Champions Autograph Capsule",
+      "readiness": {
+        "item": "Shanghai 2024 Champions Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.4309,
+        "p50": 0.5107,
+        "p75": 0.6053,
+        "confidence": 0.1834,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Austin 2025 Challengers Sticker Capsule": {
+      "item": "Austin 2025 Challengers Sticker Capsule",
+      "readiness": {
+        "item": "Austin 2025 Challengers Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2587,
+        "p50": 0.2727,
+        "p75": 0.2873,
+        "confidence": 0.6394,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Jackass Sticker Capsule": {
+      "item": "Jackass Sticker Capsule",
+      "readiness": {
+        "item": "Jackass Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 66,
+        "requiredPointCount": 3,
+        "historyStartAt": 1783641600000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.8092,
+        "p50": 0.8438,
+        "p75": 0.88,
+        "confidence": 0.714,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Antwerp 2022 Contenders Sticker Capsule": {
+      "item": "Antwerp 2022 Contenders Sticker Capsule",
+      "readiness": {
+        "item": "Antwerp 2022 Contenders Sticker Capsule",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.7318,
+        "p50": 0.8321,
+        "p75": 0.9461,
+        "confidence": 0.2906,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Shanghai 2024 Legends Autograph Capsule": {
+      "item": "Shanghai 2024 Legends Autograph Capsule",
+      "readiness": {
+        "item": "Shanghai 2024 Legends Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.262,
+        "p50": 0.2969,
+        "p75": 0.3363,
+        "confidence": 0.2224,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Budapest 2025 Contenders Autograph Capsule": {
+      "item": "Budapest 2025 Contenders Autograph Capsule",
+      "readiness": {
+        "item": "Budapest 2025 Contenders Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 298,
+        "requiredPointCount": 3,
+        "historyStartAt": 1763596800000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2079,
+        "p50": 0.2792,
+        "p75": 0.3749,
+        "confidence": 0.1,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Antwerp 2022 Challengers Sticker Capsule": {
+      "item": "Antwerp 2022 Challengers Sticker Capsule",
+      "readiness": {
+        "item": "Antwerp 2022 Challengers Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.3115,
+        "p50": 0.3326,
+        "p75": 0.3551,
+        "confidence": 0.5748,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Paris 2023 Contenders Autograph Capsule": {
+      "item": "Paris 2023 Contenders Autograph Capsule",
+      "readiness": {
+        "item": "Paris 2023 Contenders Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.0969,
+        "p50": 0.1179,
+        "p75": 0.1434,
+        "confidence": 0.1,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Copenhagen 2024 Challengers Sticker Capsule": {
+      "item": "Copenhagen 2024 Challengers Sticker Capsule",
+      "readiness": {
+        "item": "Copenhagen 2024 Challengers Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.6351,
+        "p50": 0.6986,
+        "p75": 0.7684,
+        "confidence": 0.5245,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Copenhagen 2024 Contenders Autograph Capsule": {
+      "item": "Copenhagen 2024 Contenders Autograph Capsule",
+      "readiness": {
+        "item": "Copenhagen 2024 Contenders Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1906,
+        "p50": 0.2203,
+        "p75": 0.2547,
+        "confidence": 0.2591,
+        "marketState": "FALLING",
+        "direction": "UP"
+      }
+    },
+    "Shanghai 2024 Contenders Autograph Capsule": {
+      "item": "Shanghai 2024 Contenders Autograph Capsule",
+      "readiness": {
+        "item": "Shanghai 2024 Contenders Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2916,
+        "p50": 0.3431,
+        "p75": 0.4036,
+        "confidence": 0.1385,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Stockholm 2021 Champions Autograph Capsule": {
+      "item": "Stockholm 2021 Champions Autograph Capsule",
+      "readiness": {
+        "item": "Stockholm 2021 Champions Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 1.0068,
+        "p50": 1.114,
+        "p75": 1.2326,
+        "confidence": 0.4904,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Rio 2022 Challengers Sticker Capsule": {
+      "item": "Rio 2022 Challengers Sticker Capsule",
+      "readiness": {
+        "item": "Rio 2022 Challengers Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2545,
+        "p50": 0.2761,
+        "p75": 0.2995,
+        "confidence": 0.3761,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Paris 2023 Champions Autograph Capsule": {
+      "item": "Paris 2023 Champions Autograph Capsule",
+      "readiness": {
+        "item": "Paris 2023 Champions Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.2177,
+        "p50": 0.251,
+        "p75": 0.2893,
+        "confidence": 0.249,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Budapest 2025 Challengers Sticker Capsule": {
+      "item": "Budapest 2025 Challengers Sticker Capsule",
+      "readiness": {
+        "item": "Budapest 2025 Challengers Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 298,
+        "requiredPointCount": 3,
+        "historyStartAt": 1763596800000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.1839,
+        "p50": 0.2136,
+        "p75": 0.2482,
+        "confidence": 0.2403,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Antwerp 2022 Champions Autograph Capsule": {
+      "item": "Antwerp 2022 Champions Autograph Capsule",
+      "readiness": {
+        "item": "Antwerp 2022 Champions Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.4368,
+        "p50": 0.5053,
+        "p75": 0.5844,
+        "confidence": 0.1668,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "Shanghai 2024 Contenders Sticker Capsule": {
+      "item": "Shanghai 2024 Contenders Sticker Capsule",
+      "readiness": {
+        "item": "Shanghai 2024 Contenders Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.5728,
+        "p50": 0.6436,
+        "p75": 0.7231,
+        "confidence": 0.3854,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Rio 2022 Contenders Sticker Capsule": {
+      "item": "Rio 2022 Contenders Sticker Capsule",
+      "readiness": {
+        "item": "Rio 2022 Contenders Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.3266,
+        "p50": 0.3671,
+        "p75": 0.4127,
+        "confidence": 0.4211,
+        "marketState": "FALLING",
+        "direction": "DOWN"
+      }
+    },
+    "Operation Vanguard Weapon Case": {
+      "item": "Operation Vanguard Weapon Case",
+      "readiness": {
+        "item": "Operation Vanguard Weapon Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789261200000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 9.4306,
+        "p50": 10.2649,
+        "p75": 11.173,
+        "confidence": 0.5566,
+        "marketState": "RISING",
+        "direction": "UP"
+      }
+    },
+    "Paris 2023 Vertigo Souvenir Package": {
+      "item": "Paris 2023 Vertigo Souvenir Package",
+      "readiness": {
+        "item": "Paris 2023 Vertigo Souvenir Package",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.7734,
+        "p50": 2.9295,
+        "p75": 3.0944,
+        "confidence": 0.6937,
+        "marketState": "FALLING",
+        "direction": "DOWN"
+      }
+    },
+    "Antwerp 2022 Contenders Autograph Capsule": {
+      "item": "Antwerp 2022 Contenders Autograph Capsule",
+      "readiness": {
+        "item": "Antwerp 2022 Contenders Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.595,
+        "p50": 0.6775,
+        "p75": 0.7715,
+        "confidence": 0.2117,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Stockholm 2021 Legends Sticker Capsule": {
+      "item": "Stockholm 2021 Legends Sticker Capsule",
+      "readiness": {
+        "item": "Stockholm 2021 Legends Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 1.2373,
+        "p50": 1.4842,
+        "p75": 1.7804,
+        "confidence": 0.1,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Copenhagen 2024 Contenders Sticker Capsule": {
+      "item": "Copenhagen 2024 Contenders Sticker Capsule",
+      "readiness": {
+        "item": "Copenhagen 2024 Contenders Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.3843,
+        "p50": 0.4156,
+        "p75": 0.4494,
+        "confidence": 0.5988,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Collectible Pins Capsule Series 3": {
+      "item": "Collectible Pins Capsule Series 3",
+      "readiness": {
+        "item": "Collectible Pins Capsule Series 3",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 7.5426,
+        "p50": 8.965,
+        "p75": 10.6556,
+        "confidence": 0.1134,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "eSports 2013 Winter Case": {
+      "item": "eSports 2013 Winter Case",
+      "readiness": {
+        "item": "eSports 2013 Winter Case",
+        "status": "ready",
+        "historySource": "cloud",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 360,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1788843600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 19.4678,
+        "p50": 21.2373,
+        "p75": 23.1678,
+        "confidence": 0.4905,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Paris 2023 Anubis Souvenir Package": {
+      "item": "Paris 2023 Anubis Souvenir Package",
+      "readiness": {
+        "item": "Paris 2023 Anubis Souvenir Package",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.6846,
+        "p50": 2.798,
+        "p75": 2.9161,
+        "confidence": 0.7038,
+        "marketState": "STABLE",
+        "direction": "UP"
+      }
+    },
+    "Copenhagen 2024 Mirage Souvenir Package": {
+      "item": "Copenhagen 2024 Mirage Souvenir Package",
+      "readiness": {
+        "item": "Copenhagen 2024 Mirage Souvenir Package",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 3.1948,
+        "p50": 4.2711,
+        "p75": 5.71,
+        "confidence": 0.1,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "Stockholm 2021 Finalists Autograph Capsule": {
+      "item": "Stockholm 2021 Finalists Autograph Capsule",
+      "readiness": {
+        "item": "Stockholm 2021 Finalists Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.7047,
+        "p50": 0.7425,
+        "p75": 0.7822,
+        "confidence": 0.6744,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Espionage Sticker Capsule": {
+      "item": "Espionage Sticker Capsule",
+      "readiness": {
+        "item": "Espionage Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.7359,
+        "p50": 0.7797,
+        "p75": 0.826,
+        "confidence": 0.6627,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "Paris 2023 Overpass Souvenir Package": {
+      "item": "Paris 2023 Overpass Souvenir Package",
+      "readiness": {
+        "item": "Paris 2023 Overpass Souvenir Package",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 2.671,
+        "p50": 3.0241,
+        "p75": 3.4239,
+        "confidence": 0.3254,
+        "marketState": "STABLE",
+        "direction": "DOWN"
+      }
+    },
+    "CS20 Sticker Capsule": {
+      "item": "CS20 Sticker Capsule",
+      "readiness": {
+        "item": "CS20 Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.8269,
+        "p50": 0.969,
+        "p75": 1.1355,
+        "confidence": 0.142,
+        "marketState": "CHAOS",
+        "direction": "UP"
+      }
+    },
+    "Berlin 2019 Legends Autograph Capsule": {
+      "item": "Berlin 2019 Legends Autograph Capsule",
+      "readiness": {
+        "item": "Berlin 2019 Legends Autograph Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.5484,
+        "p50": 0.7814,
+        "p75": 1.1133,
+        "confidence": 0.1,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    },
+    "Shanghai 2024 Legends Sticker Capsule": {
+      "item": "Shanghai 2024 Legends Sticker Capsule",
+      "readiness": {
+        "item": "Shanghai 2024 Legends Sticker Capsule",
+        "status": "ready",
+        "historySource": "steam_ssr",
+        "retrievalSource": "persistent_cache",
+        "historyPointCount": 365,
+        "requiredPointCount": 3,
+        "historyStartAt": 1757808000000,
+        "historyEndAt": 1789257600000,
+        "forecastAsOf": 1789276271330,
+        "modelVersion": "baseline-robust-v4",
+        "cacheHit": true
+      },
+      "forecast": {
+        "p25": 0.9391,
+        "p50": 1.0529,
+        "p75": 1.1806,
+        "confidence": 0.2786,
+        "marketState": "CHAOS",
+        "direction": "DOWN"
+      }
+    }
+  }
+}

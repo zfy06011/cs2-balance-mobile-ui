@@ -2,6 +2,7 @@
  * radar：机会雷达（与后端 services/radar.py、monitor.py 对齐）。
  * 综合 C5 买入价、Steam 卖出价、双方成本、7 天预测净 ROI、流动性、风险，输出信号。
  */
+
 export interface RadarInput {
   market_hash_name: string;
   c5_buy_price: number | null;
@@ -21,6 +22,15 @@ export interface RadarInput {
   data_insufficient?: boolean;
   /** 事件价差修正（预测 features.event_adjust，如 -0.03）：用于还原未修正 P50 + 评分偏移 */
   event_adjust?: number;
+  /** ---- V4 新增维度（缺省不影响旧行为） ---- */
+  /** 变异系数（近 30 天，越低越稳定） */
+  cv?: number | null;
+  /** 趋势拟合度 R²（0-1） */
+  r2?: number | null;
+  /** 当前价在 365 天分布中的分位（0-1，>0.8 为高位） */
+  pct_365?: number | null;
+  /** 市场状态：CHAOS 时信号封顶 wait */
+  market_state?: 'STABLE' | 'RISING' | 'FALLING' | 'CHAOS' | null;
 }
 
 export interface RadarOutput {
@@ -73,12 +83,19 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
   const pessimisticRoi = roiOf(p25Sell, r.c5_buy_price, r.seller_receive_ratio ?? 0.8696, r.c5_fee_ratio ?? 0.01);
 
   let signal: 'buy' | 'wait' | 'avoid';
+  // V4：走势紊乱或长周期高位时，不允许直接给 buy
+  const chaotic = r.market_state === 'CHAOS';
+  const highPercentile = r.pct_365 != null && r.pct_365 > 0.8;
+  const cvUnstable = r.cv != null && r.cv > (p50Sell != null && p50Sell >= 100 ? 0.04 : 0.08);
   if (expectedRoi == null) {
     signal = 'wait';
   } else if (r.data_insufficient === true) {
     // 历史不足：预测不可信，绝不因预测给 buy；当前价格已明确亏损才 avoid
     signal = expectedRoi < 0 ? 'avoid' : 'wait';
-  } else if (expectedRoi >= 0.05 && pessimisticRoi != null && pessimisticRoi >= -0.02 && risk !== 'high') {
+  } else if (chaotic) {
+    // 走势紊乱：不给买入信号
+    signal = expectedRoi < 0 ? 'avoid' : 'wait';
+  } else if (expectedRoi >= 0.05 && pessimisticRoi != null && pessimisticRoi >= -0.02 && risk !== 'high' && !highPercentile && !cvUnstable) {
     signal = 'buy';
   } else if (expectedRoi >= 0 || (pessimisticRoi != null && pessimisticRoi >= -0.05)) {
     signal = 'wait';
@@ -104,6 +121,13 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
   }
   // 历史数据不足：评分封顶 40（避免「看似高分」误导）
   if (r.data_insufficient === true) score = Math.min(score, 40);
+  // V4 趋势质量：R² 高加分、低扣分；长周期高位/紊乱扣分
+  if (r.r2 != null) {
+    if (r.r2 >= 0.6) score += 4;
+    else if (r.r2 < 0.3) score -= 4;
+  }
+  if (r.pct_365 != null && r.pct_365 > 0.8) score -= 6;
+  if (chaotic) score = Math.min(score, 40);
   score = Math.max(0, Math.min(100, round(score, 1)));
 
   return {
@@ -124,6 +148,10 @@ export function evaluateRadar(r: RadarInput): RadarOutput {
       popular_rank: r.popular_rank ?? null,
       data_insufficient: r.data_insufficient === true,
       event_adjust: r.event_adjust ?? null,
+      cv: r.cv ?? null,
+      r2: r.r2 ?? null,
+      pct_365: r.pct_365 ?? null,
+      market_state: r.market_state ?? null,
     },
   };
 }
@@ -136,7 +164,8 @@ function round(v: number, digits: number): number {
 // ---- monitor：监控池 ----
 export const CORE_POOL_SIZE = 50;
 export const CANDIDATE_POOL_SIZE = 100;
-export const CASE_KEYWORDS = ['武器箱', 'case', 'Case', '胶囊', 'Stamp', 'Capsule'];
+// 扩展关键字（与 caseFilter.ts 同口径，但不跨目录导入——verify:core 编译环境限制）
+export const CASE_KEYWORDS = ['武器箱', 'case', 'Case', 'Capsule', 'capsule', 'Stamp', 'Unit', 'Terminal', 'Package', 'Box', 'Container', '箱子', '胶囊', '收藏包', '钥匙'];
 
 export function isCaseName(name: string): boolean {
   return CASE_KEYWORDS.some((k) => name.includes(k));

@@ -1,0 +1,16 @@
+{
+  "cases": [
+    { "name": "ideal", "kind": "ideal", "expectedDecision": "excellent" },
+    { "name": "thin_liquidity", "kind": "ideal", "capacity": 10, "expectedDecision": "avoid" },
+    { "name": "bad_discount", "kind": "ideal", "conservative": 0.95, "expected": 1.02, "expectedDecision": "avoid" },
+    { "name": "chaos", "kind": "ideal", "marketState": "CHAOS", "expectedDecision": "watch" },
+    { "name": "low_approx_fee", "kind": "ideal", "price": 0.18, "feeExact": false, "expectedDecision": "watch" },
+    { "name": "stale", "kind": "ideal", "stale": true, "expectedDecision": "watch" },
+    { "name": "low_market_quality", "kind": "ideal", "marketScore": 0.50, "expectedDecision": "avoid" },
+    { "name": "forecast_missing", "kind": "ideal", "forecastAvailable": false, "expectedDecision": "watch" },
+    { "name": "volume_missing", "kind": "ideal", "volumeMissing": true, "expectedDecision": "not_avoid" },
+    { "name": "c5_supply_missing", "kind": "ideal", "c5Missing": true, "expectedDecision": "not_avoid" },
+    { "name": "partial_coverage", "kind": "ideal", "coverage": 0.40, "expectedDecision": "watch" },
+    { "name": "falling_market", "kind": "ideal", "marketState": "FALLING", "expectedDecision": "not_avoid" }
+  ]
+}

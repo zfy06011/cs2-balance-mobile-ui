@@ -1,0 +1,422 @@
+{
+  "generatedAt": "2026-09-13T04:46:38.408Z",
+  "names": [
+    "CS:GO Weapon Case",
+    "Dreams & Nightmares Case",
+    "Kilowatt Case",
+    "Revolution Case",
+    "Fracture Case"
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "traces": [
+        {
+          "item": "CS:GO Weapon Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 146.3846,
+            "p50": 161.919,
+            "p75": 179.102
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "CS:GO Weapon Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 2622,
+            "forecastMs": 4,
+            "totalMs": 2626
+          }
+        },
+        {
+          "item": "Dreams & Nightmares Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 1.608,
+            "p50": 1.6916,
+            "p75": 1.7796
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "Dreams & Nightmares Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 786,
+            "forecastMs": 1,
+            "totalMs": 787
+          }
+        },
+        {
+          "item": "Kilowatt Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 0.1849,
+            "p50": 0.1926,
+            "p75": 0.2006
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "Kilowatt Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 763,
+            "forecastMs": 0,
+            "totalMs": 763
+          }
+        },
+        {
+          "item": "Revolution Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 0.3075,
+            "p50": 0.319,
+            "p75": 0.331
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "Revolution Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 752,
+            "forecastMs": 1,
+            "totalMs": 753
+          }
+        },
+        {
+          "item": "Fracture Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 0.7152,
+            "p50": 0.7355,
+            "p75": 0.7564
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "Fracture Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 862,
+            "forecastMs": 0,
+            "totalMs": 862
+          }
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "traces": [
+        {
+          "item": "CS:GO Weapon Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 146.3846,
+            "p50": 161.919,
+            "p75": 179.102
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "CS:GO Weapon Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 824,
+            "forecastMs": 0,
+            "totalMs": 824
+          }
+        },
+        {
+          "item": "Dreams & Nightmares Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 1.608,
+            "p50": 1.6916,
+            "p75": 1.7796
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "Dreams & Nightmares Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 769,
+            "forecastMs": 1,
+            "totalMs": 770
+          }
+        },
+        {
+          "item": "Kilowatt Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 0.1849,
+            "p50": 0.1926,
+            "p75": 0.2006
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "Kilowatt Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 786,
+            "forecastMs": 0,
+            "totalMs": 786
+          }
+        },
+        {
+          "item": "Revolution Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 0.3075,
+            "p50": 0.319,
+            "p75": 0.331
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "Revolution Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 1085,
+            "forecastMs": 1,
+            "totalMs": 1086
+          }
+        },
+        {
+          "item": "Fracture Case",
+          "candidateResolved": true,
+          "historyLookup": {
+            "localAttempted": false,
+            "localFound": false,
+            "cloudAttempted": false,
+            "cloudFound": false,
+            "ssrAttempted": true,
+            "ssrParsed": true,
+            "ssrStatus": 200,
+            "ssrPointCount": 365,
+            "historySource": "steam_ssr"
+          },
+          "normalizedHistory": {
+            "inputPointCount": 365,
+            "outputPointCount": 365,
+            "requiredPointCount": 3,
+            "firstTimestamp": 1757808000000,
+            "lastTimestamp": 1789257600000
+          },
+          "forecast": {
+            "attempted": true,
+            "success": true,
+            "modelVersion": "baseline-robust-v4",
+            "p25": 0.7152,
+            "p50": 0.7355,
+            "p75": 0.7564
+          },
+          "bundle": {
+            "inserted": true,
+            "readinessStatus": "ready",
+            "cacheKey": "Fracture Case|1789257600000|365|baseline-robust-v4"
+          },
+          "timing": {
+            "historyMs": 1062,
+            "forecastMs": 1,
+            "totalMs": 1063
+          }
+        }
+      ]
+    }
+  ]
+}

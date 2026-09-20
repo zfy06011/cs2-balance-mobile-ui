@@ -11,23 +11,21 @@ import {
   RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, Quote } from '../api/client';
+import { api } from '../api/client';
 import { scanService, ScanState } from '../data/scanService';
 import { settingsEvents } from '../data/storage';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
-import { colors, riskColors } from '../theme/colors';
-import { displayNameOf, fmtMoney, fmtZhe, SIGNAL_TEXT } from '../utils/format';
+import { colors } from '../theme/colors';
 import { runBuyFlow } from '../utils/buyFlow';
+import { OpportunityCard } from '../ui/opportunity/OpportunityCard';
+import { useOpportunitySnapshot } from '../ui/opportunity/useOpportunitySnapshot';
+import { selectOpportunityCards, type OpportunityCardViewModel } from '../ui/opportunity/opportunityViewModel';
 
 interface Props {
-  onOpenMarket: () => void;
-  onOpenRadar: () => void;
   onOpenSimulate: () => void;
   onOpenDetail: (name: string) => void;
-  /** 打开「快速导入历史（云端 / C5 官方趋势）」 */
-  onOpenHistImport?: () => void;
 }
 
 function statusText(lastUpdated: string | null): { text: string; color: string } {
@@ -39,26 +37,20 @@ function statusText(lastUpdated: string | null): { text: string; color: string }
   return { text: '数据过期', color: colors.danger };
 }
 
-export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDetail, onOpenHistImport }: Props) {
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+export function HomeScreen({ onOpenSimulate, onOpenDetail }: Props) {
   const [status, setStatus] = useState<{ lastUpdated: string | null; snapshotCount: number; itemCount: number } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [scan, setScan] = useState<ScanState>(scanService.getState());
   const [collectCount, setCollectCount] = useState(20);
+  const [collectError, setCollectError] = useState<string | null>(null);
+  const { snapshot, loading, refreshing, error, reload, refreshLive, liveRefreshing, liveError } = useOpportunitySnapshot();
+  const cards = React.useMemo(() => snapshot ? selectOpportunityCards(snapshot, { sort: 'decision' }) : [], [snapshot]);
 
   const load = useCallback(async () => {
     try {
-      const [m, h] = await Promise.all([api.markets(), api.health()]);
-      setQuotes(m);
+      const h = await api.health();
       setStatus({ lastUpdated: h.lastUpdated, snapshotCount: h.snapshotCount, itemCount: h.itemCount });
-      setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '加载失败');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      // snapshot 自身的错误由 useOpportunitySnapshot 负责；状态卡失败不清空旧数据。
     }
   }, []);
 
@@ -79,44 +71,37 @@ export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDe
 
   const startCollect = async () => {
     if (scan.running) return;
-    setError(null);
+    setCollectError(null);
     try {
       const stats = await scanService.start(collectCount);
+      await reload();
+      void refreshLive(stats.candidateNames);
       await load();
-      if (stats.success === 0 && stats.skipped === 0) setError('采集失败：请检查网络后重试');
+      if (stats.success === 0 && stats.skipped === 0) setCollectError('采集失败：请检查网络后重试');
     } catch (e) {
-      setError(e instanceof Error ? e.message : '采集失败');
+      setCollectError(e instanceof Error ? e.message : '采集失败');
     }
   };
 
-  const quickBackfill = async () => {
-    if (scan.running) return;
-    setError(null);
-    try {
-      const res = await scanService.quickBackfill(collectCount);
-      await load();
-      setError(`快速补历史完成：${res.rounds} 轮，新采 ${res.success} 个点${res.failed > 0 ? `，失败 ${res.failed}` : ''}（不再有「历史不足」即为补齐）`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '补历史失败');
-    }
-  };
-
-  const best: Quote | null = quotes[0] ?? null;
-  const buyCount = quotes.filter((q) => q.signal === 'buy').length;
-  const waitCount = quotes.filter((q) => q.signal === 'wait').length;
-  const avoidCount = quotes.filter((q) => q.signal === 'avoid').length;
+  const best: OpportunityCardViewModel | null = cards[0] ?? null;
+  const signalOf = (card: OpportunityCardViewModel): string => card.decision === 'legacy'
+    ? card.legacySignal ?? 'waiting'
+    : card.decision === 'excellent' || card.decision === 'buy' ? 'buy' : card.decision === 'watch' ? 'wait' : 'avoid';
+  const buyCount = cards.filter((q) => signalOf(q) === 'buy').length;
+  const waitCount = cards.filter((q) => signalOf(q) === 'wait').length;
+  const avoidCount = cards.filter((q) => signalOf(q) === 'avoid').length;
   const st = statusText(status?.lastUpdated ?? null);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void reload(); void load(); }} />}
       >
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>宇额助手</Text>
-            <Text style={styles.subtitle}>C5GAME 买入 → 7 天限制期 → Steam 卖出</Text>
+            <Text style={styles.localMode}>完全本地运行</Text>
           </View>
           <View style={styles.statusBox}>
             <Text style={[styles.statusText, { color: st.color }]}>● {st.text}</Text>
@@ -151,55 +136,59 @@ export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDe
             <TouchableOpacity onPress={startCollect}>
               <Card style={styles.collectCard}>
                 <Text style={styles.collectTitle}>📡 一键扫描（{collectCount} 个）</Text>
-                <Text style={styles.collectDesc}>Steam 热门武器箱 → C5GAME 买入价，本地完成分析与预测</Text>
               </Card>
             </TouchableOpacity>
-            <TouchableOpacity onPress={quickBackfill}>
-              <Text style={styles.backfillLink}>⚡ 历史不足？快速补历史（连扫 4 轮，约 5–8 分钟）</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onOpenHistImport}>
-              <Text style={styles.backfillLink}>🔁 快速导入历史（云端 / C5 官方趋势）</Text>
-            </TouchableOpacity>
+            {liveRefreshing ? <Text style={styles.collectDesc}>正在更新实时盘口…</Text> : null}
+            {liveError ? <Text style={[styles.collectDesc, { color: colors.warning }]}>实时盘口更新失败，当前仍显示本地结果</Text> : null}
           </View>
         )}
 
         {loading ? <Loading msg="正在获取市场分析…" /> : null}
-        {!loading && error ? <ErrorView message={error} onRetry={load} /> : null}
+        {!loading && (error || collectError) ? <ErrorView message={error ?? collectError ?? '加载失败'} onRetry={load} /> : null}
 
-        {!loading && !error && quotes.length === 0 ? (
+        {!loading && !error && !collectError && cards.length === 0 ? (
           <Card>
             <Text style={styles.empty}>暂无本地行情数据。点击上方「一键扫描」拉取最新武器箱价格，或到底部「我的」页配置采集数量。</Text>
           </Card>
         ) : null}
 
-        {!loading && !error && best ? (
+        {!loading && !error && !collectError && best ? (
           <>
             {/* 核心：预计几折 */}
-            <Card style={styles.heroCard}>
-              <View style={styles.heroHead}>
-                <Text style={styles.heroLabel} numberOfLines={1}>{displayNameOf(best.market_hash_name)}</Text>
-                <SignalBadge signal={best.signal} />
-              </View>
-              <Text style={styles.heroBig}>{fmtZhe(best.expected_discount)}</Text>
-              <Text style={styles.heroHint}>预计几折（越低越划算）· 今日最值得关注</Text>
-              <View style={styles.heroRow}>
-                <Text style={styles.heroTag}>C5 买入 {fmtMoney(best.c5_buy_price)}</Text>
-                <Text style={styles.heroArrow}>→</Text>
-                <Text style={[styles.heroTag, { color: colors.success }]}>Steam 到手 {fmtMoney(best.steam_net_receive)}</Text>
-              </View>
-              <View style={styles.heroBtns}>
-                <TouchableOpacity
-                  style={[styles.buyBtn, best.c5_buy_price == null && { opacity: 0.5 }]}
-                  onPress={() => runBuyFlow({ name: best.market_hash_name })}
-                  disabled={best.c5_buy_price == null}
-                >
-                  <Text style={styles.buyBtnText}>🛒 一键买入</Text>
+            {snapshot?.mode === 'v2' ? (
+              <>
+                <OpportunityCard card={best} />
+                <TouchableOpacity style={styles.detailBtn} onPress={() => onOpenDetail(best.item)}>
+                  <Text style={styles.detailBtnText}>查看 v2 详情</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.detailBtn} onPress={() => onOpenDetail(best.market_hash_name)}>
-                  <Text style={styles.detailBtnText}>查看详情</Text>
-                </TouchableOpacity>
-              </View>
-            </Card>
+              </>
+            ) : (
+              <Card style={styles.heroCard}>
+                <View style={styles.heroHead}>
+                  <Text style={styles.heroLabel} numberOfLines={1}>{best.displayNameZh}</Text>
+                  <SignalBadge signal={signalOf(best)} />
+                </View>
+                <Text style={styles.heroBig}>{best.expectedDiscountText ?? '--'}</Text>
+                <Text style={styles.heroHint}>预计几折（越低越划算）· 今日最值得关注</Text>
+                <View style={styles.heroRow}>
+                  <Text style={styles.heroTag}>C5 买入 {best.c5BuyPriceText ?? '--'}</Text>
+                  <Text style={styles.heroArrow}>→</Text>
+                  <Text style={[styles.heroTag, { color: colors.success }]}>Steam 到手 {best.steamNetReceiveText ?? '--'}</Text>
+                </View>
+                <View style={styles.heroBtns}>
+                  <TouchableOpacity
+                    style={[styles.buyBtn, best.c5BuyPriceText === '--' && { opacity: 0.5 }]}
+                    onPress={() => runBuyFlow({ name: best.item })}
+                    disabled={best.c5BuyPriceText === '--'}
+                  >
+                    <Text style={styles.buyBtnText}>🛒 一键买入</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.detailBtn} onPress={() => onOpenDetail(best.item)}>
+                    <Text style={styles.detailBtnText}>查看详情</Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            )}
 
             {/* 结论聚合 */}
             <Card>
@@ -207,43 +196,32 @@ export function HomeScreen({ onOpenMarket, onOpenRadar, onOpenSimulate, onOpenDe
               <Row label="推荐购买" value={`${buyCount} 个`} valueColor={colors.success} />
               <Row label="可以观察" value={`${waitCount} 个`} valueColor={colors.warning} />
               <Row label="暂时别买" value={`${avoidCount} 个`} valueColor={colors.danger} />
-              <Text style={styles.note}>信号综合预计几折、7 天预测、流动性、风险，仅作参考，不构成投资建议。</Text>
             </Card>
 
             {/* 低价机会 Top 3 */}
             <SectionTitle>当前最划算 Top 3</SectionTitle>
-            {quotes.slice(0, 3).map((q, idx) => (
-              <TouchableOpacity key={q.market_hash_name} onPress={() => onOpenDetail(q.market_hash_name)}>
+            {cards.slice(0, 3).map((q, idx) => (
+              <TouchableOpacity key={q.item} onPress={() => onOpenDetail(q.item)}>
                 <Card style={styles.itemCard}>
                   <View style={styles.itemHeader}>
                     <Text style={styles.rank}>#{idx + 1}</Text>
-                    <Text style={styles.itemName} numberOfLines={1}>{displayNameOf(q.market_hash_name)}</Text>
-                    <Text style={[styles.itemZhe, { color: q.expected_discount != null && q.expected_discount <= 0.95 ? colors.success : colors.warning }]}>
-                      {fmtZhe(q.expected_discount)}
+                    <Text style={styles.itemName} numberOfLines={1}>{q.displayNameZh}</Text>
+                    <Text style={[styles.itemZhe, { color: colors.warning }]}>
+                      {q.expectedDiscountText ?? '--'}
                     </Text>
                   </View>
-                  <Row label="预计赚/亏（7 天后）" value={q.net_profit != null ? `${q.net_profit >= 0 ? '+' : ''}${fmtMoney(q.net_profit)}` : '--'} valueColor={q.net_profit != null && q.net_profit >= 0 ? colors.success : colors.danger} />
+                  <Row label="预计赚/亏（7 天后）" value={q.netProfitText ?? '--'} valueColor={colors.textDim} />
                   <View style={styles.tagsRow}>
-                    <Text style={[styles.tag, { color: riskColors[q.signal === 'buy' ? 'low' : q.signal === 'wait' ? 'medium' : 'high'] ?? colors.textDim }]}>
-                      结论：{SIGNAL_TEXT[q.signal] ?? q.signal}
-                    </Text>
-                    <Text style={[styles.tag, { color: colors.info }]}>成交量 {q.steam_volume != null ? q.steam_volume : '--'}</Text>
+                    <Text style={[styles.tag, { color: colors.textDim }]}>结论：{q.decisionLabel}</Text>
+                    <Text style={[styles.tag, { color: colors.info }]}>成交量 {q.steamVolumeText ?? '--'}</Text>
                   </View>
                 </Card>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity onPress={onOpenMarket}>
-              <Text style={styles.moreLink}>查看全部市场 →</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={onOpenRadar}>
-              <Text style={styles.moreLink}>机会雷达（全池信号）→</Text>
-            </TouchableOpacity>
           </>
         ) : null}
 
         {/* 资金模拟入口 */}
-        <SectionTitle>我有 X 元预算？</SectionTitle>
         <TouchableOpacity onPress={onOpenSimulate}>
           <Card style={styles.simCard}>
             <Text style={styles.simTitle}>🎯 资金模拟与目标余额反推</Text>
@@ -260,14 +238,13 @@ const styles = StyleSheet.create({
   content: { padding: 14, paddingBottom: 32 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   title: { color: colors.text, fontSize: 22, fontWeight: '800' },
-  subtitle: { color: colors.textDim, fontSize: 12, marginTop: 4 },
+  localMode: { color: colors.textDim, fontSize: 11, marginTop: 2 },
   statusBox: { alignItems: 'flex-end', maxWidth: 150 },
   statusText: { fontSize: 13, fontWeight: '800' },
   statusTime: { color: colors.textDim, fontSize: 10, marginTop: 3, textAlign: 'right' },
   collectCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary },
   collectTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   collectDesc: { color: colors.textDim, fontSize: 13, marginTop: 6, lineHeight: 18 },
-  backfillLink: { color: colors.info, fontSize: 12, textAlign: 'center', paddingVertical: 8 },
   heroCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary, padding: 18 },
   heroHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   heroLabel: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1 },
@@ -291,9 +268,7 @@ const styles = StyleSheet.create({
   itemZhe: { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
   tagsRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
   tag: { fontSize: 12 },
-  moreLink: { color: colors.primary, fontSize: 14, fontWeight: '600', textAlign: 'center', paddingVertical: 8 },
   empty: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
-  note: { color: colors.textDim, fontSize: 12, marginTop: 8, lineHeight: 17 },
   simCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary },
   simTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   simDesc: { color: colors.textDim, fontSize: 13, marginTop: 6, lineHeight: 18 },

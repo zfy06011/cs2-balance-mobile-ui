@@ -1,0 +1,11 @@
+{
+  "disagreementCases": [
+    { "old": "buy", "decision": "watch", "expected": "OLD_POSITIVE_NEW_WATCH" },
+    { "old": "buy", "decision": "avoid", "expected": "OLD_POSITIVE_NEW_AVOID" },
+    { "old": "wait", "decision": "buy", "expected": "OLD_WAIT_NEW_BUY" },
+    { "old": "avoid", "decision": "excellent", "expected": "OLD_AVOID_NEW_BUY" },
+    { "old": "wait", "decision": "watch", "expected": "AGREE_NEUTRAL" },
+    { "old": "avoid", "decision": "avoid", "expected": "AGREE_NEGATIVE" },
+    { "old": "buy", "decision": "buy", "expected": "AGREE_POSITIVE" }
+  ]
+}

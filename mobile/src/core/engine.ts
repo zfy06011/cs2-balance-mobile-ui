@@ -4,29 +4,71 @@
  * 与后端 routes 的产出结构保持一致，UI 无需关心数据来自本地还是后端。
  */
 import {
-  storage, LocalSnapshot, LOCK_HOURS, LOCK_DAYS,
+  storage, LocalSnapshot, LOCK_HOURS, LOCK_DAYS, HISTORY_KEEP,
 } from '../data/storage';
-import { collectCases, collectOne, CollectProgress, CollectStats } from '../data/collector';
-import { parsePriceHistory, resolveOwnSteamId, normalizeSteamId } from '../data/steam';
+import { collectOne, CollectStats } from '../data/collector';
+import { resolveOwnSteamId, normalizeSteamId } from '../data/steam';
 import { fetchSkinportHistory, SkinportStats } from '../data/skinport';
-import { fetchC5StatsBulk, fetchC5PriceTrend, fetchC5ItemIdViaWeb, fetchC5Inventory } from '../data/c5';
-import { fetchCloudHistory, cloudPointsToHistory } from '../data/cloudHistory';
+import { fetchC5StatsBulk, fetchC5Inventory } from '../data/c5';
+import { fetchSteamHistorySsr } from '../data/steamHistorySsr';
+import { getDetailCache, setDetailCache, clearDetailCache } from './detailCache';
+import { getAnalysisCache, setAnalysisCache, bumpAnalysisGeneration } from './analysisCache';
 
 let skinportCache: Map<string, { t: number; v: SkinportStats | null }> | null = null;
+/** Skinport 缓存容量上限（v1.8.5）：满了丢最早写入的，避免长期使用后无界增长 */
+const SKINPORT_CACHE_MAX = 300;
 import { ProfitCalculator } from './profit';
-import { BaselinePredictor, BaselinePredictorV3, MARKET_EVENTS, type MarketEvent } from './prediction';
+import { BaselinePredictor, BaselinePredictorV4, MARKET_EVENTS, type MarketEvent } from './prediction';
 import { evaluateRadar } from './radar';
 import { simulate as runSimulation, reverseTarget, SimItemInput, SIM_CONFIG } from './simulation';
 import { checkPurchase, BuyProtection, BuyCheckResult, buildBuySummary } from './buy';
 import { planSteamSync, buildC5EmptySyncReason } from './steamSync';
 import { buildSellAdvice, buildC5BuyAdvice, AdvicePoint } from './advice';
+import { summarizeHoldings } from './holdings';
 import { DEFAULT_FEES } from './fees';
 import type {
-  Quote, RadarItem, Prediction, Scenario, InventoryEntry, Simulation, OrderRecord, HistoryPoint,
+  Quote, RadarItem, Prediction, Scenario, InventoryEntry, HoldingsSummary, Simulation, OrderRecord, HistoryPoint,
 } from './types';
 
-const predictor = new BaselinePredictorV3();
+const predictor = new BaselinePredictorV4();
 const calc = new ProfitCalculator(DEFAULT_FEES.c5_buy_fee_ratio, DEFAULT_FEES.steam_seller_receive_ratio);
+
+/**
+ * 单箱历史补拉（详情页专用）：本地点不足时直连 Steam SSR 并落库。
+ * 只允许单箱调用——绝不可放进批量串行循环（v1.6.2 教训）。
+ * Steam 市场页可直连并提供官方日线。
+ * 带超时 + 每箱 10 分钟节流，失败静默降级。
+ */
+const backfillAt = new Map<string, number>();
+const BACKFILL_THROTTLE_MS = 10 * 60 * 1000;
+/** 节流表容量上限（v1.8.5）：只用于「该箱最近一次补拉时间」，满了丢最旧的即可 */
+const BACKFILL_MAX = 500;
+
+async function backfillHistoryIfThin(name: string, minPoints = 15): Promise<void> {
+  try {
+    const existing = await storage.getSteamHistory(name, minPoints);
+    if (existing.length >= minPoints) return;
+    const last = backfillAt.get(name) ?? 0;
+    if (Date.now() - last < BACKFILL_THROTTLE_MS) return;
+    backfillAt.set(name, Date.now());
+    while (backfillAt.size > BACKFILL_MAX) {
+      const oldest = backfillAt.keys().next().value as string | undefined;
+      if (oldest == null) break;
+      backfillAt.delete(oldest);
+    }
+
+    try {
+      const ssrPts = await fetchSteamHistorySsr(name, 365);
+      if (ssrPts.length > 0) {
+        await storage.mergeSteamHistory(name, ssrPts);
+        clearDetailCache(name);
+        return;
+      }
+    } catch {}
+  } catch {
+    return;
+  }
+}
 
 export interface AppStatus {
   status: string;
@@ -70,6 +112,10 @@ function toRadarItem(name: string, c5Price: number | null, steamPrice: number, s
     popular_rank: typeof pred.features?.popular_rank === 'number' ? pred.features.popular_rank : null,
     data_insufficient: pred.features?.data_insufficient === true,
     event_adjust: eventAdjust,
+    cv: typeof pred.features?.cv === 'number' ? pred.features.cv : null,
+    r2: typeof pred.features?.r2 === 'number' ? pred.features.r2 : null,
+    pct_365: typeof pred.features?.pct_365 === 'number' ? pred.features.pct_365 : null,
+    market_state: typeof pred.features?.market_state === 'string' ? pred.features.market_state as 'STABLE' | 'RISING' | 'FALLING' | 'CHAOS' : null,
   });
   // 预计几折：以 7 天预测 P50 作为卖出价估算（总成本 / 预测净到手）
   let discount: number | null = null;
@@ -81,6 +127,7 @@ function toRadarItem(name: string, c5Price: number | null, steamPrice: number, s
     market_hash_name: name,
     c5_buy_price: c5Price,
     steam_sell_price: steamPrice,
+    steam_net_receive: round(calc.steamNetReceive(steamPrice), 4),
     expected_roi: rr.expected_roi,
     expected_discount: discount != null ? round(discount, 6) : null,
     risk_level: rr.risk_level,
@@ -95,28 +142,50 @@ interface PredictExtra {
   volume?: number | null;
   volumeHistory?: number[];
   popularRank?: number | null;
+  /** 与 prices 等长的时间戳（毫秒），V4 长周期特征用 */
+  timestamps?: number[];
+  /** 与 prices 等长的成交量（可为 null），V4 波动/量价特征用 */
+  volumes?: Array<number | null>;
   /** 市场事件日历（默认注入 Steam 2026 大促） */
   events?: MarketEvent[];
 }
 
-/** 一次性取齐预测所需输入（Steam 最新价 / C5 价 / 价格历史 / 成交量历史 / 热门排名） */
-async function collectPredictInputs(name: string): Promise<{
+interface PredictInputs {
   steam: LocalSnapshot | null;
   c5: LocalSnapshot | null;
+  /** 全部本地 Steam 价格点（升序，≤HISTORY_KEEP） */
   prices: number[];
+  timestamps: number[];
+  volumes: Array<number | null>;
   volumeHistory: number[];
   volume: number | null;
   popularRank: number | null;
-}> {
-  const steam = await storage.getLatestSteam(name);
-  const c5 = await storage.getLatestC5(name);
-  const prices = await storage.getSteamPrices(name);
-  const hist = await storage.getSteamHistory(name, 60);
-  const volumeHistory = hist.map((h) => h.volume ?? 0).filter((v) => v > 0);
+}
+
+/** 一次性取齐预测所需输入（Steam 最新价 / C5 价 / 价格历史 / 成交量历史 / 热门排名） */
+async function collectPredictInputs(name: string): Promise<PredictInputs> {
+  const [steam, c5, series] = await Promise.all([
+    storage.getLatestSteam(name),
+    storage.getLatestC5(name),
+    storage.getSteamHistory(name, HISTORY_KEEP),
+  ]);
+  const prices: number[] = [];
+  const timestamps: number[] = [];
+  const volumes: Array<number | null> = [];
+  for (const s of series) {
+    if (s.price > 0) {
+      prices.push(s.price);
+      timestamps.push(new Date(s.fetchedAt).getTime());
+      volumes.push(s.volume ?? null);
+    }
+  }
+  const volumeHistory = volumes.filter((v): v is number => v != null && v > 0).slice(-60);
   return {
     steam,
     c5,
     prices,
+    timestamps,
+    volumes,
     volumeHistory,
     volume: steam?.volume ?? null,
     popularRank: steam?.popular_rank ?? null,
@@ -132,6 +201,8 @@ function buildPrediction(name: string, c5Price: number | null, prices: number[],
     volume: extra.volume ?? null,
     volumeHistory: extra.volumeHistory,
     popularRank: extra.popularRank ?? null,
+    timestamps: extra.timestamps,
+    volumes: extra.volumes,
     events: extra.events ?? MARKET_EVENTS,
   });
   const scenarios: Scenario[] = [];
@@ -163,6 +234,53 @@ function buildPrediction(name: string, c5Price: number | null, prices: number[],
   };
 }
 
+/**
+ * 纯本地分析（v1.8.2 切页提速）：取输入 → 报价 → 预测，结果进 detailCache。
+ * quote / detail / markets / radar 全部共用它，同一箱只算一次；
+ * 从列表点进详情页即命中缓存，瞬间打开。绝不联网（批量路径禁止逐箱联网）。
+ */
+async function analyzeLocal(name: string): Promise<{ quote: Quote; prediction: Prediction | null }> {
+  const cached = getDetailCache<{ quote: Quote; prediction: Prediction | null }>(name);
+  if (cached) return cached;
+  const inp = await collectPredictInputs(name);
+  const quote = buildQuote(name, inp);
+  let prediction: Prediction | null = null;
+  if (inp.steam && inp.steam.price != null) {
+    try {
+      const c5Price = inp.c5?.price ?? null;
+      prediction = buildPrediction(name, c5Price, inp.prices, {
+        volume: inp.volume,
+        volumeHistory: inp.volumeHistory,
+        popularRank: inp.popularRank,
+        timestamps: inp.timestamps,
+        volumes: inp.volumes,
+      });
+    } catch {
+      // 预测失败：报价照常返回（图表不画预测扇区）
+    }
+  }
+  const result = { quote, prediction };
+  setDetailCache(name, result);
+  return result;
+}
+
+/**
+ * 有界并发遍历（v1.8.2 切页提速）：串行逐箱算太慢，全并发又怕内存峰值。
+ * 固定 N 个 worker 抢索引，单箱异常由调用方 try/catch 隔离。
+ */
+async function runConcurrent<T>(items: T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
+  const n = Math.max(1, Math.min(limit, items.length));
+  let idx = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const i = idx++;
+      if (i >= items.length) return;
+      await task(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: n }, () => worker()));
+}
+
 function signalOf(roi: number | null): string {
   if (roi == null) return 'waiting';
   if (roi >= 0.05) return 'buy';
@@ -170,145 +288,239 @@ function signalOf(roi: number | null): string {
   return 'avoid';
 }
 
+/** 由已采集的预测输入构建报价（quote 与 detail 共用，避免重复读库） */
+function buildQuote(name: string, inp: PredictInputs): Quote {
+  const steam = inp.steam;
+  const steamPrice = steam?.price ?? null;
+  const c5Price = inp.c5?.price ?? null;
+  const result = c5Price != null && steamPrice != null ? calc.calculate(c5Price, steamPrice) : null;
+  const expectedDiscount = result != null && c5Price != null ? calc.expectedDiscount(c5Price, result.steam_net_receive) : null;
+  // 信号与雷达页统一口径（综合预测 P50/P25 + 风险 + 流动性），预测失败退回当前价 ROI 信号
+  let signal = signalOf(result?.roi ?? null);
+  let dataInsufficient = false;
+  if (steamPrice != null && inp.prices.length >= 1) {
+    try {
+      const pred = buildPrediction(name, c5Price, inp.prices, {
+        volume: inp.volume,
+        volumeHistory: inp.volumeHistory,
+        popularRank: inp.popularRank,
+        timestamps: inp.timestamps,
+        volumes: inp.volumes,
+      });
+      const breakeven = c5Price != null ? calc.breakevenSellPrice(c5Price) : null;
+      const eventAdjust = typeof pred.features?.event_adjust === 'number' ? pred.features.event_adjust : 0;
+      const eventFactor = 1 + eventAdjust;
+      const rr = evaluateRadar({
+        market_hash_name: name,
+        c5_buy_price: c5Price,
+        steam_sell_price: steamPrice,
+        steam_volume: steam?.volume ?? 0,
+        predicted_p50: eventAdjust !== 0 ? pred.p50 / eventFactor : pred.p50,
+        predicted_p25: eventAdjust !== 0 ? pred.p25 / eventFactor : pred.p25,
+        breakeven_price: breakeven,
+        volatility: typeof pred.features?.volatility === 'number' ? pred.features.volatility : 0.05,
+        prob_profit: pred.prob_profit,
+        popular_rank: inp.popularRank,
+        data_insufficient: pred.features?.data_insufficient === true,
+        event_adjust: eventAdjust,
+        cv: typeof pred.features?.cv === 'number' ? pred.features.cv : null,
+        r2: typeof pred.features?.r2 === 'number' ? pred.features.r2 : null,
+        pct_365: typeof pred.features?.pct_365 === 'number' ? pred.features.pct_365 : null,
+        market_state: typeof pred.features?.market_state === 'string' ? pred.features.market_state as 'STABLE' | 'RISING' | 'FALLING' | 'CHAOS' : null,
+      });
+      signal = rr.signal;
+      dataInsufficient = pred.features?.data_insufficient === true;
+    } catch {
+      // 保持 signalOf 兜底
+    }
+  }
+  return {
+    market_hash_name: name,
+    c5_buy_price: c5Price,
+    steam_sell_price: steamPrice,
+    steam_volume: steam?.volume ?? null,
+    popular_rank: steam?.popular_rank ?? null,
+    c5_fee_ratio: DEFAULT_FEES.c5_buy_fee_ratio,
+    steam_seller_receive_ratio: DEFAULT_FEES.steam_seller_receive_ratio,
+    lock_days: LOCK_DAYS,
+    steam_net_receive: result?.steam_net_receive ?? null,
+    net_profit: result?.net_profit ?? null,
+    roi: result?.roi ?? null,
+    expected_discount: expectedDiscount != null ? round(expectedDiscount, 6) : null,
+    breakeven_sell_price: result?.breakeven_sell_price ?? null,
+    signal,
+    data_insufficient: dataInsufficient,
+  };
+}
+
+/**
+ * 一条库存记录 → 展示用 InventoryEntry（v1.8.6 抽出：inventory() 与 holdingsOf() 共用同一口径）。
+ * 注意 days_left/hours_left 是「算的时刻」的快照值，会被 analysisCache 冻住；
+ * 界面要实时倒计时必须用 unlock_at 现算（见 core/holdings.ts）。
+ */
+async function toInventoryEntry(r: Awaited<ReturnType<typeof storage.getInventory>>[number]): Promise<InventoryEntry> {
+  const steam = await storage.getLatestSteam(r.item_name);
+  const current = steam?.price ?? null;
+  let netReceive: number | null = null;
+  let netProfit: number | null = null;
+  let roi: number | null = null;
+  let discount: number | null = null;
+  if (current != null) {
+    netReceive = current * DEFAULT_FEES.steam_seller_receive_ratio;
+    const cost = r.buy_price * (1 + DEFAULT_FEES.c5_buy_fee_ratio);
+    netProfit = netReceive - cost;
+    roi = cost ? netProfit / cost : null;
+    discount = calc.expectedDiscount(r.buy_price, netReceive);
+  }
+  const nowTs = Date.now();
+  let unlockTs: number;
+  let unlockSource: 'steam' | 'estimate' = 'estimate';
+  if (r.steam_tradable === true) {
+    // Steam 已确认可交易/可上架
+    unlockTs = nowTs - 1;
+    unlockSource = 'steam';
+  } else if (r.steam_unlock_est_at) {
+    const est = new Date(r.steam_unlock_est_at).getTime();
+    if (Number.isFinite(est)) {
+      unlockTs = Math.max(est, nowTs - 1);
+      unlockSource = 'steam';
+    } else {
+      unlockTs = new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000;
+    }
+  } else {
+    unlockTs = new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000;
+  }
+  const unlock = new Date(unlockTs);
+  const msLeft = Math.max(0, unlockTs - nowTs);
+  const hoursLeft = msLeft / 3600000;
+  const daysLeft = hoursLeft / 24;
+  const advice = buildSellAdvice(unlock.toISOString(), r.steam_tradable === true, MARKET_EVENTS);
+  return {
+    id: r.id,
+    item_name: r.item_name,
+    quantity: r.quantity,
+    buy_price: r.buy_price,
+    buy_at: r.buy_at,
+    source: r.source,
+    unlock_at: unlock.toISOString(),
+    days_left: daysLeft,
+    hours_left: hoursLeft,
+    steam_synced: !!r.steam_synced_at,
+    steam_synced_at: r.steam_synced_at ?? null,
+    steam_tradable: r.steam_tradable ?? null,
+    unlock_source: unlockSource,
+    current_estimate: current,
+    net_receive_estimate: netReceive,
+    net_profit_estimate: netProfit,
+    roi_estimate: roi,
+    expected_discount_estimate: discount != null ? round(discount, 6) : null,
+    sell_advice_code: advice.code,
+    sell_advice_text: advice.text,
+  };
+}
+
 export const engine = {
   // ---- 状态 ----
   async status(): Promise<AppStatus> {
-    const snaps = await storage.getSnapshots();
-    const names = new Set(snaps.map((s) => s.name));
+    const cached = getAnalysisCache<AppStatus>('status');
+    if (cached) return cached;
+    const stats = await storage.getSnapshotStats();
     const settings = await storage.getSettings();
-    const latest = snaps.map((s) => s.fetchedAt).sort().reverse()[0] ?? null;
-    return {
+    const out: AppStatus = {
       status: 'ok',
       app: 'CS2余额助手（纯手机版）',
       local: true,
-      snapshotCount: snaps.length,
-      itemCount: names.size,
+      snapshotCount: stats.count,
+      itemCount: stats.itemCount,
       c5Configured: !!settings.c5AppKey.trim(),
-      lastUpdated: latest,
+      lastUpdated: stats.lastUpdated,
     };
+    setAnalysisCache('status', out);
+    return out;
   },
 
   // ---- 采集 ----
-  refresh: collectCases,
-  collectOne,
+  async collectOne(name: string): Promise<CollectStats & { c5Price: number | null }> {
+    const stats = await collectOne(name);
+    clearDetailCache(name);
+    bumpAnalysisGeneration();
+    return stats;
+  },
 
   // ---- 报价（单个） ----
   async quote(name: string): Promise<Quote> {
-    const inp = await collectPredictInputs(name);
-    const steam = inp.steam;
-    const c5 = inp.c5;
-    const steamPrice = steam?.price ?? null;
-    const c5Price = c5?.price ?? null;
-    const result = c5Price != null && steamPrice != null ? calc.calculate(c5Price, steamPrice) : null;
-    const expectedDiscount = result != null && c5Price != null ? calc.expectedDiscount(c5Price, result.steam_net_receive) : null;
-    // 信号与雷达页统一口径（综合预测 P50/P25 + 风险 + 流动性），预测失败退回当前价 ROI 信号
-    let signal = signalOf(result?.roi ?? null);
-    let dataInsufficient = false;
-    if (steamPrice != null && inp.prices.length >= 1) {
-      try {
-        const pred = buildPrediction(name, c5Price, inp.prices, {
-          volume: inp.volume,
-          volumeHistory: inp.volumeHistory,
-          popularRank: inp.popularRank,
-        });
-        const breakeven = c5Price != null ? calc.breakevenSellPrice(c5Price) : null;
-        const eventAdjust = typeof pred.features?.event_adjust === 'number' ? pred.features.event_adjust : 0;
-        const eventFactor = 1 + eventAdjust;
-        const rr = evaluateRadar({
-          market_hash_name: name,
-          c5_buy_price: c5Price,
-          steam_sell_price: steamPrice,
-          steam_volume: steam?.volume ?? 0,
-          predicted_p50: eventAdjust !== 0 ? pred.p50 / eventFactor : pred.p50,
-          predicted_p25: eventAdjust !== 0 ? pred.p25 / eventFactor : pred.p25,
-          breakeven_price: breakeven,
-          volatility: typeof pred.features?.volatility === 'number' ? pred.features.volatility : 0.05,
-          prob_profit: pred.prob_profit,
-          popular_rank: inp.popularRank,
-          data_insufficient: pred.features?.data_insufficient === true,
-          event_adjust: eventAdjust,
-        });
-        signal = rr.signal;
-        dataInsufficient = pred.features?.data_insufficient === true;
-      } catch {
-        // 保持 signalOf 兜底
-      }
-    }
-    return {
-      market_hash_name: name,
-      c5_buy_price: c5Price,
-      steam_sell_price: steamPrice,
-      steam_volume: steam?.volume ?? null,
-      popular_rank: steam?.popular_rank ?? null,
-      c5_fee_ratio: DEFAULT_FEES.c5_buy_fee_ratio,
-      steam_seller_receive_ratio: DEFAULT_FEES.steam_seller_receive_ratio,
-      lock_days: LOCK_DAYS,
-      steam_net_receive: result?.steam_net_receive ?? null,
-      net_profit: result?.net_profit ?? null,
-      roi: result?.roi ?? null,
-      expected_discount: expectedDiscount != null ? round(expectedDiscount, 6) : null,
-      breakeven_sell_price: result?.breakeven_sell_price ?? null,
-      signal,
-      data_insufficient: dataInsufficient,
-    };
+    return (await analyzeLocal(name)).quote;
+  },
+
+  /**
+   * 详情页一次取齐（v1.8.2：补历史后走共享分析，不再重复预测）。
+   * 预测失败降级为 null（quote 照常返回），任何预测异常都不会让整页打不开。
+   */
+  async detail(name: string): Promise<{ quote: Quote; prediction: Prediction | null }> {
+    const cached = getDetailCache<{ quote: Quote; prediction: Prediction | null }>(name);
+    if (cached) return cached;
+    // 本地点不足时先补拉一次历史（单箱、带节流；SSR 优先，见 backfillHistoryIfThin）
+    await backfillHistoryIfThin(name);
+    return analyzeLocal(name);
   },
 
   // ---- 市场（全部报价，预计几折从低到高） ----
   async markets(): Promise<Quote[]> {
-    const snaps = await storage.getSnapshots();
-    const names = [...new Set(snaps.map((s) => s.name))];
+    const cached = getAnalysisCache<Quote[]>('markets');
+    if (cached) return cached;
+    const names = await storage.getSnapshotNames();
     const out: Quote[] = [];
-    for (const name of names) {
+    await runConcurrent(names, 4, async (name) => {
       try {
-        out.push(await this.quote(name));
+        // 共享分析：顺带把结果填进 detailCache，从列表点进详情即命中
+        out.push((await analyzeLocal(name)).quote);
       } catch {
-        continue;
+        // 单箱失败不影响整体
       }
-    }
+    });
     out.sort((a, b) => {
       const da = a.expected_discount == null ? Infinity : a.expected_discount;
       const db = b.expected_discount == null ? Infinity : b.expected_discount;
       if (da !== db) return da - db;
       return a.market_hash_name.localeCompare(b.market_hash_name);
     });
+    setAnalysisCache('markets', out);
     return out;
   },
 
   // ---- 雷达 ----
   async radar(): Promise<RadarItem[]> {
-    const snaps = await storage.getSnapshots();
-    const names = [...new Set(snaps.map((s) => s.name))];
+    const cached = getAnalysisCache<RadarItem[]>('radar');
+    if (cached) return cached;
+    const names = await storage.getSnapshotNames();
     const out: RadarItem[] = [];
-    for (const name of names) {
-      const inp = await collectPredictInputs(name);
-      const steam = inp.steam;
-      if (!steam || steam.price == null) continue;
-      const c5Price = inp.c5?.price ?? null;
-      try {
-        // 只用真实 Steam 历史预测；不足 4 点时由 V2 标记 data_insufficient，雷达封顶 wait
-        const pred = buildPrediction(name, c5Price, inp.prices, {
-          volume: inp.volume,
-          volumeHistory: inp.volumeHistory,
-          popularRank: inp.popularRank,
-        });
-        out.push(toRadarItem(name, c5Price, steam.price, steam.volume ?? 0, pred));
-      } catch {
-        continue;
-      }
-    }
+    await runConcurrent(names, 4, async (name) => {
+      const { quote, prediction } = await analyzeLocal(name);
+      if (quote.steam_sell_price == null) return;
+      if (!prediction) return;
+      out.push(toRadarItem(name, quote.c5_buy_price, quote.steam_sell_price, quote.steam_volume ?? 0, prediction));
+    });
     out.sort((a, b) => {
       const da = a.expected_discount == null ? Infinity : a.expected_discount;
       const db = b.expected_discount == null ? Infinity : b.expected_discount;
       if (da !== db) return da - db;
       return b.score - a.score;
     });
+    setAnalysisCache('radar', out);
     return out;
   },
 
-  // ---- 历史（简单趋势用） ----
-  async history(name: string, limit = 7): Promise<HistoryPoint[]> {
+  async history(name: string, limit = 120): Promise<HistoryPoint[]> {
     const rows = await storage.getSteamHistory(name, limit);
-    return rows.map((r) => ({ price: r.price, fetchedAt: r.fetchedAt }));
+    const local = rows.map((r) => ({ price: r.price, fetchedAt: r.fetchedAt, volume: r.volume ?? null }));
+    if (local.length >= 7) return local;
+    try {
+      const ssr = await fetchSteamHistorySsr(name, limit);
+      if (ssr.length > local.length) {
+        return ssr.map((p) => ({ price: p.price, fetchedAt: `${p.date}T08:00:00.000Z`, volume: p.volume }));
+      }
+    } catch {}
+    return local;
   },
 
   // ---- 预测 ----
@@ -325,69 +537,30 @@ export const engine = {
 
   // ---- 库存 ----
   async inventory(): Promise<InventoryEntry[]> {
+    const cached = getAnalysisCache<InventoryEntry[]>('inventory');
+    if (cached) return cached;
     const rows = await storage.getInventory();
     const out: InventoryEntry[] = [];
-    for (const r of rows) {
-      const steam = await storage.getLatestSteam(r.item_name);
-      const current = steam?.price ?? null;
-      let netReceive: number | null = null;
-      let netProfit: number | null = null;
-      let roi: number | null = null;
-      let discount: number | null = null;
-      if (current != null) {
-        netReceive = current * DEFAULT_FEES.steam_seller_receive_ratio;
-        const cost = r.buy_price * (1 + DEFAULT_FEES.c5_buy_fee_ratio);
-        netProfit = netReceive - cost;
-        roi = cost ? netProfit / cost : null;
-        discount = calc.expectedDiscount(r.buy_price, netReceive);
-      }
-      const nowTs = Date.now();
-      let unlockTs: number;
-      let unlockSource: 'steam' | 'estimate' = 'estimate';
-      if (r.steam_tradable === true) {
-        // Steam 已确认可交易/可上架
-        unlockTs = nowTs - 1;
-        unlockSource = 'steam';
-      } else if (r.steam_unlock_est_at) {
-        const est = new Date(r.steam_unlock_est_at).getTime();
-        if (Number.isFinite(est)) {
-          unlockTs = Math.max(est, nowTs - 1);
-          unlockSource = 'steam';
-        } else {
-          unlockTs = new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000;
-        }
-      } else {
-        unlockTs = new Date(r.buy_at).getTime() + LOCK_HOURS * 3600000;
-      }
-      const unlock = new Date(unlockTs);
-      const msLeft = Math.max(0, unlockTs - nowTs);
-      const hoursLeft = msLeft / 3600000;
-      const daysLeft = hoursLeft / 24;
-      const advice = buildSellAdvice(unlock.toISOString(), r.steam_tradable === true, MARKET_EVENTS);
-      out.push({
-        id: r.id,
-        item_name: r.item_name,
-        quantity: r.quantity,
-        buy_price: r.buy_price,
-        buy_at: r.buy_at,
-        source: r.source,
-        unlock_at: unlock.toISOString(),
-        days_left: daysLeft,
-        hours_left: hoursLeft,
-        steam_synced: !!r.steam_synced_at,
-        steam_tradable: r.steam_tradable ?? null,
-        unlock_source: unlockSource,
-        current_estimate: current,
-        net_receive_estimate: netReceive,
-        net_profit_estimate: netProfit,
-        roi_estimate: roi,
-        expected_discount_estimate: discount != null ? round(discount, 6) : null,
-        sell_advice_code: advice.code,
-        sell_advice_text: advice.text,
-      });
-    }
+    for (const r of rows) out.push(await toInventoryEntry(r));
     out.sort((a, b) => a.unlock_at.localeCompare(b.unlock_at));
+    setAnalysisCache('inventory', out);
     return out;
+  },
+
+  /**
+   * 某个箱子的持仓（v1.8.6 详情页「我的持仓」用）。
+   * 只查这个箱子的记录（不拉全表）；没有持仓返回 null。
+   * 返回 summary（汇总）+ entries（原始记录，进度条/逐笔明细用）。
+   * 不缓存：持仓随买入/同步变化，且剩余时间必须实时（调用方传 now 现算）。
+   */
+  async holdingsOf(name: string): Promise<{ summary: HoldingsSummary; entries: InventoryEntry[] } | null> {
+    const rows = await storage.getInventoryByName(name);
+    if (rows.length === 0) return null;
+    const entries: InventoryEntry[] = [];
+    for (const r of rows) entries.push(await toInventoryEntry(r));
+    const summary = summarizeHoldings(entries, Date.now());
+    if (!summary) return null;
+    return { summary, entries };
   },
 
   /** Skinport 实际成交统计（免 Key 免登录；10 分钟内存缓存） */
@@ -399,6 +572,11 @@ export const engine = {
       const map = await fetchSkinportHistory([name]);
       const v = map[name] ?? null;
       skinportCache.set(name, { t: Date.now(), v });
+      while (skinportCache.size > SKINPORT_CACHE_MAX) {
+        const oldest = skinportCache.keys().next().value as string | undefined;
+        if (oldest == null) break;
+        skinportCache.delete(oldest);
+      }
       return v;
     } catch {
       return null;
@@ -426,154 +604,18 @@ export const engine = {
       source: 'c5game',
     });
     const unlock = new Date(new Date(entry.buy_at).getTime() + LOCK_HOURS * 3600000);
+    bumpAnalysisGeneration();
     return { id: entry.id, unlock_at: unlock.toISOString(), days: LOCK_DAYS };
   },
 
   /** 同步 Steam 库存 → 用真实冷却校正本地库存解锁时间（精确到小时） */
-  /** 会话导入历史的目标清单：Steam 价格点不足 14 的名字优先（升序），供网页内导入 */
-  async listHistoryTargets(limit = 60): Promise<string[]> {
-    const snaps = await storage.getSnapshots();
-    const counts = new Map<string, number>();
-    for (const s of snaps) {
-      if (s.source !== 'steam' || s.price <= 0) continue;
-      counts.set(s.name, (counts.get(s.name) ?? 0) + 1);
-    }
-    const names = [...counts.entries()]
-      .filter(([, c]) => c < 14)
-      .sort((a, b) => a[1] - b[1])
-      .map(([n]) => n);
-    if (names.length > 0) return names.slice(0, limit);
-    return [...counts.keys()].slice(0, limit);
-  },
-
-  /** 网页会话抓到的 pricehistory.prices 解析入库，返回新增点数 */
-  async importSteamPriceHistoryRaw(name: string, prices: unknown): Promise<{ added: number }> {
-    const pts = parsePriceHistory(prices, 120);
-    if (pts.length === 0) return { added: 0 };
-    const added = await storage.mergeSteamHistory(name, pts);
-    return { added };
-  },
-
-  /** C5 历史导入目标清单：Steam / C5 历史点不足 14 的名字优先（升序），供 C5 快速通道 */
-  async c5HistoryTargets(limit = 60): Promise<string[]> {
-    const snaps = await storage.getSnapshots();
-    const counts = new Map<string, number>();
-    for (const s of snaps) {
-      if ((s.source !== 'steam' && s.source !== 'c5_hist') || s.price <= 0) continue;
-      counts.set(s.name, (counts.get(s.name) ?? 0) + 1);
-    }
-    const names = [...counts.entries()]
-      .filter(([, c]) => c < 14)
-      .sort((a, b) => a[1] - b[1])
-      .map(([n]) => n);
-    if (names.length > 0) return names.slice(0, limit);
-    return [...counts.keys()].slice(0, limit);
-  },
-
-  /** C5 快速导入（借鉴 C5 网页趋势接口）：itemId → price-trend/chart → c5_hist 入库。
-   *  任一件失败即停止返回（UI 据此询问「跳过继续 / 停止」，不再静默跳过）。 */
-  async importC5Histories(
-    names: string[],
-    opts: { c5AppKey: string; c5Cookie: string },
-    onItem?: (done: number, total: number, name: string, added: number) => void,
-    startIdx = 0,
-  ): Promise<{
-    ok: number; skip: number; fail: number;
-    failedIdx: number | null; failedName: string | null; failedReason: string | null;
-  }> {
-    const key = (opts.c5AppKey || '').trim();
-    const cookie = (opts.c5Cookie || '').trim();
-    let ok = 0;
-    let skip = 0;
-    let fail = 0;
-    for (let i = startIdx; i < names.length; i++) {
-      const name = names[i];
-      try {
-        let itemId = '';
-        if (key) {
-          try {
-            const stats = await fetchC5StatsBulk([name], key);
-            itemId = stats[name]?.itemId ?? '';
-          } catch {
-            itemId = '';
-          }
-        }
-        if (!itemId) {
-          itemId = await fetchC5ItemIdViaWeb(name, cookie);
-        }
-        if (!itemId) {
-          throw new Error('未查到 C5 itemId（需有效 C5 app-key 或已登录的 C5 Cookie）');
-        }
-        if (!cookie) {
-          throw new Error('未配置 C5 Cookie，无法拉取趋势');
-        }
-        const pts = await fetchC5PriceTrend(itemId, cookie, '90', 120);
-        if (pts.length === 0) {
-          throw new Error('C5 趋势接口无数据（Cookie 可能已失效）');
-        }
-        const added = await storage.mergeC5History(name, pts);
-        onItem?.(i + 1, names.length, name, added);
-        if (added > 0) ok++;
-        else skip++;
-      } catch (e) {
-        fail++;
-        onItem?.(i + 1, names.length, name, 0);
-        return {
-          ok, skip, fail,
-          failedIdx: i, failedName: name,
-          failedReason: e instanceof Error ? e.message : String(e),
-        };
-      }
-    }
-    return { ok, skip, fail, failedIdx: null, failedName: null, failedReason: null };
-  },
-
-  /** 云端快速导入（Cloudflare Worker D1 缓存，零 cookie）：逐箱拉 Steam 官方全量历史入库。
-   *  任一件失败即停止返回（与 importC5Histories 同语义）；云端未收录 / 网络失败会给出原因。 */
-  async importCloudHistories(
-    names: string[],
-    workerBaseUrl: string,
-    onItem?: (done: number, total: number, name: string, added: number) => void,
-    startIdx = 0,
-  ): Promise<{
-    ok: number; skip: number; fail: number;
-    failedIdx: number | null; failedName: string | null; failedReason: string | null;
-  }> {
-    let ok = 0;
-    let skip = 0;
-    let fail = 0;
-    for (let i = startIdx; i < names.length; i++) {
-      const name = names[i];
-      try {
-        const data = await fetchCloudHistory(workerBaseUrl, name, 120);
-        const pts = cloudPointsToHistory(data.points);
-        if (pts.length === 0) {
-          throw new Error('云端尚未收录该箱（等待定时采集，或检查箱子名称）');
-        }
-        const added = await storage.mergeSteamHistory(name, pts);
-        onItem?.(i + 1, names.length, name, added);
-        if (added > 0) ok++;
-        else skip++;
-      } catch (e) {
-        fail++;
-        onItem?.(i + 1, names.length, name, 0);
-        return {
-          ok, skip, fail,
-          failedIdx: i, failedName: name,
-          failedReason: e instanceof Error ? e.message : String(e),
-        };
-      }
-    }
-    return { ok, skip, fail, failedIdx: null, failedName: null, failedReason: null };
-  },
-
   /** 库存同步唯一入口：C5 官方 OpenAPI（app-key）。v1.5.9 起库存仅走 C5 app-key：
    *  C5 服务端从 Steam 高权限通道拉库存，能看到交易保护中的物品（status=4 冷却中）；
    *  Steam Web API 对保护期账号返回空对象（v1.5.7 用户实测双 context 均 {"response":{}}），
    *  已随本版本移除 Web API 库存方式与设置项。历史价格仍走 C5 网页 cookie（OpenAPI 无历史端点）。
    *  需要 C5 app-key + SteamID64（做过 Steam 一键登录可自动识别本人 ID）。 */
   async syncSteamInventorySmart(): Promise<{
-    matched: number; unlocked: number; imported: number; notFound: number;
+    matched: number; unlocked: number; imported: number; notFound: number; removed: number;
     steamId: string; empty: boolean; assetCount: number; totalInventoryCount: number | null;
     playerName: string | null;
     source: 'c5_openapi'; reason?: string; at: string;
@@ -611,19 +653,23 @@ export const engine = {
     if (items.length === 0) {
       const reason = buildC5EmptySyncReason({ assetCount, total });
       return {
-        matched: 0, unlocked: 0, imported: 0, notFound: 0, steamId: sid, empty: true,
+        matched: 0, unlocked: 0, imported: 0, notFound: 0, removed: 0, steamId: sid, empty: true,
         assetCount, totalInventoryCount: total, playerName: null, source: 'c5_openapi', reason, at: now.toISOString(),
       };
     }
     const rows = await storage.getInventory();
-    const plan = planSteamSync(rows, items, now);
+    // allowRemoval：C5 返回了非空库存才允许清理「已不在 Steam 库存」的记录（空库存走上面的 early return）
+    const plan = planSteamSync(rows, items, now, { allowRemoval: true });
     await storage.updateInventoryCooldown(plan.updates);
     await storage.addInventoryBulk(plan.newEntries);
+    const removed = await storage.removeInventory(plan.removeIds);
+    bumpAnalysisGeneration();
     return {
       matched: plan.matched,
       unlocked: plan.unlocked,
       imported: plan.imported,
       notFound: plan.notFound,
+      removed,
       steamId: sid,
       empty: false,
       assetCount,
@@ -696,6 +742,7 @@ export const engine = {
       budget_used: pre.summary.totalCost,
     });
     const unlock = new Date(new Date(entry.buy_at).getTime() + LOCK_HOURS * 3600000);
+    bumpAnalysisGeneration();
     return {
       ok: true,
       message: `已记录买入 ${qty} × ¥${buyPrice.toFixed(2)}，预计 ${unlock.toLocaleString()} 解锁`,
