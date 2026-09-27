@@ -6,17 +6,18 @@
  * - 推荐卡片 + 一键买入（主按钮） / 查看详情（次按钮）
  * - 一键扫描采集
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  Animated, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import { scanService, ScanState } from '../data/scanService';
 import { settingsEvents } from '../data/storage';
-import { Card, Row, SectionTitle } from '../components/Card';
+import { Card } from '../components/Card';
 import { ErrorView, Loading } from '../components/Loading';
 import { SignalBadge } from '../components/SignalBadge';
+import { HomeInsights } from '../components/HomeInsights';
 import { colors } from '../theme/colors';
 import { runBuyFlow } from '../utils/buyFlow';
 import { OpportunityCard } from '../ui/opportunity/OpportunityCard';
@@ -91,6 +92,14 @@ export function HomeScreen({ onOpenSimulate, onOpenDetail }: Props) {
   const waitCount = cards.filter((q) => signalOf(q) === 'wait').length;
   const avoidCount = cards.filter((q) => signalOf(q) === 'avoid').length;
   const st = statusText(status?.lastUpdated ?? null);
+  const scanPercent = scan.progress?.total
+    ? Math.min(100, Math.round((scan.progress.done / scan.progress.total) * 100))
+    : 0;
+  const progressAnimation = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(progressAnimation, { toValue: scanPercent, duration: 300, useNativeDriver: false }).start();
+  }, [progressAnimation, scanPercent]);
+  const progressWidth = progressAnimation.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -100,13 +109,14 @@ export function HomeScreen({ onOpenSimulate, onOpenDetail }: Props) {
       >
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
+            <Text style={styles.eyebrow}>CS2 MARKET BRIEF</Text>
             <Text style={styles.title}>宇额助手</Text>
-            <Text style={styles.localMode}>完全本地运行</Text>
+            <Text style={styles.localMode}>CS2 箱子行情 · 本地分析</Text>
           </View>
           <View style={styles.statusBox}>
             <Text style={[styles.statusText, { color: st.color }]}>● {st.text}</Text>
             <Text style={styles.statusTime}>
-              {status?.lastUpdated ? `更新 ${new Date(status.lastUpdated).toLocaleString()}` : '--'}
+              {status?.lastUpdated ? `更新 ${new Date(status.lastUpdated).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '等待首次扫描'}
             </Text>
           </View>
         </View>
@@ -114,28 +124,48 @@ export function HomeScreen({ onOpenSimulate, onOpenDetail }: Props) {
         {/* 一键扫描（进度为全局状态：切页/前后台回来不丢；中断后点卡片续扫） */}
         {collecting ? (
           <Card style={styles.collectCard}>
-            <Text style={styles.collectTitle}>📡 正在扫描行情…</Text>
-            <Text style={styles.collectDesc}>
-              {scan.progress
-                ? scan.progress.message ||
-                  (scan.progress.stage === 'listing' ? '拉取热门武器箱榜单…' : `已扫描 ${scan.progress.done}/${scan.progress.total} 个`)
-                : '准备中…'}
-            </Text>
+            <View style={styles.scanRow}>
+              <View style={styles.scanMark}><Text style={styles.scanMarkText}>↻</Text></View>
+              <View style={styles.scanCopy}>
+                <Text style={styles.collectTitle}>正在扫描行情</Text>
+                <Text style={styles.collectDesc} numberOfLines={1}>
+                  {scan.progress?.message || (scan.progress ? `已完成 ${scan.progress.done}/${scan.progress.total} 个` : '正在准备数据…')}
+                </Text>
+              </View>
+              <Text style={styles.scanPercent}>{scanPercent}%</Text>
+            </View>
+            <View style={styles.scanProgressTrack} accessibilityLabel={`扫描完成 ${scanPercent}%`}>
+              <Animated.View style={[styles.scanProgressFill, { width: progressWidth }]} />
+            </View>
           </Card>
         ) : scan.progress && scan.progress.stage !== 'done' ? (
-          <TouchableOpacity onPress={startCollect}>
+          <TouchableOpacity onPress={startCollect} activeOpacity={0.78} accessibilityRole="button" accessibilityLabel="继续上次未完成的扫描">
             <Card style={styles.collectCard}>
-              <Text style={styles.collectTitle}>
-                ⏸ 上次扫描未完成（{scan.progress.done}/{scan.progress.total}），点击继续
-              </Text>
-              <Text style={styles.collectDesc}>已扫描的不会重复采集，只补缺的部分</Text>
+              <View style={styles.scanRow}>
+                <View style={styles.scanMark}><Text style={styles.scanMarkText}>↻</Text></View>
+                <View style={styles.scanCopy}>
+                  <Text style={styles.collectTitle}>继续扫描</Text>
+                  <Text style={styles.collectDesc}>已完成 {scan.progress.done}/{scan.progress.total} · 只补充缺失数据</Text>
+                </View>
+                <Text style={styles.scanChevron}>›</Text>
+              </View>
+              <View style={styles.scanProgressTrack} accessibilityLabel={`已完成 ${scanPercent}%`}>
+                <Animated.View style={[styles.scanProgressFill, { width: progressWidth }]} />
+              </View>
             </Card>
           </TouchableOpacity>
         ) : (
           <View>
-            <TouchableOpacity onPress={startCollect}>
+            <TouchableOpacity onPress={startCollect} activeOpacity={0.78} accessibilityRole="button" accessibilityLabel={`扫描行情，采集 ${collectCount} 个武器箱`}>
               <Card style={styles.collectCard}>
-                <Text style={styles.collectTitle}>📡 一键扫描（{collectCount} 个）</Text>
+                <View style={styles.scanRow}>
+                  <View style={styles.scanMark}><Text style={styles.scanMarkText}>↻</Text></View>
+                  <View style={styles.scanCopy}>
+                    <Text style={styles.collectTitle}>扫描行情</Text>
+                    <Text style={styles.collectDesc}>采集 {collectCount} 个箱子 · 自动生成分析</Text>
+                  </View>
+                  <View style={styles.scanAction}><Text style={styles.scanActionText}>开始</Text></View>
+                </View>
               </Card>
             </TouchableOpacity>
             {liveRefreshing ? <Text style={styles.collectDesc}>正在更新实时盘口…</Text> : null}
@@ -181,7 +211,7 @@ export function HomeScreen({ onOpenSimulate, onOpenDetail }: Props) {
                     onPress={() => runBuyFlow({ name: best.item })}
                     disabled={best.c5BuyPriceText === '--'}
                   >
-                    <Text style={styles.buyBtnText}>🛒 一键买入</Text>
+                    <Text style={styles.buyBtnText}>一键买入</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.detailBtn} onPress={() => onOpenDetail(best.item)}>
                     <Text style={styles.detailBtnText}>查看详情</Text>
@@ -190,42 +220,22 @@ export function HomeScreen({ onOpenSimulate, onOpenDetail }: Props) {
               </Card>
             )}
 
-            {/* 结论聚合 */}
-            <Card>
-              <SectionTitle>今日结论</SectionTitle>
-              <Row label="推荐购买" value={`${buyCount} 个`} valueColor={colors.success} />
-              <Row label="可以观察" value={`${waitCount} 个`} valueColor={colors.warning} />
-              <Row label="暂时别买" value={`${avoidCount} 个`} valueColor={colors.danger} />
-            </Card>
-
-            {/* 低价机会 Top 3 */}
-            <SectionTitle>当前最划算 Top 3</SectionTitle>
-            {cards.slice(0, 3).map((q, idx) => (
-              <TouchableOpacity key={q.item} onPress={() => onOpenDetail(q.item)}>
-                <Card style={styles.itemCard}>
-                  <View style={styles.itemHeader}>
-                    <Text style={styles.rank}>#{idx + 1}</Text>
-                    <Text style={styles.itemName} numberOfLines={1}>{q.displayNameZh}</Text>
-                    <Text style={[styles.itemZhe, { color: colors.warning }]}>
-                      {q.expectedDiscountText ?? '--'}
-                    </Text>
-                  </View>
-                  <Row label="预计赚/亏（7 天后）" value={q.netProfitText ?? '--'} valueColor={colors.textDim} />
-                  <View style={styles.tagsRow}>
-                    <Text style={[styles.tag, { color: colors.textDim }]}>结论：{q.decisionLabel}</Text>
-                    <Text style={[styles.tag, { color: colors.info }]}>成交量 {q.steamVolumeText ?? '--'}</Text>
-                  </View>
-                </Card>
-              </TouchableOpacity>
-            ))}
+            <HomeInsights
+              cards={cards.slice(0, 3)}
+              buyCount={buyCount}
+              waitCount={waitCount}
+              avoidCount={avoidCount}
+              onOpenDetail={onOpenDetail}
+            />
           </>
         ) : null}
 
         {/* 资金模拟入口 */}
         <TouchableOpacity onPress={onOpenSimulate}>
           <Card style={styles.simCard}>
-            <Text style={styles.simTitle}>🎯 资金模拟与目标余额反推</Text>
-            <Text style={styles.simDesc}>输入预算自动给出组合，或输入目标 Steam 余额反推所需本金。</Text>
+            <Text style={styles.simEyebrow}>工具</Text>
+            <Text style={styles.simTitle}>资金模拟</Text>
+            <Text style={styles.simDesc}>按预算估算组合，或反推目标余额所需本金。</Text>
           </Card>
         </TouchableOpacity>
       </ScrollView>
@@ -235,41 +245,46 @@ export function HomeScreen({ onOpenSimulate, onOpenDetail }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 14, paddingBottom: 32 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  title: { color: colors.text, fontSize: 22, fontWeight: '800' },
-  localMode: { color: colors.textDim, fontSize: 11, marginTop: 2 },
-  statusBox: { alignItems: 'flex-end', maxWidth: 150 },
-  statusText: { fontSize: 13, fontWeight: '800' },
-  statusTime: { color: colors.textDim, fontSize: 10, marginTop: 3, textAlign: 'right' },
-  collectCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary },
-  collectTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  collectDesc: { color: colors.textDim, fontSize: 13, marginTop: 6, lineHeight: 18 },
-  heroCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary, padding: 18 },
+  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 36 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 },
+  eyebrow: { color: colors.primary, fontSize: 10, lineHeight: 14, fontWeight: '800', letterSpacing: 1.2, marginBottom: 3 },
+  title: { color: colors.text, fontSize: 25, lineHeight: 30, fontWeight: '800', letterSpacing: -0.6 },
+  localMode: { color: colors.textDim, fontSize: 12, marginTop: 3 },
+  statusBox: { alignItems: 'flex-end', maxWidth: 155, paddingLeft: 12 },
+  statusText: { fontSize: 11, fontWeight: '700', backgroundColor: colors.card, overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
+  statusTime: { color: colors.textDim, fontSize: 10, marginTop: 5, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  collectCard: { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: 13, marginBottom: 20 },
+  scanRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  scanMark: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  scanMarkText: { color: colors.primary, fontSize: 23, lineHeight: 28, fontWeight: '600' },
+  scanCopy: { flex: 1, minWidth: 0 },
+  scanAction: { minHeight: 40, minWidth: 56, paddingHorizontal: 13, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  scanActionText: { color: colors.onPrimary, fontSize: 12, fontWeight: '700' },
+  scanChevron: { color: colors.primaryText, fontSize: 24, paddingHorizontal: 6 },
+  scanPercent: { color: colors.primary, fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  scanProgressTrack: { height: 5, borderRadius: 3, backgroundColor: colors.primarySoft, overflow: 'hidden', marginTop: 12 },
+  scanProgressFill: { height: 5, borderRadius: 3, backgroundColor: colors.primary },
+  collectTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  collectDesc: { color: colors.textDim, fontSize: 11, marginTop: 3, lineHeight: 16 },
+  heroCard: { backgroundColor: colors.card, borderColor: colors.borderStrong, padding: 18 },
   heroHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   heroLabel: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1 },
-  heroBig: { color: colors.text, fontSize: 64, fontWeight: '900', marginTop: 10, fontVariant: ['tabular-nums'] },
+  heroBig: { color: colors.primary, fontSize: 60, fontWeight: '800', marginTop: 10, fontVariant: ['tabular-nums'], letterSpacing: -1.4 },
   heroHint: { color: colors.textDim, fontSize: 12, marginTop: 2 },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   heroTag: { color: colors.text, fontSize: 13, fontWeight: '600' },
   heroArrow: { color: colors.textDim, fontSize: 13 },
   heroBtns: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  buyBtn: { flex: 1.4, backgroundColor: colors.success, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  buyBtnText: { color: '#06210F', fontSize: 15, fontWeight: '800' },
+  buyBtn: { flex: 1.4, minHeight: 48, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  buyBtnText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700' },
   detailBtn: {
-    flex: 1, backgroundColor: colors.card, borderRadius: 12, paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: colors.primary,
+    flex: 1, minHeight: 48, backgroundColor: colors.card, borderRadius: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.border,
   },
-  detailBtnText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
-  itemCard: { paddingVertical: 10 },
-  itemHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  rank: { color: colors.textDim, fontSize: 13, fontWeight: '700', marginRight: 8, width: 24 },
-  itemName: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 },
-  itemZhe: { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  tagsRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
-  tag: { fontSize: 12 },
+  detailBtnText: { color: colors.primaryText, fontSize: 14, fontWeight: '600' },
   empty: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
-  simCard: { backgroundColor: colors.cardAlt, borderColor: colors.primary },
-  simTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  simDesc: { color: colors.textDim, fontSize: 13, marginTop: 6, lineHeight: 18 },
+  simCard: { backgroundColor: colors.card, borderColor: colors.border },
+  simEyebrow: { color: colors.textDim, fontSize: 10, fontWeight: '700', letterSpacing: 0.6, marginBottom: 4 },
+  simTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  simDesc: { color: colors.textDim, fontSize: 12, marginTop: 4, lineHeight: 17 },
 });

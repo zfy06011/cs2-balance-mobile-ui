@@ -1,7 +1,7 @@
 /** 机会雷达：全池信号列表（PRD 第八节） */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  FlatList, Linking, RefreshControl, StyleSheet, Text, TouchableOpacity, View,
+  Animated, FlatList, Linking, RefreshControl, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { refreshMarketNews, MarketNews } from '../data/eventFeed';
@@ -62,6 +62,7 @@ export function RadarScreen({ onOpenDetail }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+      <Text style={styles.eyebrow}>SIGNAL WATCH</Text>
       <Text style={styles.header}>机会雷达</Text>
       <View style={styles.tabs}>
         {(['all', 'buy', 'wait', 'avoid'] as const).map((k) => (
@@ -69,6 +70,9 @@ export function RadarScreen({ onOpenDetail }: Props) {
             key={k}
             style={[styles.tab, filter === k && styles.tabActive]}
             onPress={() => setFilter(k)}
+            accessibilityRole="button"
+            accessibilityLabel={`${k === 'all' ? '全部' : SIGNAL_TEXT[k]}，${counts[k]} 项`}
+            accessibilityState={{ selected: filter === k }}
           >
             <Text style={[styles.tabText, filter === k && styles.tabTextActive]}>
               {k === 'all' ? '全部' : SIGNAL_TEXT[k]}{' '}{counts[k]}
@@ -128,36 +132,38 @@ interface HeaderProps {
 
 /** 列表头部（事件卡 + 历史不足提示）：高度只随 news 变化，且 news 有模块级缓存，首帧即稳定 */
 function RadarHeader({ news, mostlyInsufficient, insufficientCount, itemCount }: HeaderProps) {
+  const [newsExpanded, setNewsExpanded] = useState(false);
+  const newsHeight = React.useRef(new Animated.Value(0)).current;
+  const toggleNews = () => {
+    const next = !newsExpanded;
+    setNewsExpanded(next);
+    Animated.timing(newsHeight, { toValue: next ? 1 : 0, duration: 230, useNativeDriver: false }).start();
+  };
+
   return (
     <>
       {/* 市场事件（实时拉取：官方博客 + Steam 新闻） */}
       {news && news.items.length > 0 ? (
         <Card>
           <View style={styles.newsHead}>
-            <Text style={styles.newsTitle}>📰 市场事件</Text>
-            <Text style={styles.newsMeta}>
-              {news.failed > 0 ? `${news.failed} 个源失败 · ` : ''}
-              {new Date(news.fetchedAt).toLocaleString()}
-            </Text>
+            <Text style={styles.newsTitle}>市场事件</Text>
+            {news.items.length > 2 ? (
+              <TouchableOpacity onPress={toggleNews} accessibilityRole="button" accessibilityState={{ expanded: newsExpanded }} accessibilityLabel={newsExpanded ? '收起市场事件' : '展开市场事件'}>
+                <Text style={styles.newsToggle}>{newsExpanded ? '收起 ↑' : `展开 ${Math.min(news.items.length, 6)} 条 ↓`}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
-          {news.items.slice(0, 6).map((it, i) => (
-            <TouchableOpacity key={`${it.link}-${i}`} onPress={() => it.link && Linking.openURL(it.link)}>
-              <View style={styles.newsItem}>
-                <View style={styles.newsTags}>
-                  {it.tags.map((t) => (
-                    <Text key={t} style={[styles.newsTag, t === 'policy' && styles.newsTagPolicy]}>
-                      {t === 'policy' ? '政策/更新' : t === 'boost' ? '赛事提振' : t === 'sale' ? '特卖' : t === 'case' ? '箱子' : t === 'op' ? '行动' : t}
-                    </Text>
-                  ))}
-                </View>
-                <Text style={styles.newsItemTitle} numberOfLines={2}>{it.title}</Text>
-                <Text style={styles.newsItemMeta}>
-                  {it.source}
-                  {it.date ? ` · ${new Date(it.date).toLocaleDateString()}` : ''}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.newsMeta}>{news.failed > 0 ? `${news.failed} 个源失败 · ` : ''}{new Date(news.fetchedAt).toLocaleString()}</Text>
+          {news.items.slice(0, 2).map((it, i) => <NewsRow key={`${it.link}-${i}`} item={it} />)}
+          {news.items.length > 2 ? (
+            <Animated.View
+              style={[styles.newsMore, { maxHeight: newsHeight.interpolate({ inputRange: [0, 1], outputRange: [0, 520] }), opacity: newsHeight }]}
+              pointerEvents={newsExpanded ? 'auto' : 'none'}
+              importantForAccessibility={newsExpanded ? 'auto' : 'no-hide-descendants'}
+            >
+              {news.items.slice(2, 6).map((it, i) => <NewsRow key={`${it.link}-${i + 2}`} item={it} />)}
+            </Animated.View>
+          ) : null}
           <Text style={styles.newsHint}>标签为关键词推断：政策/更新类事件需警惕价格波动；赛事/节日通常提振需求。点击可打开原文。</Text>
         </Card>
       ) : null}
@@ -170,6 +176,24 @@ function RadarHeader({ news, mostlyInsufficient, insufficientCount, itemCount }:
         </Card>
       ) : null}
     </>
+  );
+}
+
+function NewsRow({ item }: { item: MarketNews['items'][number] }) {
+  return (
+    <TouchableOpacity onPress={() => item.link && Linking.openURL(item.link)} accessibilityRole="link" accessibilityLabel={item.title}>
+      <View style={styles.newsItem}>
+        <View style={styles.newsTags}>
+          {item.tags.map((tag) => (
+            <Text key={tag} style={[styles.newsTag, tag === 'policy' && styles.newsTagPolicy]}>
+              {tag === 'policy' ? '政策/更新' : tag === 'boost' ? '赛事提振' : tag === 'sale' ? '特卖' : tag === 'case' ? '箱子' : tag === 'op' ? '行动' : tag}
+            </Text>
+          ))}
+        </View>
+        <Text style={styles.newsItemTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.newsItemMeta}>{item.source}{item.date ? ` · ${new Date(item.date).toLocaleDateString()}` : ''}</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -201,19 +225,22 @@ const RadarRow = React.memo(function RadarRow({ card }: { card: OpportunityCardV
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  header: { color: colors.text, fontSize: 22, fontWeight: '800', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8 },
+  eyebrow: { color: colors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 1.1, paddingHorizontal: 18, paddingTop: 14 },
+  header: { color: colors.text, fontSize: 25, fontWeight: '800', paddingHorizontal: 18, paddingTop: 4, paddingBottom: 12 },
   tabs: { flexDirection: 'row', paddingHorizontal: 14, gap: 8, marginBottom: 8 },
   tab: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
-  tabTextActive: { color: '#FFFFFF' },
+  tabTextActive: { color: colors.onPrimary },
   insufficientBanner: { color: colors.warning, fontSize: 13, lineHeight: 19 },
-  newsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  newsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   newsTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  newsMeta: { color: colors.textDim, fontSize: 10 },
+  newsToggle: { color: colors.primaryText, fontSize: 12, fontWeight: '700', paddingVertical: 8 },
+  newsMeta: { color: colors.textDim, fontSize: 10, marginBottom: 4 },
+  newsMore: { overflow: 'hidden' },
   newsItem: { paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border },
   newsTags: { flexDirection: 'row', gap: 6, marginBottom: 4 },
   newsTag: {

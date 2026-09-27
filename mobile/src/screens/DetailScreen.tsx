@@ -39,7 +39,7 @@ function conclusionOf(q: Quote | null, card: OpportunityCardViewModel | null, mo
 
 export function DetailScreen({ name, onBack }: Props) {
   const { width: winWidth } = useWindowDimensions();
-  const chartWidth = Math.max(280, Math.min(winWidth - 56, 640));
+  const chartWidth = Math.max(240, Math.min(winWidth - 72, 640));
   const [quote, setQuote] = useState<Quote | null>(null);
   const [pred, setPred] = useState<Prediction | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -50,6 +50,7 @@ export function DetailScreen({ name, onBack }: Props) {
   const [c5Msg, setC5Msg] = useState<string | null>(null);
   const [refreshingOne, setRefreshingOne] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [chartRange, setChartRange] = useState<7 | 30 | 90>(30);
   const [buying, setBuying] = useState(false);
   const [c5Stats, setC5Stats] = useState<C5StatsResult | null>(null);
   const [c5StatsMsg, setC5StatsMsg] = useState<string | null>(null);
@@ -162,14 +163,17 @@ export function DetailScreen({ name, onBack }: Props) {
     return typeof m === 'number' ? m : null;
   }, [pred]);
 
-  // 为 SVG 趋势图准备数据：历史折线（取近 30 天）+ 预测扇区
+  // 以最近一条可用快照为终点切换走势范围，避免旧快照被误当成今天的数据。
   const chartPoints: ChartPoint[] = useMemo(() => {
-    return history.slice(-30).map((h) => ({
+    const validTimes = history.map((point) => new Date(point.fetchedAt).getTime()).filter(Number.isFinite);
+    const newest = validTimes.length ? Math.max(...validTimes) : 0;
+    const cutoff = newest - chartRange * 24 * 60 * 60 * 1000;
+    return history.filter((point) => new Date(point.fetchedAt).getTime() >= cutoff).map((h) => ({
       date: h.fetchedAt.slice(0, 10),
       price: h.price,
       volume: h.volume ?? null,
     }));
-  }, [history]);
+  }, [history, chartRange]);
 
   const predictionBand: PredictionBand | null = useMemo(() => {
     if (!pred) return null;
@@ -181,10 +185,10 @@ export function DetailScreen({ name, onBack }: Props) {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.navBar}>
-        <Text style={styles.back} onPress={onBack}>‹ 返回</Text>
+        <Text style={styles.back} onPress={onBack} accessibilityRole="button" accessibilityLabel="返回市场">‹ 返回</Text>
         <View style={styles.navCenter}>
           <Text style={styles.navTitle} numberOfLines={1}>{displayNameOf(name)}</Text>
-          <Text style={styles.navRaw} numberOfLines={1}>{name}</Text>
+          <Text style={styles.navRaw} numberOfLines={1}>MARKET DETAIL · {name}</Text>
         </View>
         <View style={{ width: 60 }} />
       </View>
@@ -202,11 +206,11 @@ export function DetailScreen({ name, onBack }: Props) {
 
             <Card style={styles.hero}>
               <View style={styles.heroHead}>
-                <Text style={styles.heroName} numberOfLines={1}>{displayNameOf(name)}</Text>
+                <Text style={styles.heroEyebrow}>核心估值</Text>
                 <SignalBadge signal={opportunityCard ? opportunityCard.decision === 'legacy' ? opportunityCard.legacySignal ?? 'waiting' : opportunityCard.decision === 'excellent' || opportunityCard.decision === 'buy' ? 'buy' : opportunityCard.decision === 'watch' ? 'wait' : 'avoid' : quote.signal} />
               </View>
               <Text style={styles.heroBig}>{opportunityCard?.expectedDiscountText ?? fmtZhe(quote.expected_discount)}</Text>
-              <Text style={styles.heroHint}>预计几折余额 · 越低越划算</Text>
+              <Text style={styles.heroHint}>预估折扣 · 数值越低越划算</Text>
               <Text style={styles.conclusion}>{conclusionOf(quote, opportunityCard, momentum)}</Text>
             </Card>
 
@@ -312,8 +316,25 @@ export function DetailScreen({ name, onBack }: Props) {
             </Card>
 
             {/* 价格走势（SVG 折线 + 预测扇区 + 成交量柱，参考 C5 交易详情页） */}
-            <SectionTitle>价格走势（近 30 天）</SectionTitle>
+            <SectionTitle>价格走势</SectionTitle>
             <Card>
+              <View style={styles.chartToolbar}>
+                <Text style={styles.chartCaption}>截至最近快照 · 近 {chartRange} 天</Text>
+                <View style={styles.chartRanges}>
+                  {([7, 30, 90] as const).map((days) => (
+                    <TouchableOpacity
+                      key={days}
+                      style={[styles.chartRange, chartRange === days && styles.chartRangeActive]}
+                      onPress={() => setChartRange(days)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`查看近 ${days} 天价格走势`}
+                      accessibilityState={{ selected: chartRange === days }}
+                    >
+                      <Text style={[styles.chartRangeText, chartRange === days && styles.chartRangeTextActive]}>{days}天</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
               {quote.data_insufficient === true ? (
                 <Text style={[styles.predNote, { color: colors.warning }]}>⚠️ 历史数据不足，预测仅供参考，信号已保守处理</Text>
               ) : null}
@@ -394,7 +415,7 @@ export function DetailScreen({ name, onBack }: Props) {
           }}
         >
           <Text style={styles.buyBtnText}>
-            {buying ? '处理中…' : quote?.c5_buy_price == null ? '暂无买入价' : `🛒 一键买入 · ${fmtZhe(quote.expected_discount)}`}
+            {buying ? '处理中…' : quote?.c5_buy_price == null ? '暂无买入价' : `一键买入 · ${fmtZhe(quote.expected_discount)}`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -406,35 +427,42 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   navBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 8,
+    paddingHorizontal: 14, paddingVertical: 8, minHeight: 56,
   },
-  back: { color: colors.primary, fontSize: 15, fontWeight: '600', width: 60 },
+  back: { color: colors.primary, fontSize: 14, fontWeight: '700', width: 64, minHeight: 48, textAlignVertical: 'center' },
   navCenter: { flex: 1, alignItems: 'center' },
   navTitle: { color: colors.text, fontSize: 16, fontWeight: '800', maxWidth: '100%' },
-  navRaw: { color: colors.textDim, fontSize: 10, marginTop: 2, maxWidth: '100%' },
-  content: { padding: 14, paddingBottom: 100 },
-  hero: { backgroundColor: colors.cardAlt, borderColor: colors.primary, padding: 18 },
-  heroHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  heroName: { color: colors.text, fontSize: 16, fontWeight: '800', flex: 1 },
-  heroBig: { color: colors.text, fontSize: 56, fontWeight: '900', marginTop: 8, fontVariant: ['tabular-nums'] },
+  navRaw: { color: colors.textDim, fontSize: 9, marginTop: 3, maxWidth: '100%', letterSpacing: 0.8 },
+  content: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 110 },
+  hero: { backgroundColor: colors.card, borderColor: colors.borderStrong, padding: 20 },
+  heroHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 },
+  heroEyebrow: { color: colors.textDim, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+  heroBig: { color: colors.primary, fontSize: 58, lineHeight: 66, fontWeight: '800', marginTop: 8, fontVariant: ['tabular-nums'], letterSpacing: -1.4 },
   heroHint: { color: colors.textDim, fontSize: 12, marginTop: 2 },
   conclusion: { color: colors.text, fontSize: 14, marginTop: 10, lineHeight: 20 },
   predNote: { color: colors.textDim, fontSize: 12, marginTop: 8, lineHeight: 17 },
-  collapseToggle: { color: colors.primary, fontSize: 14, fontWeight: '600', textAlign: 'center', paddingVertical: 8 },
+  chartToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+  chartCaption: { color: colors.textDim, fontSize: 11, flexShrink: 1 },
+  chartRanges: { flexDirection: 'row', padding: 3, borderRadius: 12, backgroundColor: colors.surfaceRaised },
+  chartRange: { minWidth: 42, minHeight: 40, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+  chartRangeActive: { backgroundColor: colors.card },
+  chartRangeText: { color: colors.textDim, fontSize: 11, fontWeight: '600' },
+  chartRangeTextActive: { color: colors.primaryText, fontWeight: '800' },
+  collapseToggle: { color: colors.primary, fontSize: 14, fontWeight: '600', textAlign: 'center', paddingVertical: 10, minHeight: 48 },
   hint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
   inputRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   input: {
-    backgroundColor: colors.cardAlt, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surfaceInset, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     color: colors.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
   },
   smallBtn: {
-    backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14,
+    backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
     alignItems: 'center', justifyContent: 'center',
   },
-  smallBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  smallBtnText: { color: colors.onPrimary, fontSize: 13, fontWeight: '700' },
   btnGhost: {
-    backgroundColor: colors.cardAlt, borderRadius: 10, paddingVertical: 11, alignItems: 'center',
-    borderWidth: 1, borderColor: colors.primary,
+    backgroundColor: colors.card, borderRadius: 12, paddingVertical: 11, alignItems: 'center', minHeight: 48,
+    borderWidth: 1, borderColor: colors.primaryBorder,
   },
   btnGhostText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
   c5Msg: { color: colors.info, fontSize: 12, marginTop: 10 },
@@ -443,6 +471,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10,
     backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border,
   },
-  buyBtn: { backgroundColor: colors.success, borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
-  buyBtnText: { color: '#06210F', fontSize: 16, fontWeight: '800' },
+  buyBtn: { minHeight: 48, backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  buyBtnText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
 });

@@ -30,6 +30,8 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
   const [radarTargetZhe, setRadarTargetZhe] = useState('7');
   const [clearModal, setClearModal] = useState(false);
   const [clearSel, setClearSel] = useState({ snapshots: true, inventory: true, orders: true });
+  const [openSections, setOpenSections] = useState({ sources: true, limits: false });
+  const [saving, setSaving] = useState(false);
 
   const loadStatus = async () => {
     try {
@@ -54,6 +56,8 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
   }, []);
 
   const saveSettings = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       await api.updateSettings({
         c5AppKey: c5Key.trim(),
@@ -69,6 +73,8 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
       loadStatus();
     } catch (e) {
       setMsg(`保存失败：${e instanceof Error ? e.message : '未知错误'}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -104,7 +110,8 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Text style={styles.header}>设置</Text>
+      <Text style={styles.eyebrow}>LOCAL CONTROL</Text>
+      <Text style={styles.header}>我的</Text>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content}>
           <Card>
@@ -118,14 +125,14 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
 
           {IS_RC_BUILD && onOpenQualification ? (
             <TouchableOpacity style={styles.rcCard} onPress={onOpenQualification}>
-              <Text style={styles.rcTitle}>🧪 真机资格检测</Text>
+              <Text style={styles.rcTitle}>真机资格检测</Text>
               <Text style={styles.hint}>RC 包内置 live v2 burn-in、故障保护和检测报告导出。</Text>
             </TouchableOpacity>
           ) : null}
 
           <Card>
             <SectionTitle>扫描数量</SectionTitle>
-            <Text style={styles.hint}>首页「📡 一键扫描」每次扫描的武器箱数量，拖动即改、即时生效（1-100 个）。数量越大耗时越长（每个约 2 秒）；中断后重扫只补缺的。</Text>
+            <Text style={styles.hint}>首页「一键扫描」每次扫描的武器箱数量，拖动即改、即时生效（1-100 个）。数量越大耗时越长（每个约 2 秒）；中断后重扫只补缺的。</Text>
             <Text style={styles.countValue}>{count} 个</Text>
             <Slider
               style={styles.slider}
@@ -133,9 +140,9 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
               maximumValue={100}
               step={1}
               value={count}
-              minimumTrackTintColor={colors.primary}
+              minimumTrackTintColor={colors.primaryText}
               maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
+              thumbTintColor={colors.primaryText}
               onValueChange={(v) => setCount(Math.round(v))}
               onSlidingComplete={(v) => {
                 const c = Math.round(v);
@@ -151,7 +158,18 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
           </Card>
 
           <Card>
-            <SectionTitle>数据源配置</SectionTitle>
+            <TouchableOpacity
+              style={styles.sectionToggle}
+              onPress={() => setOpenSections((current) => ({ ...current, sources: !current.sources }))}
+              accessibilityRole="button"
+              accessibilityLabel="数据源配置"
+              accessibilityState={{ expanded: openSections.sources }}
+            >
+              <SectionTitle>数据源配置</SectionTitle>
+              <Text style={styles.sectionToggleText}>{openSections.sources ? '收起 ↑' : '展开 ↓'}</Text>
+            </TouchableOpacity>
+            {openSections.sources ? (
+              <>
             <Text style={styles.hint}>库存与价格统一走 C5GAME 官方 OpenAPI（app-key，免费注册：opendoc.c5game.com）。「⟳ 同步库存」与 C5 买入价都需要它。</Text>
             <TextInput
               style={styles.input}
@@ -166,7 +184,7 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
             <Text style={styles.hint}>Steam 一键登录：App 内登录一次，凭证自动保存，用于搜索榜提额与自动识别 SteamID64（库存与买入价走 C5 app-key，不依赖 cookie）。手填 Cookie 仅作备用（浏览器 F12 复制整行 Cookie）。</Text>
             <View style={styles.countRow}>
               <TouchableOpacity style={[styles.btnPrimary, { flex: 1, paddingVertical: 12 }]} onPress={onCookieLogin}>
-                <Text style={styles.btnPrimaryText}>🔐 Steam 一键登录</Text>
+                <Text style={styles.btnPrimaryText}>Steam 一键登录</Text>
               </TouchableOpacity>
             </View>
             <TextInput
@@ -189,17 +207,30 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
               autoCorrect={false}
             />
             <View style={styles.btnRow}>
-              <TouchableOpacity style={[styles.btnPrimary, { flex: 1 }]} onPress={saveSettings}>
-                <Text style={styles.btnPrimaryText}>保存设置</Text>
+              <TouchableOpacity style={[styles.btnPrimary, { flex: 1 }, saving && styles.btnBusy]} onPress={saveSettings} disabled={saving} accessibilityRole="button" accessibilityState={{ disabled: saving, busy: saving }}>
+                <Text style={styles.btnPrimaryText}>{saving ? '保存中…' : '保存设置'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.btnGhost, { flex: 1 }]} onPress={testSteam}>
                 <Text style={styles.btnGhostText}>测试 Steam 搜索</Text>
               </TouchableOpacity>
             </View>
+              </>
+            ) : <Text style={styles.sectionSummary}>C5 app-key、Steam 登录和库存账号</Text>}
           </Card>
 
           <Card>
-            <SectionTitle>购买保护与目标折扣</SectionTitle>
+            <TouchableOpacity
+              style={styles.sectionToggle}
+              onPress={() => setOpenSections((current) => ({ ...current, limits: !current.limits }))}
+              accessibilityRole="button"
+              accessibilityLabel="购买保护与目标折扣"
+              accessibilityState={{ expanded: openSections.limits }}
+            >
+              <SectionTitle>购买保护与目标折扣</SectionTitle>
+              <Text style={styles.sectionToggleText}>{openSections.limits ? '收起 ↑' : '展开 ↓'}</Text>
+            </TouchableOpacity>
+            {openSections.limits ? (
+              <>
             <Text style={styles.hint}>0 表示不限制。一键买入前自动核验：超过限价/预算、未达到目标折扣会直接拦截；异常波动会二次确认。雷达目标折扣：预计折扣低于该值才提醒。</Text>
             <TextInput
               style={styles.input}
@@ -233,9 +264,11 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
               placeholderTextColor={colors.textDim}
               keyboardType="decimal-pad"
             />
-            <TouchableOpacity style={[styles.btnPrimary]} onPress={saveSettings}>
-              <Text style={styles.btnPrimaryText}>保存设置</Text>
+            <TouchableOpacity style={[styles.btnPrimary, saving && styles.btnBusy]} onPress={saveSettings} disabled={saving} accessibilityRole="button" accessibilityState={{ disabled: saving, busy: saving }}>
+              <Text style={styles.btnPrimaryText}>{saving ? '保存中…' : '保存设置'}</Text>
             </TouchableOpacity>
+              </>
+            ) : <Text style={styles.sectionSummary}>限价、预算与雷达提醒阈值</Text>}
           </Card>
 
           <Card>
@@ -299,14 +332,18 @@ export function SettingsScreen({ onCookieLogin, onOpenQualification }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  header: { color: colors.text, fontSize: 22, fontWeight: '800', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8 },
+  eyebrow: { color: colors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 1.1, paddingHorizontal: 18, paddingTop: 14 },
+  header: { color: colors.text, fontSize: 25, fontWeight: '800', paddingHorizontal: 18, paddingTop: 4, paddingBottom: 12 },
   content: { padding: 14, paddingBottom: 40 },
+  sectionToggle: { minHeight: 48, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sectionToggleText: { color: colors.primaryText, fontSize: 12, fontWeight: '700' },
+  sectionSummary: { color: colors.textDim, fontSize: 12, marginTop: 2 },
   hint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
-  rcCard: { backgroundColor: colors.cardAlt, borderRadius: 14, borderWidth: 1, borderColor: colors.primary, padding: 14, marginBottom: 12 },
+  rcCard: { backgroundColor: colors.cardAlt, borderRadius: 14, borderWidth: 1, borderColor: colors.primaryBorder, padding: 14, marginBottom: 12 },
   rcTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 4 },
   input: {
-    backgroundColor: colors.cardAlt, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
-    color: colors.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 10,
+    minHeight: 48, backgroundColor: colors.surfaceInset, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+    color: colors.text, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, marginBottom: 10,
   },
   countRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   modalMask: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
@@ -316,22 +353,23 @@ const styles = StyleSheet.create({
   modalTitle: { color: colors.text, fontSize: 17, fontWeight: '800', marginBottom: 6 },
   modalHint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
   modalRow: { flexDirection: 'row', gap: 10, paddingVertical: 8, alignItems: 'flex-start' },
-  modalCheck: { color: colors.primary, fontSize: 20, lineHeight: 24 },
-  modalCheckOn: { color: colors.primary },
+  modalCheck: { color: colors.primaryText, fontSize: 20, lineHeight: 24 },
+  modalCheckOn: { color: colors.primaryText },
   modalRowTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   modalRowDesc: { color: colors.textDim, fontSize: 11, marginTop: 2, lineHeight: 15 },
   countValue: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 4 },
   slider: { width: '100%', height: 40 },
   sliderScale: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   sliderScaleText: { color: colors.textDim, fontSize: 11 },
-  btnPrimary: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  btnPrimaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  btnPrimary: { minHeight: 48, backgroundColor: colors.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  btnBusy: { opacity: 0.62 },
+  btnPrimaryText: { color: colors.onPrimary, fontSize: 15, fontWeight: '700' },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
   btnGhost: {
     backgroundColor: colors.cardAlt, borderRadius: 10, paddingVertical: 12, alignItems: 'center',
-    borderWidth: 1, borderColor: colors.primary,
+    borderWidth: 1, borderColor: colors.primaryBorder,
   },
-  btnGhostText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  btnGhostText: { color: colors.primaryText, fontSize: 14, fontWeight: '700' },
   btnDanger: {
     borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 10,
     borderWidth: 1, borderColor: colors.danger,

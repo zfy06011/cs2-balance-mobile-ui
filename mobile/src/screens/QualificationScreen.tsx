@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AppState, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Row, SectionTitle } from '../components/Card';
 import { colors } from '../theme/colors';
@@ -81,9 +81,14 @@ export function QualificationScreen({ onBack }: Props) {
 
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.nav}><Text style={styles.back} onPress={onBack}>‹ 返回</Text><Text style={styles.title}>真机资格检测</Text><View style={{ width: 60 }} /></View>
-      <View style={styles.content}>
-        <Card style={styles.rcBanner}><Text style={styles.rcTitle}>宇额助手 RC · v2 Qualification</Text><Text style={styles.hint}>真实 live feed；预计约 1 小时。保持充电，App 被杀后会从 kv 状态继续。</Text></Card>
+      <View style={styles.nav}><Text style={styles.back} onPress={onBack} accessibilityRole="button" accessibilityLabel="返回设置">‹ 返回</Text><Text style={styles.title}>真机资格检测</Text><View style={{ width: 60 }} /></View>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Card style={styles.rcBanner}>
+          <Text style={styles.rcTitle}>宇额助手 RC · v2 Qualification</Text>
+          <Text style={styles.hint}>真实 live feed；预计约 1 小时。保持充电，App 被杀后会从 kv 状态继续。</Text>
+          <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.min(100, Math.round(current.records.length / QUALIFICATION_BURNIN_ROUNDS * 100))}%` }]} /></View>
+          <Text style={styles.progressLabel}>已完成 {Math.min(QUALIFICATION_BURNIN_ROUNDS, current.records.length)} / {QUALIFICATION_BURNIN_ROUNDS} 轮</Text>
+        </Card>
         <Card>
           <Row label="状态" value={stageText(current.stage)} />
           <Row label="自动 Burn-in" value={`${Math.min(QUALIFICATION_BURNIN_ROUNDS, current.records.length)} / ${QUALIFICATION_BURNIN_ROUNDS}`} />
@@ -112,25 +117,28 @@ export function QualificationScreen({ onBack }: Props) {
         <TouchableOpacity style={styles.secondary} onPress={share}><Text style={styles.secondaryText}>导出/分享检测摘要</Text></TouchableOpacity>
         {current.stage !== 'idle' ? <TouchableOpacity style={styles.reset} onPress={() => run(resetQualification)}><Text style={styles.resetText}>重置本次检测</Text></TouchableOpacity> : null}
         <Text style={styles.hint}>RC 包不会修改正式 App、默认算法、版本号或远程配置。完成后请把摘要分享给 Codex 审核。</Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 },
-  back: { color: colors.primary, fontSize: 15, width: 60 },
+  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 8, minHeight: 56 },
+  back: { color: colors.primaryText, fontSize: 15, width: 60, minHeight: 48, textAlignVertical: 'center' },
   title: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  content: { padding: 14, gap: 10 },
-  rcBanner: { backgroundColor: colors.cardAlt, borderColor: colors.primary },
+  content: { padding: 18, paddingBottom: 40, gap: 10 },
+  rcBanner: { backgroundColor: colors.cardAlt, borderColor: colors.primaryBorder },
   rcTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  progressTrack: { height: 5, borderRadius: 3, backgroundColor: colors.primarySoft, overflow: 'hidden', marginTop: 14 },
+  progressFill: { height: 5, borderRadius: 3, backgroundColor: colors.primary },
+  progressLabel: { color: colors.textDim, fontSize: 11, marginTop: 6, fontVariant: ['tabular-nums'] },
   hint: { color: colors.textDim, fontSize: 12, lineHeight: 18, marginTop: 8 },
   instruction: { color: colors.text, fontSize: 14, lineHeight: 21, marginBottom: 12 },
   primary: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  primaryText: { color: '#fff', fontSize: 15, fontWeight: '800' },
-  secondary: { borderColor: colors.primary, borderWidth: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
-  secondaryText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  primaryText: { color: colors.onPrimary, fontSize: 15, fontWeight: '700' },
+  secondary: { borderColor: colors.primaryBorder, borderWidth: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  secondaryText: { color: colors.primaryText, fontSize: 14, fontWeight: '700' },
   reset: { alignItems: 'center', paddingVertical: 10 },
   resetText: { color: colors.danger, fontSize: 12 },
   error: { color: colors.danger, fontSize: 12, lineHeight: 18 },

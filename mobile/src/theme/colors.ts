@@ -1,17 +1,40 @@
 export const colors = {
-  bg: '#0B1220',
-  card: '#151E2E',
-  cardAlt: '#1B2740',
-  border: '#24334D',
-  text: '#E9EEF7',
-  textDim: '#8FA0BC',
-  primary: '#3B82F6',
-  success: '#22C55E',
-  warning: '#F59E0B',
-  danger: '#EF4444',
-  info: '#38BDF8',
-  gold: '#FACC15',
+  bg: '#F3F0E8',
+  card: '#FFFEFA',
+  cardAlt: '#F8F5EE',
+  surfaceRaised: '#EEE8DC',
+  surfaceInset: '#F7F4ED',
+  border: '#E2DACE',
+  borderStrong: '#CBB8A2',
+  text: '#202927',
+  textDim: '#626D69',
+  primary: '#B15A28',
+  primaryText: '#9C4D21',
+  onPrimary: '#FFFCF7',
+  primarySoft: '#F7E7D9',
+  primaryBorder: '#E4C3AA',
+  success: '#24735A',
+  warning: '#925B13',
+  danger: '#AB413D',
+  info: '#4B6986',
+  gold: '#8D6B2B',
 };
+
+export const space = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  card: 16,
+  group: 24,
+  section: 32,
+} as const;
+
+export const radius = {
+  sm: 10,
+  md: 16,
+  lg: 20,
+  pill: 999,
+} as const;
 
 export const signalColors: Record<string, string> = {
   buy: colors.success,

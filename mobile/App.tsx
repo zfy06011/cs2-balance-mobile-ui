@@ -5,9 +5,10 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from './src/theme/colors';
+import { AppTabIcon, type AppTabIconName } from './src/components/AppTabIcon';
 import { warmZhNames } from './src/data/zhNames';
 import { initStorage } from './src/data/migrate';
 import { seedWebDemoData } from './src/data/webSeed';
@@ -22,14 +23,14 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import { CookieLoginScreen } from './src/screens/CookieLoginScreen';
 import { QualificationScreen } from './src/screens/QualificationScreen';
 
-type TabKey = 'home' | 'market' | 'inventory' | 'radar' | 'settings';
+type TabKey = AppTabIconName;
 
-const TABS: { key: TabKey; icon: string; label: string }[] = [
-  { key: 'home', icon: '🏠', label: '首页' },
-  { key: 'market', icon: '🛒', label: '市场' },
-  { key: 'inventory', icon: '📦', label: '库存' },
-  { key: 'radar', icon: '📡', label: '雷达' },
-  { key: 'settings', icon: '⚙️', label: '我的' },
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'home', label: '首页' },
+  { key: 'market', label: '市场' },
+  { key: 'inventory', label: '库存' },
+  { key: 'radar', label: '雷达' },
+  { key: 'settings', label: '我的' },
 ];
 
 export default function App() {
@@ -73,7 +74,7 @@ export default function App() {
   if (!storageReady) {
     return (
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={styles.bootstrap}>
           <Text style={styles.bootstrapText}>正在初始化本地数据…</Text>
         </View>
@@ -84,7 +85,7 @@ export default function App() {
   if (detailName) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <DetailScreen name={detailName} onBack={() => setDetailName(null)} />
       </SafeAreaProvider>
     );
@@ -94,7 +95,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.root}>
         <Animated.View
           style={[
@@ -115,14 +116,7 @@ export default function App() {
             <SettingsScreen key={settingsTick} onCookieLogin={() => setCookieLoginOpen(true)} onOpenQualification={() => setQualificationOpen(true)} />
           ) : null}
         </Animated.View>
-        <View style={styles.tabBar}>
-          {TABS.map((t) => (
-            <TouchableOpacity key={t.key} style={styles.tabItem} onPress={() => switchTab(t.key)}>
-              <Text style={styles.tabIcon}>{t.icon}</Text>
-              <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <AppTabBar tab={tab} onSelect={switchTab} />
         {simOpen ? (
           <View style={styles.overlay}>
             <SimulateScreen onBack={() => setSimOpen(false)} />
@@ -148,6 +142,62 @@ export default function App() {
   );
 }
 
+function AppTabBar({ tab, onSelect }: { readonly tab: TabKey; readonly onSelect: (key: TabKey) => void }) {
+  const insets = useSafeAreaInsets();
+  const [barWidth, setBarWidth] = useState(0);
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  const indicatorStretch = useRef(new Animated.Value(1)).current;
+  const tabWidth = Math.max(0, (barWidth - 16) / TABS.length);
+
+  useEffect(() => {
+    if (tabWidth === 0) return;
+    const target = TABS.findIndex((item) => item.key === tab) * tabWidth;
+    Animated.parallel([
+      Animated.timing(indicatorX, { toValue: target, duration: 230, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.sequence([
+        Animated.timing(indicatorStretch, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+        Animated.spring(indicatorStretch, { toValue: 1, friction: 8, tension: 120, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, [indicatorStretch, indicatorX, tab, tabWidth]);
+
+  return (
+    <View
+      style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) }]}
+      onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
+    >
+      {tabWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.tabIndicator,
+            { left: 8 + (tabWidth - 48) / 2, transform: [{ translateX: indicatorX }, { scaleX: indicatorStretch }] },
+          ]}
+        />
+      ) : null}
+      {TABS.map((item) => {
+        const selected = tab === item.key;
+        return (
+          <TouchableOpacity
+            key={item.key}
+            style={styles.tabItem}
+            onPress={() => onSelect(item.key)}
+            activeOpacity={0.76}
+            accessibilityRole="tab"
+            accessibilityLabel={item.label}
+            accessibilityState={{ selected }}
+          >
+            <View style={styles.tabIconWrap}>
+              <AppTabIcon name={item.key} selected={selected} />
+            </View>
+            <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>{item.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   bootstrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
@@ -158,12 +208,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.card,
-    paddingBottom: 8,
-    paddingTop: 6,
+    paddingTop: 8,
+    paddingHorizontal: 8,
   },
-  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabIcon: { fontSize: 20 },
-  tabLabel: { color: colors.textDim, fontSize: 11, marginTop: 2, fontWeight: '600' },
-  tabLabelActive: { color: colors.primary },
+  tabItem: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tabIconWrap: { width: 48, height: 29, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  tabIndicator: { position: 'absolute', top: 14, width: 48, height: 29, borderRadius: 15, backgroundColor: colors.primarySoft },
+  tabLabel: { color: colors.textDim, fontSize: 10, fontWeight: '600' },
+  tabLabelActive: { color: colors.primary, fontWeight: '700' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg },
 });

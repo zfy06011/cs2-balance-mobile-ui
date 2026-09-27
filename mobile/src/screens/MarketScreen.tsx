@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import {
-  FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Row } from '../components/Card';
@@ -20,6 +20,7 @@ interface Props {
 }
 
 type FilterKey = 'all' | 'buy' | 'wait' | 'avoid';
+type SortKey = 'discount' | 'decision' | 'capacity';
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -31,11 +32,12 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 export function MarketScreen({ onOpenDetail }: Props) {
   const [filter, setFilter] = useState<FilterKey>('all');
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SortKey>('discount');
   const { snapshot, loading, refreshing, error, reload, refreshLive, liveRefreshing, liveError } = useOpportunitySnapshot();
 
   const q = query.trim().toLowerCase();
   // v1.8.3：筛选/计数只在数据或条件变化时重算（原来每次渲染跑 4 遍全量过滤）
-  const cards = React.useMemo(() => snapshot ? selectOpportunityCards(snapshot, { query: q }) : [], [snapshot, q]);
+  const cards = React.useMemo(() => snapshot ? selectOpportunityCards(snapshot, { query: q, sort }) : [], [snapshot, q, sort]);
   const signalOf = (card: OpportunityCardViewModel): string => {
     if (card.decision === 'legacy') return card.legacySignal ?? 'waiting';
     if (card.decision === 'excellent' || card.decision === 'buy') return 'buy';
@@ -53,45 +55,87 @@ export function MarketScreen({ onOpenDetail }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Text style={styles.header}>市场</Text>
-      <View style={styles.searchWrap}>
-        <TextInput
-          style={styles.search}
-          placeholder="搜索武器箱（支持中文）"
-          placeholderTextColor={colors.textDim}
-          value={query}
-          onChangeText={setQuery}
-          autoCorrect={false}
-        />
+      <View style={styles.headerBlock}>
+        <Text style={styles.headerEyebrow}>MARKET / PRICE WATCH</Text>
+        <View style={styles.headerLine}>
+          <View>
+            <Text style={styles.header}>箱子市场</Text>
+            <Text style={styles.headerHint}>按折扣与流动性筛选</Text>
+          </View>
+          <View style={styles.countPill}><Text style={styles.countText}>{counts.all} 项</Text></View>
+        </View>
       </View>
-      <View style={styles.tabs}>
+      <View style={styles.searchWrap}>
+        <View style={styles.searchField}>
+          <Text style={styles.searchIcon} accessibilityElementsHidden>⌕</Text>
+          <TextInput
+            style={styles.search}
+            placeholder="搜索武器箱（支持中文）"
+            placeholderTextColor={colors.textDim}
+            value={query}
+            onChangeText={setQuery}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {query ? (
+            <TouchableOpacity style={styles.clearSearch} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="清空搜索">
+              <Text style={styles.clearSearchText}>×</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
             style={[styles.tab, filter === f.key && styles.tabActive]}
             onPress={() => setFilter(f.key)}
+            activeOpacity={0.76}
+            accessibilityRole="button"
+            accessibilityLabel={`${f.label}，${counts[f.key]} 项`}
+            accessibilityState={{ selected: filter === f.key }}
           >
             <Text style={[styles.tabText, filter === f.key && styles.tabTextActive]}>
-              {f.label} {counts[f.key]}
+              {f.label} <Text style={styles.tabCount}>{counts[f.key]}</Text>
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
       <View style={styles.liveActionWrap}>
         <TouchableOpacity
           style={[styles.liveAction, liveRefreshing && { opacity: 0.6 }]}
           disabled={liveRefreshing || !snapshot}
           onPress={() => { if (snapshot) void refreshLive(snapshot.items.map((item) => item.item)); }}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: liveRefreshing || !snapshot, busy: liveRefreshing }}
         >
-          <Text style={styles.liveActionText}>{liveRefreshing ? '正在更新实时盘口…' : '更新实时盘口 / 机会'}</Text>
+          <Text style={styles.liveActionText}>{liveRefreshing ? '正在更新实时盘口…' : '更新实时行情'}</Text>
         </TouchableOpacity>
         {liveError ? <Text style={styles.liveError}>{liveError}，当前仍显示本地结果</Text> : null}
+      </View>
+      <View style={styles.sortRow}>
+        <Text style={styles.sortCount}>{shown.length} 个结果</Text>
+        <View style={styles.sortOptions}>
+          {([['discount', '折扣'], ['decision', '推荐'], ['capacity', '容量']] as const).map(([key, label]) => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.sortOption, sort === key && styles.sortOptionActive]}
+              onPress={() => setSort(key)}
+              accessibilityRole="button"
+              accessibilityLabel={`按${label}排序`}
+              accessibilityState={{ selected: sort === key }}
+            >
+              <Text style={[styles.sortText, sort === key && styles.sortTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
       <FlatList
         data={shown}
         keyExtractor={(card) => card.item}
         renderItem={({ item: card }) => (
-          <TouchableOpacity onPress={() => onOpenDetail(card.item)}>
+          <TouchableOpacity onPress={() => onOpenDetail(card.item)} accessibilityRole="button" accessibilityLabel={`查看${card.displayNameZh}详情`}>
             {snapshot?.mode === 'v2' ? <OpportunityCard card={card} compact /> : <MarketRow card={card} />}
           </TouchableOpacity>
         )}
@@ -110,7 +154,7 @@ export function MarketScreen({ onOpenDetail }: Props) {
             <Card>
               <Text style={styles.empty}>
                 {cards.length === 0
-                  ? '暂无数据。去首页点「📡 一键扫描」拉取 Steam 热门武器箱行情。'
+                  ? '暂无行情。去首页扫描，获取本地箱子快照。'
                   : '没有匹配的武器箱，换个关键词或筛选条件试试。'}
               </Text>
             </Card>
@@ -142,26 +186,41 @@ const MarketRow = React.memo(function MarketRow({ card }: { card: OpportunityCar
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  header: { color: colors.text, fontSize: 22, fontWeight: '800', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8 },
-  searchWrap: { paddingHorizontal: 14, marginBottom: 8 },
-  search: {
-    backgroundColor: colors.card, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
-    color: colors.text, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14,
-  },
-  tabs: { flexDirection: 'row', paddingHorizontal: 14, gap: 8, marginBottom: 8, flexWrap: 'wrap' },
+  headerBlock: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 12 },
+  headerEyebrow: { color: colors.primary, fontSize: 10, lineHeight: 14, fontWeight: '800', letterSpacing: 1.1, marginBottom: 5 },
+  headerLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { color: colors.text, fontSize: 25, lineHeight: 30, fontWeight: '800', letterSpacing: -0.6 },
+  headerHint: { color: colors.textDim, fontSize: 12, marginTop: 3 },
+  countPill: { minHeight: 32, paddingHorizontal: 11, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  countText: { color: colors.textDim, fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  searchWrap: { paddingHorizontal: 18, marginBottom: 12 },
+  searchField: { minHeight: 50, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
+  searchIcon: { color: colors.textDim, fontSize: 22, lineHeight: 25, marginRight: 8 },
+  search: { flex: 1, minHeight: 48, color: colors.text, paddingVertical: 10, fontSize: 14 },
+  clearSearch: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  clearSearchText: { color: colors.textDim, fontSize: 22 },
+  tabs: { flexDirection: 'row', paddingHorizontal: 18, gap: 8, paddingBottom: 12 },
   tab: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    minHeight: 48, justifyContent: 'center', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
-  tabTextActive: { color: '#FFFFFF' },
-  content: { padding: 14, paddingBottom: 90 },
-  liveActionWrap: { paddingHorizontal: 14, paddingBottom: 8 },
-  liveAction: { backgroundColor: colors.cardAlt, borderRadius: 10, borderWidth: 1, borderColor: colors.primary, paddingVertical: 10, alignItems: 'center' },
-  liveActionText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
-  liveError: { color: colors.warning, fontSize: 12, marginTop: 5 },
-  itemCard: { paddingVertical: 10 },
+  tabText: { color: colors.textDim, fontSize: 12, fontWeight: '600' },
+  tabCount: { fontVariant: ['tabular-nums'], fontWeight: '700' },
+  tabTextActive: { color: colors.onPrimary },
+  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 96 },
+  liveActionWrap: { paddingHorizontal: 18, paddingBottom: 10 },
+  liveAction: { minHeight: 48, backgroundColor: colors.primary, borderRadius: 15, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  liveActionText: { color: colors.onPrimary, fontSize: 13, fontWeight: '700' },
+  liveError: { color: colors.warning, fontSize: 11, marginTop: 6, lineHeight: 16 },
+  sortRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 6 },
+  sortCount: { color: colors.textDim, fontSize: 12, fontVariant: ['tabular-nums'] },
+  sortOptions: { flexDirection: 'row', gap: 2, backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 3 },
+  sortOption: { minWidth: 44, minHeight: 38, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 9 },
+  sortOptionActive: { backgroundColor: colors.card },
+  sortText: { color: colors.textDim, fontSize: 11, fontWeight: '600' },
+  sortTextActive: { color: colors.primaryText, fontWeight: '800' },
+  itemCard: { paddingVertical: 12, marginBottom: 10 },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   name: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 },
   priceRow: { flexDirection: 'row', alignItems: 'center' },

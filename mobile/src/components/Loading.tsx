@@ -10,7 +10,7 @@ import { colors } from '../theme/colors';
 export function Loading({ msg = '加载中…', height }: { msg?: string; height?: number }) {
   return (
     <View style={[styles.center, height != null && { flex: 0, height }]}>
-      <ActivityIndicator size="large" color={colors.primary} />
+      <ActivityIndicator size="large" color={colors.primaryText} />
       <Text style={styles.text}>{msg}</Text>
     </View>
   );
@@ -29,5 +29,5 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   text: { color: colors.textDim, marginTop: 12, fontSize: 14 },
   error: { color: colors.danger, fontSize: 14, textAlign: 'center' },
-  retry: { color: colors.primary, marginTop: 12, fontSize: 14, fontWeight: '600' },
+  retry: { color: colors.primaryText, marginTop: 12, fontSize: 14, fontWeight: '600' },
 });

@@ -68,6 +68,8 @@ export function PriceTrendChart({
   height = 180,
   volumeHeight = 50,
 }: Props) {
+  const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
+  const validPoints = useMemo(() => points.filter((point) => Number.isFinite(point.price) && point.price > 0), [points]);
   const geom = useMemo(
     () => buildTrendPaths(points, prediction ?? null, { width, height, volumeHeight }),
     [points, prediction, width, height, volumeHeight],
@@ -93,6 +95,14 @@ export function PriceTrendChart({
     yTicks.push(v);
   }
   const yOf = (price: number): number => PADDING_TOP + (1 - (price - yMin) / yRange) * chartH;
+  const selectedIndex = activeIndex != null && activeIndex < xs.length ? activeIndex : null;
+  const pickPoint = (x: number) => {
+    let closest = 0;
+    for (let i = 1; i < xs.length; i++) {
+      if (Math.abs(xs[i] - x) < Math.abs(xs[closest] - x)) closest = i;
+    }
+    setActiveIndex(closest);
+  };
 
   // x 轴标签（取首/末/中间几个）——只对有有效价格的历史点
   const validIdx: number[] = [];
@@ -114,7 +124,14 @@ export function PriceTrendChart({
   }
 
   return (
-    <View style={[styles.container, { width, height: totalH }]}>
+    <View
+      style={[styles.container, { width, height: totalH }]}
+      accessibilityLabel="价格走势图，手指横向滑动可查看历史价格"
+      onTouchStart={(event) => pickPoint(event.nativeEvent.locationX)}
+      onTouchMove={(event) => pickPoint(event.nativeEvent.locationX)}
+      onTouchEnd={() => setActiveIndex(null)}
+      onTouchCancel={() => setActiveIndex(null)}
+    >
       <Svg width={width} height={totalH}>
         {/* y 轴网格线 + 标签 */}
         {yTicks.map((v) => {
@@ -158,10 +175,17 @@ export function PriceTrendChart({
         ))}
 
         {/* 历史面积 */}
-        {areaPath ? <Path d={areaPath} fill={colors.primary + '15'} /> : null}
+        {areaPath ? <Path d={areaPath} fill={colors.primaryText + '15'} /> : null}
 
         {/* 历史折线 */}
-        <Path d={linePath} stroke={colors.primary} strokeWidth={2} fill="none" />
+        <Path d={linePath} stroke={colors.primaryText} strokeWidth={2} fill="none" />
+
+        {selectedIndex != null ? (
+          <>
+            <Line x1={xs[selectedIndex]} y1={PADDING_TOP} x2={xs[selectedIndex]} y2={height - PADDING_BOTTOM} stroke={colors.primaryText} strokeWidth={1} strokeDasharray="3,3" />
+            <Circle cx={xs[selectedIndex]} cy={yOf(validPoints[selectedIndex].price)} r={4} fill={colors.primary} />
+          </>
+        ) : null}
 
         {/* 预测扇区 */}
         {predPath ? (
@@ -189,9 +213,14 @@ export function PriceTrendChart({
           成交量
         </SvgText>
         {geom.volBars.map((b, i) => (
-          <Rect key={`vol-${i}`} x={b.x} y={b.y} width={b.w} height={b.h} fill={colors.primary + '60'} rx={1} />
+          <Rect key={`vol-${i}`} x={b.x} y={b.y} width={b.w} height={b.h} fill={colors.primaryText + '60'} rx={1} />
         ))}
       </Svg>
+      {selectedIndex != null ? (
+        <View style={[styles.tooltip, { left: Math.max(0, Math.min(width - 108, xs[selectedIndex] - 54)) }]} pointerEvents="none">
+          <Text style={styles.tooltipText}>{fmtDateShort(validPoints[selectedIndex].date)}  ¥{validPoints[selectedIndex].price.toFixed(2)}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -199,4 +228,6 @@ export function PriceTrendChart({
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
   empty: { color: colors.textDim, fontSize: 12, textAlign: 'center', marginTop: 20 },
+  tooltip: { position: 'absolute', top: 0, minWidth: 108, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: colors.text, alignItems: 'center' },
+  tooltipText: { color: colors.onPrimary, fontSize: 10, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

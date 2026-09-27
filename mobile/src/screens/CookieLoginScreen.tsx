@@ -152,13 +152,13 @@ export function CookieLoginScreen({ onClose }: Props) {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onClose}>
+        <TouchableOpacity style={styles.headerAction} onPress={onClose} accessibilityRole="button" accessibilityLabel="关闭 Steam 登录">
           <Text style={styles.close}>✕ 关闭</Text>
         </TouchableOpacity>
         <Text style={styles.title}>{TARGET.title}</Text>
-        <TouchableOpacity onPress={manualSave} disabled={saving || saved}>
+        <TouchableOpacity style={styles.headerAction} onPress={manualSave} disabled={saving || saved} accessibilityRole="button" accessibilityState={{ disabled: saving || saved, busy: saving }}>
           <Text style={[styles.save, (saving || saved) && { opacity: 0.6 }]}>
-            {saved ? '已保存' : '手动保存'}
+            {saving ? '保存中…' : saved ? '已保存' : '手动保存'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -184,10 +184,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 10, backgroundColor: colors.card,
+    paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.card,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  close: { color: colors.textDim, fontSize: 14 },
+  headerAction: { minHeight: 48, minWidth: 64, justifyContent: 'center' },
+  close: { color: colors.primaryText, fontSize: 14, fontWeight: '700' },
   title: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  save: { color: colors.primary, fontSize: 14, fontWeight: '700' },
-  hint: { color: colors.textDim, fontSize: 11, paddingHorizontal: 14, paddingVertical: 6 },
+  save: { color: colors.primaryText, fontSize: 14, fontWeight: '700' },
+  hint: { color: colors.textDim, fontSize: 12, lineHeight: 17, paddingHorizontal: 18, paddingVertical: 12 },
 });

@@ -12,7 +12,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text,
+  Animated, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,6 +58,8 @@ export function InventoryScreen({ onOpenDetail }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [overviewExpanded, setOverviewExpanded] = useState(true);
+  const overviewReveal = useRef(new Animated.Value(1)).current;
   const [showForm, setShowForm] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [syncing, setSyncing] = useState(false);
@@ -70,6 +72,12 @@ export function InventoryScreen({ onOpenDetail }: Props) {
   const [price, setPrice] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
+  const toggleOverview = () => {
+    const next = !overviewExpanded;
+    setOverviewExpanded(next);
+    Animated.timing(overviewReveal, { toValue: next ? 1 : 0, duration: 230, useNativeDriver: false }).start();
+  };
 
   // 倒计时实时：每分钟 tick 一次（unlock_at 固定，剩余时间现算）
   useEffect(() => {
@@ -204,6 +212,7 @@ export function InventoryScreen({ onOpenDetail }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+      <Text style={styles.eyebrow}>PORTFOLIO</Text>
       <Text style={styles.header}>库存与解锁倒计时</Text>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
@@ -223,6 +232,9 @@ export function InventoryScreen({ onOpenDetail }: Props) {
           ListHeaderComponent={
             <InventoryHeader
               overview={overview}
+              overviewExpanded={overviewExpanded}
+              overviewReveal={overviewReveal}
+              toggleOverview={toggleOverview}
               lastSync={lastSync}
               now={now}
               filter={filter}
@@ -254,6 +266,9 @@ export function InventoryScreen({ onOpenDetail }: Props) {
 
 interface HeaderProps {
   overview: PortfolioOverview;
+  overviewExpanded: boolean;
+  overviewReveal: Animated.Value;
+  toggleOverview: () => void;
   lastSync: string | null;
   now: number;
   filter: FilterKey;
@@ -279,18 +294,35 @@ function InventoryHeader(p: HeaderProps) {
   const profitColor = p.overview.netProfit >= 0 ? colors.success : colors.danger;
   return (
     <>
-      {/* 2×2 总览 */}
+      <TouchableOpacity
+        style={styles.overviewToggle}
+        onPress={p.toggleOverview}
+        accessibilityRole="button"
+        accessibilityLabel="资产概览"
+        accessibilityState={{ expanded: p.overviewExpanded }}
+      >
+        <Text style={styles.overviewTitle}>资产概览</Text>
+        <Text style={styles.overviewAction}>{p.overviewExpanded ? '收起 ↑' : '展开 ↓'}</Text>
+      </TouchableOpacity>
       <View style={styles.overviewGrid}>
         <Stat label="总投入" value={fmtMoney(p.overview.totalCost)} />
-        <Stat label="当前估值" value={fmtMoney(p.overview.currentValue)} valueColor={colors.info} />
-        <Stat
-          label="浮动盈亏"
-          value={`${p.overview.netProfit >= 0 ? '+' : ''}${fmtMoney(p.overview.netProfit)}`}
-          valueColor={profitColor}
-          sub={p.overview.roi != null ? `${p.overview.netProfit >= 0 ? '+' : ''}${(p.overview.roi * 100).toFixed(1)}%` : undefined}
-        />
-        <Stat label="可上架" value={`${p.overview.tradableKinds} 种`} sub={`共 ${p.overview.quantity} 件`} />
+        <Stat label="当前估值" value={fmtMoney(p.overview.currentValue)} />
       </View>
+      <Animated.View
+        style={[styles.overviewMore, { maxHeight: p.overviewReveal.interpolate({ inputRange: [0, 1], outputRange: [0, 120] }), opacity: p.overviewReveal }]}
+        pointerEvents={p.overviewExpanded ? 'auto' : 'none'}
+        importantForAccessibility={p.overviewExpanded ? 'auto' : 'no-hide-descendants'}
+      >
+        <View style={styles.overviewGrid}>
+          <Stat
+            label="浮动盈亏"
+            value={`${p.overview.netProfit >= 0 ? '+' : ''}${fmtMoney(p.overview.netProfit)}`}
+            valueColor={profitColor}
+            sub={p.overview.roi != null ? `${p.overview.netProfit >= 0 ? '+' : ''}${(p.overview.roi * 100).toFixed(1)}%` : undefined}
+          />
+          <Stat label="可上架" value={`${p.overview.tradableKinds} 种`} sub={`共 ${p.overview.quantity} 件`} />
+        </View>
+      </Animated.View>
 
       <Text style={styles.syncMeta}>上次同步：{fmtAgo(p.lastSync, p.now)}</Text>
 
@@ -313,6 +345,9 @@ function InventoryHeader(p: HeaderProps) {
             key={f.key}
             style={[styles.tab, p.filter === f.key && styles.tabActive]}
             onPress={() => p.setFilter(f.key)}
+            accessibilityRole="button"
+            accessibilityLabel={`${f.label}，${p.counts[f.key]} 种`}
+            accessibilityState={{ selected: p.filter === f.key }}
           >
             <Text style={[styles.tabText, p.filter === f.key && styles.tabTextActive]}>
               {f.label} {p.counts[f.key]}
@@ -324,7 +359,7 @@ function InventoryHeader(p: HeaderProps) {
       <SectionTitle>我的库存（{p.counts.all} 种）</SectionTitle>
 
       {/* 手动录入（默认折叠） */}
-      <TouchableOpacity onPress={() => p.setShowForm(!p.showForm)}>
+      <TouchableOpacity onPress={() => p.setShowForm(!p.showForm)} accessibilityRole="button" accessibilityState={{ expanded: p.showForm }} accessibilityLabel="手动录入购买记录">
         <Text style={styles.collapseToggle}>{p.showForm ? '▾ 收起手动录入' : '▸ 手动录入购买记录'}</Text>
       </TouchableOpacity>
       {p.showForm ? (
@@ -413,8 +448,14 @@ const InventoryRow = React.memo(function InventoryRow({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  header: { color: colors.text, fontSize: 22, fontWeight: '800', paddingHorizontal: 14, paddingTop: 8, paddingBottom: 8 },
+  eyebrow: { color: colors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 1.1, paddingHorizontal: 18, paddingTop: 14 },
+  header: { color: colors.text, fontSize: 24, fontWeight: '800', paddingHorizontal: 18, paddingTop: 4, paddingBottom: 12 },
   content: { padding: 14, paddingBottom: 40 },
+
+  overviewToggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  overviewTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  overviewAction: { color: colors.primaryText, fontSize: 12, fontWeight: '700' },
+  overviewMore: { overflow: 'hidden' },
 
   overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
   statCard: {
@@ -428,12 +469,12 @@ const styles = StyleSheet.create({
 
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
   tab: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
-  tabTextActive: { color: '#FFFFFF' },
+  tabTextActive: { color: colors.onPrimary },
 
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   name: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 },
@@ -465,9 +506,9 @@ const styles = StyleSheet.create({
   addBtn: {
     backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 2,
   },
-  addBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  addBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: '700' },
   saved: { color: colors.info, fontSize: 12, marginTop: 8 },
-  collapseToggle: { color: colors.primary, fontSize: 14, fontWeight: '600', paddingVertical: 8 },
+  collapseToggle: { color: colors.primaryText, fontSize: 14, fontWeight: '600', paddingVertical: 8 },
   hint: { color: colors.textDim, fontSize: 12, marginBottom: 10, lineHeight: 17 },
   empty: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
 });

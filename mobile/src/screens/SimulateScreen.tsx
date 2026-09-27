@@ -25,6 +25,7 @@ interface Props {
 }
 
 export function SimulateScreen({ onBack }: Props) {
+  const [mode, setMode] = useState<'budget' | 'target'>('budget');
   const [budget, setBudget] = useState('1000');
   const [allocation, setAllocation] = useState<string>('balanced');
   const [result, setResult] = useState<Simulation | null>(null);
@@ -33,6 +34,8 @@ export function SimulateScreen({ onBack }: Props) {
 
   const [target, setTarget] = useState('1000');
   const [reverse, setReverse] = useState<{ required_budget: number; expected_profit: number } | null>(null);
+  const [reverseLoading, setReverseLoading] = useState(false);
+  const [reverseError, setReverseError] = useState<string | null>(null);
 
   const run = async () => {
     const b = parseFloat(budget);
@@ -52,13 +55,16 @@ export function SimulateScreen({ onBack }: Props) {
 
   const runReverse = async () => {
     const t = parseFloat(target);
-    if (!t || t <= 0) return;
-    setError(null);
+    if (!t || t <= 0 || reverseLoading) return;
+    setReverseLoading(true);
+    setReverseError(null);
     try {
       const res = await api.simulateReverse(t);
       setReverse(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '反推失败');
+      setReverseError(e instanceof Error ? e.message : '反推失败');
+    } finally {
+      setReverseLoading(false);
     }
   };
 
@@ -66,7 +72,7 @@ export function SimulateScreen({ onBack }: Props) {
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.headerRow}>
         {onBack ? (
-          <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+          <TouchableOpacity style={styles.backBtn} onPress={onBack} accessibilityRole="button" accessibilityLabel="返回首页">
             <Text style={styles.backBtnText}>← 返回</Text>
           </TouchableOpacity>
         ) : null}
@@ -74,6 +80,21 @@ export function SimulateScreen({ onBack }: Props) {
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.modeTabs}>
+            {([['budget', '按预算模拟'], ['target', '按目标反推']] as const).map(([key, label]) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.modeTab, mode === key && styles.modeTabActive]}
+                onPress={() => setMode(key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: mode === key }}
+              >
+                <Text style={[styles.modeTabText, mode === key && styles.modeTabTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {mode === 'budget' ? (
+            <>
           <Card>
             <SectionTitle>预算组合模拟</SectionTitle>
             <TextInput
@@ -90,13 +111,15 @@ export function SimulateScreen({ onBack }: Props) {
                   key={a.key}
                   style={[styles.allocCard, allocation === a.key && styles.allocActive]}
                   onPress={() => setAllocation(a.key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: allocation === a.key }}
                 >
                   <Text style={[styles.allocTitle, allocation === a.key && styles.allocTextActive]}>{a.label}</Text>
                   <Text style={[styles.allocDesc, allocation === a.key && styles.allocTextActive]}>{a.desc}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={run} disabled={loading}>
+            <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={run} disabled={loading} accessibilityRole="button" accessibilityState={{ disabled: loading, busy: loading }}>
               <Text style={styles.btnText}>{loading ? '计算中…' : '开始模拟'}</Text>
             </TouchableOpacity>
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -122,7 +145,8 @@ export function SimulateScreen({ onBack }: Props) {
               <Row label="加权亏损概率" value={`${(result.weighted_loss_prob * 100).toFixed(1)}%`} />
             </Card>
           ) : null}
-
+            </>
+          ) : (
           <Card>
             <SectionTitle>目标余额反推</SectionTitle>
             <Text style={styles.hint}>输入希望获得的 Steam 钱包余额，反推需要投入多少本金。</Text>
@@ -134,9 +158,10 @@ export function SimulateScreen({ onBack }: Props) {
               onChangeText={setTarget}
               keyboardType="numeric"
             />
-            <TouchableOpacity style={styles.btn} onPress={runReverse}>
-              <Text style={styles.btnText}>反推所需资金</Text>
+            <TouchableOpacity style={[styles.btn, reverseLoading && { opacity: 0.6 }]} onPress={runReverse} disabled={reverseLoading} accessibilityRole="button" accessibilityState={{ disabled: reverseLoading, busy: reverseLoading }}>
+              <Text style={styles.btnText}>{reverseLoading ? '计算中…' : '反推所需资金'}</Text>
             </TouchableOpacity>
+            {reverseError ? <Text style={styles.error}>{reverseError}</Text> : null}
             {reverse ? (
               <View style={styles.reverseBox}>
                 <Row label="目标余额" value={fmtMoney(parseFloat(target))} />
@@ -145,6 +170,7 @@ export function SimulateScreen({ onBack }: Props) {
               </View>
             ) : null}
           </Card>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -155,9 +181,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 8 },
   backBtn: { marginRight: 10, paddingVertical: 6 },
-  backBtnText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
-  header: { color: colors.text, fontSize: 22, fontWeight: '800', paddingBottom: 8, flex: 1 },
-  content: { padding: 14, paddingBottom: 40 },
+  backBtnText: { color: colors.primaryText, fontSize: 15, fontWeight: '700' },
+  header: { color: colors.text, fontSize: 24, fontWeight: '800', paddingBottom: 8, flex: 1 },
+  content: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 40 },
+  modeTabs: { flexDirection: 'row', padding: 4, borderRadius: 14, backgroundColor: colors.surfaceRaised, marginBottom: 16 },
+  modeTab: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 11 },
+  modeTabActive: { backgroundColor: colors.card },
+  modeTabText: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
+  modeTabTextActive: { color: colors.primaryText, fontWeight: '800' },
   input: {
     backgroundColor: colors.cardAlt, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
     color: colors.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 12,
@@ -167,12 +198,12 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border,
     borderRadius: 10, padding: 10,
   },
-  allocActive: { borderColor: colors.primary, backgroundColor: colors.primary + '22' },
+  allocActive: { borderColor: colors.primaryBorder, backgroundColor: colors.primarySoft },
   allocTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   allocDesc: { color: colors.textDim, fontSize: 11, marginTop: 4 },
-  allocTextActive: { color: colors.primary },
+  allocTextActive: { color: colors.primaryText },
   btn: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  btnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  btnText: { color: colors.onPrimary, fontSize: 15, fontWeight: '700' },
   error: { color: colors.danger, fontSize: 13, marginTop: 8 },
   resultItem: { marginBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 6 },
   resultName: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: 2 },

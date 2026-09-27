@@ -1,0 +1,74 @@
+name: Android UI RC APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/ui-redesign
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CI: '1'
+      NODE_ENV: production
+      APP_VARIANT: rc
+      EXPO_PUBLIC_BUILD_CHANNEL: rc
+      EXPO_NO_TELEMETRY: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+
+      - name: Install JavaScript dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Generate Android source from Expo configuration
+        working-directory: mobile
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build standalone RC APK
+        working-directory: mobile/android
+        run: ./gradlew :app:assembleRelease --no-daemon --max-workers=2 --console=plain
+
+      - name: Write build information
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir='mobile/android/app/build/outputs/apk/release'
+          apk="$output_dir/app-release.apk"
+          sha=$(sha256sum "$apk" | cut -d' ' -f1)
+          printf '%s  %s\n' "$sha" 'app-release.apk' > "$output_dir/SHA256.txt"
+          jq -n --arg commit "$GITHUB_SHA" --arg sha "$sha" \
+            '{commit: $commit, package: "com.cs2balance.assistant.rc", version: "1.9.5-rc", versionCode: 43, apk: "app-release.apk", apk_sha256: $sha, source: "Expo prebuild from committed source", java: "17", node: "24"}' \
+            > "$output_dir/build-info.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cs2-balance-v1.9.5-rc-ui-${{ github.run_number }}
+          path: |
+            mobile/android/app/build/outputs/apk/release/app-release.apk
+            mobile/android/app/build/outputs/apk/release/SHA256.txt
+            mobile/android/app/build/outputs/apk/release/build-info.json
+          if-no-files-found: error
+          retention-days: 14

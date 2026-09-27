@@ -4,7 +4,7 @@
     "slug": "cs2-balance-mobile",
     "version": "1.9.5",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.cs2balance.assistant",
+      "versionCode": 43,
       "adaptiveIcon": {
         "backgroundColor": "#0B1220"
       }
