@@ -59,8 +59,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.13'
-      - name: Install cloud Android build inputs
-        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Initialize cloud Android SDK and build inputs
+        uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: '12266719'
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
       - name: Test, lint and build the actual checkout
         run: gradle --project-dir android --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
       - name: Record APK provenance

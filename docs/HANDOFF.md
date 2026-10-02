@@ -1,8 +1,17 @@
 # 宇额助手：数据链路与比价验证
 
-更新：2026-10-02（Asia/Shanghai）。用户已确认 MVP 需求，指示“按开发流程开发项目，卡住的可以跳过”，并在推荐 Kotlin + Jetpack Compose 后回复“继续”。当前执行者：Codex，使用 pwsh 7、Node.js 24.15.0、Python 静态解析及连接器，可读写仓库、运行非 Android 本地检查、读取 GitHub 仓库信息。目标分支 `codex/mvp`，本轮基准 `6360420`；未设置远端、未推送或运行云端构建。
+更新：2026-10-02（Asia/Shanghai）。用户已确认 MVP 需求及推荐的 Kotlin + Jetpack Compose，随后明确允许将 `b38af96` 推送到 `zfy06011/cs2-balance-mobile-ui` 的新 `codex/mvp` 分支并构建 APK。当前执行者：Codex，使用 pwsh 7、Node.js 24.15.0、Python 静态解析及 GitHub 连接器；远端 origin 已配置并推送成功。首轮云端检查已运行，Node 通过，Android SDK 准备失败，尚未产生 APK。
 
-**状态：执行中。用户在推荐 Kotlin + Jetpack Compose 方案后明确回复“继续”，据此按推荐方案建立 Android MVP。真实接口、费用与手机性能仍未验证，未授权推送。**
+**状态：执行中。首轮云端 Node 检查通过；Android 因 sdkmanager 不在 PATH 中而未进入编译。SDK 初始化配置已本地修复，待本次重新推送确认；真实接口、费用与手机性能仍未验证。**
+
+### 首轮云端构建与修复
+
+- 推送：用户已明确授权，`b38af961691f9ec271cd22707451db0861638a5e` 已创建远端 `codex/mvp`，随后 `git ls-remote` 核对一致；旧默认分支保持原有身份，未合并或发布。
+- 构建：[37016150728](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37016150728)，实际检出 SHA 为上述 `b38af96`。`Data validation (Node 24)` SUCCESS；`Android JVM tests, lint and debug APK` FAILURE。
+- 日志证据：SDK 准备步骤返回 `sdkmanager: command not found`／exit 127。Java 17 与 Gradle 8.13 初始化成功，但 JVM 测试、lint、编译与 APK 步骤均 SKIPPED。此为云端工具初始化问题，不能报告应用源码编译失败或构建通过。
+- 修复：工作流明确使用 `android-actions/setup-android@v4` 初始化 SDK、将工具加入 PATH，并安装指定平台／构建工具；固定 command-line tools 16.0（12266719）以匹配当前 Java 17。根据 [该 action 原始文档](https://github.com/android-actions/setup-android) 配置，仍仅在云端安装。
+- 本地检查：Kotlin／Gradle、XML、YAML 与内嵌 Python 静态解析通过；修改仅工作流与本交接文档，不重跑未受影响的计算测试。未改变必需检查，不安装本地 Android 工具链。
+- 下一步：本次修复重新推送仍需 AGENTS.md 规定的单独确认；获准后同仓库同分支触发完整云端检查并核对 APK 来源。
 
 ## Android MVP 接续（2026-10-02）
 
