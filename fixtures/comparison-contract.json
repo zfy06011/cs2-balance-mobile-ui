@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "controlled_fixture",
+  "purpose": "Android port parity only; these invented prices and wallet parameters are not market evidence.",
+  "wallet": { "minimumCents": 7, "incrementCents": 1, "steamBasisPoints": 500, "publisherBasisPoints": 1000 },
+  "comparisonCases": [
+    {
+      "name": "valid-single-item",
+      "c5Cents": 70, "steamBuyerCents": 117,
+      "expected": { "rankable": true, "netCents": 100, "steamFeeCents": 7, "publisherFeeCents": 10, "numeratorCents": "700000", "denominator": "100", "displayCents": 7000 }
+    },
+    {
+      "name": "low-price-minimum-fees",
+      "c5Cents": 10, "steamBuyerCents": 21,
+      "expected": { "rankable": true, "netCents": 7, "steamFeeCents": 7, "publisherFeeCents": 7, "numeratorCents": "100000", "denominator": "7", "displayCents": 14286 }
+    },
+    {
+      "name": "inverse-gap",
+      "c5Cents": 70, "steamBuyerCents": 160,
+      "expected": { "rankable": false, "reason": "fee_inverse_ambiguous" }
+    },
+    {
+      "name": "below-market-minimum",
+      "c5Cents": 10, "steamBuyerCents": 20,
+      "expected": { "rankable": false, "reason": "below_market_minimum" }
+    },
+    {
+      "name": "unverified-fees",
+      "c5Cents": 70, "steamBuyerCents": 117, "feeVerified": false,
+      "expected": { "rankable": false, "reason": "fee_unverified" }
+    },
+    {
+      "name": "old-steam-quote-cannot-pair-with-current-c5",
+      "c5Cents": 70, "steamBuyerCents": 117, "steamBatchId": "previous",
+      "expected": { "rankable": false, "reason": "mixed_batches" }
+    },
+    {
+      "name": "non-cny-is-not-ranked",
+      "c5Cents": 70, "steamBuyerCents": 117, "steamCurrency": "HKD",
+      "expected": { "rankable": false, "reason": "currency_mismatch" }
+    },
+    {
+      "name": "failed-current-steam-is-not-ranked",
+      "c5Cents": 70, "steamBuyerCents": null, "steamFailure": "timeout",
+      "expected": { "rankable": false, "reason": "missing_current_quote" }
+    }
+  ],
+  "rankingCases": [
+    {
+      "name": "equal-displayed-costs-use-exact-ratios",
+      "items": [
+        { "id": "a-expensive", "c5Cents": 10001, "steamBuyerCents": 115000 },
+        { "id": "z-cheap", "c5Cents": 10000, "steamBuyerCents": 115000 }
+      ],
+      "expectedIds": ["z-cheap", "a-expensive"],
+      "expectedDisplayCents": [1000, 1000]
+    },
+    {
+      "name": "equal-exact-ratios-have-stable-id-order",
+      "items": [
+        { "id": "z", "c5Cents": 140, "steamBuyerCents": 230 },
+        { "id": "a", "c5Cents": 70, "steamBuyerCents": 117 }
+      ],
+      "expectedIds": ["a", "z"],
+      "expectedDisplayCents": [7000, 7000]
+    }
+  ],
+  "partialScan": {
+    "items": [{ "id": "a", "steamHashName": "Fixture A" }, { "id": "b", "steamHashName": "Fixture B" }],
+    "c5": {
+      "success": true,
+      "data": {
+        "Fixture A": { "itemId": "101", "marketHashName": "Fixture A", "price": "0.70", "count": 1 },
+        "Fixture B": { "itemId": "102", "marketHashName": "Fixture B", "price": "0.80", "count": 1 }
+      }
+    },
+    "steam": [{ "success": true, "lowest_price": "¥ 1.17" }, { "failure": "timeout" }],
+    "previous": { "id": "b", "c5ItemId": "102", "steamHashName": "Fixture B", "c5Cents": 70, "steamBuyerCents": 117 },
+    "expected": { "rankingIds": ["a"], "failedItemId": "b", "currentC5Cents": 80, "currentSteamCents": null, "previousC5Cents": 70, "previousSteamCents": 117, "stagePassed": false }
+  }
+}

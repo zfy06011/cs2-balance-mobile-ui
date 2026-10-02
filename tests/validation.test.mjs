@@ -11,6 +11,63 @@ const item = { id: 'test', c5ItemId: '100', mappingStatus: 'verified', steamHash
 const profile = { verified: true, wallet };
 const pair = (id = 'b', cost = 100, gross = 115) => [quote('c5', id, cost, null, { itemId: '100' }), quote('steam', id, gross)];
 
+// The same literal scenarios can be consumed by Android tests after stack selection.
+// Verification flags here exist only inside controlled tests; no live profile is written.
+const contract = JSON.parse(fs.readFileSync(new URL('../fixtures/comparison-contract.json', import.meta.url)));
+test('cross-platform contract fixes net amounts, exclusion reasons and exact ranking', () => {
+  assert.equal(contract.evidenceType, 'controlled_fixture');
+  assert.equal(contract.schemaVersion, 1);
+  const profile = { verified: true, wallet: contract.wallet };
+  const calculate = (entry, id) => compare({ id, steamHashName: 'Fixture', c5ItemId: '100', mappingStatus: 'verified' },
+    'current', quote('c5', 'current', entry.c5Cents, null, { itemId: '100' }),
+    quote('steam', entry.steamBatchId ?? 'current', entry.steamBuyerCents, entry.steamFailure ?? null,
+      { currency: entry.steamCurrency ?? 'CNY' }), entry.feeVerified === false ? null : profile);
+  for (const entry of contract.comparisonCases) {
+    const row = calculate(entry, entry.name), expected = entry.expected;
+    assert.equal(row.rankable, expected.rankable, entry.name);
+    if (!expected.rankable) assert.equal(row.reason, expected.reason, entry.name);
+    else {
+      assert.deepEqual(row.cashPer100Cny, { numeratorCents: expected.numeratorCents,
+        denominator: expected.denominator, displayCents: expected.displayCents }, entry.name);
+      assert.equal(row.fee.netCents, expected.netCents, entry.name);
+      assert.equal(row.fee.steamFeeCents, expected.steamFeeCents, entry.name);
+      assert.equal(row.fee.publisherFeeCents, expected.publisherFeeCents, entry.name);
+    }
+  }
+  for (const entry of contract.rankingCases) {
+    const rows = entry.items.map(i => calculate(i, i.id));
+    assert.ok(rows.every(r => r.rankable), entry.name);
+    const ranked = rank(rows);
+    assert.deepEqual(ranked.map(r => r.item.id), entry.expectedIds, entry.name);
+    assert.deepEqual(ranked.map(r => r.cashPer100Cny.displayCents), entry.expectedDisplayCents, entry.name);
+    for (const row of ranked) assert.ok(rows.includes(row), 'detail and ranking share the same result object');
+  }
+});
+
+test('cross-platform contract keeps previous complete result separate from a failed current scan', async () => {
+  const input = contract.partialScan, previousInput = input.previous;
+  const profile = { verified: true, wallet: contract.wallet };
+  const prior = compare({ id: previousInput.id, c5ItemId: previousInput.c5ItemId,
+    steamHashName: previousInput.steamHashName, mappingStatus: 'verified' }, 'previous',
+    quote('c5', 'previous', previousInput.c5Cents, null, { itemId: previousInput.c5ItemId }),
+    quote('steam', 'previous', previousInput.steamBuyerCents), profile);
+  assert.equal(prior.rankable, true);
+  const f = fake([ok(JSON.stringify(input.c5)), ...input.steam.map(value =>
+    value.failure ? new ProbeError(value.failure) : ok(JSON.stringify(value)))]);
+  const report = await scan(input.items, { client: f.client, c5Key: 'controlled-fixture-key',
+    feeProfile: profile, previous: { [prior.item.id]: prior } });
+  const expected = input.expected, failed = report.rows.find(r => r.item.id === expected.failedItemId);
+  assert.deepEqual(report.rankings.map(r => r.item.id), expected.rankingIds);
+  assert.equal(report.stagePassed, expected.stagePassed);
+  assert.equal(failed.c5.amountCents, expected.currentC5Cents);
+  assert.equal(failed.steam.amountCents, expected.currentSteamCents);
+  const old = report.failures.find(r => r.itemId === expected.failedItemId).previousCompleteResult;
+  assert.equal(old.batchId, 'previous');
+  assert.equal(old.c5.amountCents, expected.previousC5Cents);
+  assert.equal(old.steam.amountCents, expected.previousSteamCents);
+  assert.equal(JSON.stringify(report).includes('controlled-fixture-key'), false);
+});
+
 test('integer money, large values, CNY parser rejects other currencies and malformed grouping', () => {
   assert.equal(cents('217.25'), 21725); assert.equal(steamCny('¥ 1,234.56'), 123456);
   for (const v of [null, '', '-1', '1.001', 'NaN', '900719925474099.99']) assert.throws(() => cents(v));
