@@ -1,0 +1,42 @@
+name: Data validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - 'fixtures/**'
+      - 'package.json'
+      - '.github/workflows/validation.yml'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - 'fixtures/**'
+      - 'package.json'
+      - '.github/workflows/validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  data-validation:
+    name: Data validation (Node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Check module syntax
+        run: |
+          node --check scripts/core.mjs
+          node --check scripts/probe.mjs
+          node --check scripts/audit-public.mjs
+      - name: Run controlled tests without live market requests
+        run: npm test

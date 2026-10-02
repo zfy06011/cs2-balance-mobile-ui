@@ -1,0 +1,16 @@
+{
+  "evidenceType": "manual_market_page_comparison",
+  "attestedRealObservations": false,
+  "batchId": null,
+  "items": [
+    {
+      "itemId": "revolution",
+      "c5ItemId": null,
+      "steamHashName": "Revolution Case",
+      "currency": "CNY",
+      "c5PagePriceCents": null,
+      "steamPageBuyerTotalCents": null,
+      "observedAt": null
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "evidenceType": "manual_steam_cny_sell_dialog",
+  "attestedRealObservations": false,
+  "observedAt": null,
+  "walletParametersConfirmed": false,
+  "wallet": {
+    "minimumCents": 7,
+    "incrementCents": 1,
+    "steamBasisPoints": 500,
+    "publisherBasisPoints": 1000
+  },
+  "observations": []
+}
