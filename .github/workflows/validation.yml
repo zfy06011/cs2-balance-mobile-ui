@@ -1,4 +1,4 @@
-name: Data validation
+name: MVP checks and Android APK
 
 on:
   workflow_dispatch:
@@ -8,6 +8,7 @@ on:
       - 'tests/**'
       - 'fixtures/**'
       - 'package.json'
+      - 'android/**'
       - '.github/workflows/validation.yml'
   pull_request:
     paths:
@@ -15,6 +16,7 @@ on:
       - 'tests/**'
       - 'fixtures/**'
       - 'package.json'
+      - 'android/**'
       - '.github/workflows/validation.yml'
 
 permissions:
@@ -40,3 +42,67 @@ jobs:
           node --check scripts/audit-public.mjs
       - name: Run controlled tests without live market requests
         run: npm test
+
+  android:
+    name: Android JVM tests, lint and debug APK
+    needs: data-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.13'
+      - name: Install cloud Android build inputs
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Test, lint and build the actual checkout
+        run: gradle --project-dir android --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+      - name: Record APK provenance
+        env:
+          CHECKOUT_REPOSITORY: ${{ github.repository }}
+          CHECKOUT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mkdir -p artifacts/android
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/balance-assistant-0.1.0-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.0-debug.apk > artifacts/android/apk-metadata.txt
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess
+          apk = pathlib.Path('artifacts/android/balance-assistant-0.1.0-debug.apk')
+          badging = pathlib.Path('artifacts/android/apk-metadata.txt').read_text()
+          metadata = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
+          if not metadata or metadata.groups() != ('com.cs2balance.assistant.mvp', '1', '0.1.0'):
+              raise RuntimeError('APK identity/version mismatch')
+          info = {
+              'commitSha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+              'repository': os.environ['CHECKOUT_REPOSITORY'],
+              'runUrl': os.environ['CHECKOUT_RUN_URL'],
+              'package': metadata[1], 'versionName': metadata[3],
+              'versionCode': int(metadata[2]), 'variant': 'debug',
+              'apk': apk.name, 'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
+              'deviceVerified': False, 'liveSourcesVerified': False,
+          }
+          pathlib.Path('artifacts/android/build-info.json').write_text(json.dumps(info, indent=2) + '\n')
+          PY
+      - name: Upload debug APK and source evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: balance-assistant-0.1.0-debug-${{ github.run_id }}
+          path: artifacts/android/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Android checks
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-checks-${{ github.run_id }}
+          path: |
+            android/app/build/reports/tests/
+            android/app/build/reports/lint-results-debug.*
+          if-no-files-found: warn
+          retention-days: 14

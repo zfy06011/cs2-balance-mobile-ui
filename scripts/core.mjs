@@ -78,9 +78,11 @@ export function compare(item, batchId, c5, steam, feeProfile) {
     if (fee.unrepresentableRemainderCents !== 0)
       return { ...row, fee, reason: 'fee_inverse_ambiguous' };
     const numerator = BigInt(c5.amountCents) * 10000n, denominator = BigInt(fee.netCents);
+    const display = (numerator + denominator / 2n) / denominator;
+    if (display > BigInt(Number.MAX_SAFE_INTEGER)) return { ...row, reason: 'invalid_money' };
     return { ...row, rankable: true, fee,
       cashPer100Cny: { numeratorCents: numerator.toString(), denominator: denominator.toString(),
-        displayCents: Number((numerator + denominator / 2n) / denominator) } };
+        displayCents: Number(display) } };
   } catch (error) { return { ...row, reason: error.code ?? 'fee_error' }; }
 }
 export function rank(rows) {

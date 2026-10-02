@@ -5,6 +5,11 @@
   "wallet": { "minimumCents": 7, "incrementCents": 1, "steamBasisPoints": 500, "publisherBasisPoints": 1000 },
   "comparisonCases": [
     {
+      "name": "display-cost-overflow",
+      "c5Cents": 9007199254740991, "steamBuyerCents": 21,
+      "expected": { "rankable": false, "reason": "invalid_money" }
+    },
+    {
       "name": "valid-single-item",
       "c5Cents": 70, "steamBuyerCents": 117,
       "expected": { "rankable": true, "netCents": 100, "steamFeeCents": 7, "publisherFeeCents": 10, "numeratorCents": "700000", "denominator": "100", "displayCents": 7000 }

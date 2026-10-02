@@ -6,3 +6,10 @@ node_modules/
 *.pem
 .env
 .env.*
+**/.gradle/
+**/.kotlin/
+**/build/
+.idea/
+local.properties
+*.jks
+*.keystore
