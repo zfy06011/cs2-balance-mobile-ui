@@ -1,8 +1,19 @@
 # 宇额助手：数据链路与比价验证
 
-更新：2026-10-02（Asia/Shanghai）。用户已确认 MVP 需求及推荐的 Kotlin + Jetpack Compose，随后明确允许将 `b38af96` 推送到 `zfy06011/cs2-balance-mobile-ui` 的新 `codex/mvp` 分支并构建 APK。当前执行者：Codex，使用 pwsh 7、Node.js 24.15.0、Python 静态解析及 GitHub 连接器；远端 origin 已配置并推送成功。首轮云端检查已运行，Node 通过，Android SDK 准备失败，尚未产生 APK。
+更新：2026-10-02（Asia/Shanghai）。用户已确认 MVP 与 Kotlin + Jetpack Compose，并分别授权首版 `b38af96`、SDK 修复 `df95444` 推送到 `zfy06011/cs2-balance-mobile-ui` 的 `codex/mvp` 分支。当前执行者 Codex，可运行非 Android 本地检查、读取云端 jobs／logs；不安装本地 Android 工具链。远端 origin 已配置，第二轮 SDK 和 Kotlin 编译通过，JVM 测试 9／10 通过，尚无 APK。
 
-**状态：执行中。首轮云端 Node 检查通过；Android 因 sdkmanager 不在 PATH 中而未进入编译。SDK 初始化配置已本地修复，待本次重新推送确认；真实接口、费用与手机性能仍未验证。**
+**状态：执行中。第二轮 SDK、应用及测试编译通过；候选校验的一项 JVM 测试失败，已本地修复，待本次重新推送确认。lint 与 APK 仍未完成；真实接口、费用与手机性能仍未验证。**
+
+第二轮：[37017649453](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37017649453)，实际检出 SHA 为 `df95444e90d8040918bf34c2f2dcd6dc63c9b5a1`，远端分支一致，状态已 completed／failure。历史 `重写参考.md` 保持原样且未跟踪。
+
+### 第二轮 JVM 失败与修复
+
+- Node 检查 SUCCESS；SDK 初始化 SUCCESS；`:app:compileDebugKotlin`、`:app:compileDebugUnitTestKotlin` 完成，未见 Kotlin 编译错误／警告。
+- `:app:testDebugUnitTest` 实际执行10项，9项通过，`candidateRulesProtectScopeAndBuiltinIdentities` 在内置50项清单校验处失败。测试报告见 [android-checks artifact](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37017649453/artifacts/11232615294)。lint 最终任务与 APK 未完成，不能交付 APK。
+- 根因：武器箱规则只允许英文标识以 ` Case` 结尾，误拒绝内置清单中的 `CS:GO Weapon Case 2` 和 `CS:GO Weapon Case 3`。按原规则回放50项清单，仅这两项被拒绝，ID均唯一。
+- 修复：只补充这两个精确武器箱名称；保留50项上限、唯一性、分类检查和皮肤排除。保留原测试和全部构建检查，没有删除商品或降低门槛，不添加任何行情可用性声明。
+- 本地静态解析／diff 检查通过；原失败的 JVM 测试只能在云端实际重跑后判定修复通过。此次修改只涉及 `Candidates.kt` 和本交接文档；构建结果须对应下一次实际源码提交。
+- 下一步：单独取得本次推送授权，再向同仓库 `codex/mvp` 推送候选规则修复，运行测试、lint 与 APK 构建。
 
 ### 首轮云端构建与修复
 
@@ -32,7 +43,7 @@
 - `BalanceViewModel` 与 `ui/` 连通排行、失败与旧结果、比价详情和单项刷新、候选池增删与范围校验、凭证配置和真实观察文件选择。扫描启动冻结候选与手续费，阻止重复启动和扫描期间修改；返回列表保留滚动位置，恢复中断扫描显示未完成状态，浅／深色和系统 Insets 已在源码处理。
 - 源码审查已修正：旧 Android 的文件读取兼容性、平板宽度约束、放大文字时分类按钮换行、凭证错误提示消失后仍可删除、不同扫描间请求间隔丢失、金额显示溢出。页面已完成一次源码层审查与调整，但没有渲染、TalkBack 或性能证据，不能给出 UI 已验证或 premium 评分。
 - `.github/workflows/validation.yml` 扩展为 `Data validation (Node 24)` → `Android JVM tests, lint and debug APK` 两项必需检查。命令为 `gradle --project-dir android --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`；无本地 Gradle Wrapper，云端由 setup-gradle 安装固定 8.13 后运行。构建通过后上传 APK、aapt 实际身份／版本、实际 `git rev-parse HEAD`、APK SHA-256 和 run URL；PR 构建检出的合并 SHA 按实际值记录。无正式发布步骤。
-- JVM 测试已编写 10 项，覆盖同一契约的费用／精确排序、部分失败旧完整结果、默认候选和皮肤排除、未填写观察模板、币种与超长 ID、429／冷却恢复、5xx 上限、同键合并与跨批次间隔；**NOT RUN**，必须在云端实际运行后才能判定通过。
+- JVM 测试已编写 10 项，覆盖同一契约的费用／精确排序、部分失败旧完整结果、默认候选和皮肤排除、未填写观察模板、币种与超长 ID、429／冷却恢复、5xx 上限、同键合并与跨批次间隔；第二轮实际9项通过、1项候选校验失败，详见顶部，不能报告全部通过。
 - **PASS（本地）**：现有 Node 受控测试 17／17；Tree-sitter 解析 17 个 Kotlin／Gradle 源文件、XML 解析、工作流 YAML 与内嵌 Python 语法检查、diff 空白检查。Python 检查工具安装在 Git 忽略的 `.local/check-tools`，不包含 JDK／Gradle／Android SDK，也未作为源码或应用依赖提交。静态解析不验证类型、API 可用性、lint 或应用运行。
 - **未检查／卡点**：Android 依赖解析、JVM 测试、lint、编译和 APK 尚未运行；真实接口、人民币费用、手机网络与 UI 仍未验证。debug 签名尚未固定到持久的私有 CI 配置，不承诺后续不同构建可直接覆盖安装，正式签名另行决定。
 - GitHub 连接器已读到 `zfy06011/cs2-balance-mobile-ui`（公开仓库，默认分支 `codex/ui-redesign`，有 push 权限），这是可选云端构建目标，**未设为 origin，未创建或修改远端分支**。下一步确认是否向该仓库的新 `codex/mvp` 分支推送本次独立重写源码，并触发上述检查；不覆盖旧分支或合并／发布。用户也可指定另一仓库。

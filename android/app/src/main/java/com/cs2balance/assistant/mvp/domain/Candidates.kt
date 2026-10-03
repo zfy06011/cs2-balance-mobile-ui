@@ -14,7 +14,7 @@ object Candidates {
         }
     }
     private fun supported(category: String, hash: String) = when (category) {
-        "case" -> hash.endsWith(" Case")
+        "case" -> hash.endsWith(" Case") || hash == "CS:GO Weapon Case 2" || hash == "CS:GO Weapon Case 3"
         "capsule" -> hash.contains("Capsule") || Regex("^20\\d{2} RMR (Legends|Challengers|Contenders)$").matches(hash)
         "sticker" -> hash.startsWith("Sticker | ") && hash.length > "Sticker | ".length
         else -> false
