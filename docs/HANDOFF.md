@@ -1,8 +1,21 @@
 # 宇额助手：数据链路与比价验证
 
-更新：2026-10-02（Asia/Shanghai）。用户已确认 MVP 与 Kotlin + Jetpack Compose，并分别授权首版 `b38af96`、SDK 修复 `df95444` 推送到 `zfy06011/cs2-balance-mobile-ui` 的 `codex/mvp` 分支。当前执行者 Codex，可运行非 Android 本地检查、读取云端 jobs／logs；不安装本地 Android 工具链。远端 origin 已配置，第二轮 SDK 和 Kotlin 编译通过，JVM 测试 9／10 通过，尚无 APK。
+更新：2026-10-04（Asia/Shanghai）。用户已确认 MVP 与 Kotlin + Jetpack Compose，分别授权首版 `b38af96`、SDK 修复 `df95444`、候选修复 `6b5e9bc` 推送到 `zfy06011/cs2-balance-mobile-ui` 的 `codex/mvp` 分支。当前执行者 Codex，可运行非 Android 本地检查、读取云端 jobs／logs；不安装本地 Android 工具链。第三轮云端构建正在执行。
 
-**状态：执行中。第二轮 SDK、应用及测试编译通过；候选校验的一项 JVM 测试失败，已本地修复，待本次重新推送确认。lint 与 APK 仍未完成；真实接口、费用与手机性能仍未验证。**
+**状态：执行中。第三轮 Node 与 Android JVM 10／10 测试通过，APK 打包任务完成；整轮构建因11项 lint 问题失败，未上传可交付 APK。相关构建／依赖／备份／图标修复已本地完成，待本次重新推送确认；真实接口与真机仍未验证。**
+
+第三轮：[37212035421](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37212035421)，实际源码 SHA 为 `6b5e9bc535f1b1aa991aeac096c38c4bc51a32ea`，已 completed／failure。历史 `重写参考.md` 保持原样且未跟踪。
+
+### 第三轮 lint 失败与本地修复
+
+- `:app:testDebugUnitTest` 通过，下载的 HTML 报告记录10项、0失败、0跳过、100%；`:app:assembleDebug` 完成，但 `:app:lintDebug` 失败，因此 build-info 与 APK 上传被跳过。不得把临时打包完成报告为可交付 APK 或完整构建通过。
+- 完整检查报告：[android-checks artifact](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37212035421/artifacts/11306707682)，ZIP SHA-256 为 `82136faf34ffaceb4da773fef92b10229541037459ca485f992a85248337f7af`，本地诊断副本位于 Git 忽略的 `artifacts/ci/37212035421/android-checks.zip`。报告包含11项：OldTargetApi 1项、GradleDependency 4项、NewerVersionAvailable 3项、DataExtractionRules、ObsoleteSdkInt、MonochromeLauncherIcon 各1项。
+- 版本修复按报告的可用稳定版本与官方兼容表执行：compileSdk／targetSdk 37，AGP 9.3.3，云端 Gradle 9.5.0、Build Tools 36.0.0，保留 Java 17、minSdk 26；Kotlin／Compose／serialization 插件2.4.20，Compose BOM 2026.09.00、Activity 1.13.0、Lifecycle 2.11.0、coroutines／serialization 1.11.0。相关 AGP、BOM、Activity、Lifecycle、coroutines、serialization、Kotlin 的官方 Maven POM读取HTTP 200；实际解析仍待下一次 CI。
+- AGP 9按 [官方迁移说明](https://developer.android.com/build/migrate-to-built-in-kotlin) 使用内置 Kotlin：移除重复 kotlin-android 插件，并依 [官方 KGP 升级说明](https://developer.android.com/build/releases/agp-9-0-0-release-notes) 显式对齐 KGP／Compose／serialization 2.4.20。这是必需的构建配置适配，应用仍为单模块 Kotlin + Compose，不改变业务架构、功能或缓存格式。API37与工具版本依据 [Android17 SDK](https://developer.android.com/about/versions/17/setup-sdk) 和 [AGP9.3兼容表](https://developer.android.com/build/releases/agp-9-3-0-release-notes)。新 target 行为已查官方说明，仍需云端重编译及手机体验证据，不能声称运行验证通过。
+- 数据安全声明修复：保留 allowBackup=false、noBackupFilesDir 和 Keystore 存储，增加 fullBackupContent=false 与 Android12+ 的显式云备份／设备转移排除 XML，不引入数据迁移。依据 [官方备份规则](https://developer.android.com/identity/data/autobackup)。实际设备备份行为未测试。
+- 图标修复：将 minSdk 已覆盖的 `mipmap-anydpi-v26` 资源改为 `mipmap-anydpi`，增加 monochrome 层，前景改为108dp画布内的48dp标志，绿色独立背景保持。遵循 [官方 adaptive icon 规范](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive)，不新增图片生成依赖。
+- `abortOnError=true`、`warningsAsErrors=true`、原 Node/JVM 测试与 lint/assemble 全保留；未加 baseline、未屏蔽规则、未跳过检查。当前修复通过本地 Kotlin/Gradle/XML/YAML/Python 静态解析与 diff 检查，但尚不能报告新版本编译／lint通过。
+- 下一步：取得本次修复推送授权，向同仓库 `codex/mvp` 推送并重新构建；APK 的实际 SHA、身份和版本仍以成功的新构建产物为准。
 
 第二轮：[37017649453](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37017649453)，实际检出 SHA 为 `df95444e90d8040918bf34c2f2dcd6dc63c9b5a1`，远端分支一致，状态已 completed／failure。历史 `重写参考.md` 保持原样且未跟踪。
 

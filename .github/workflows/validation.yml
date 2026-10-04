@@ -58,12 +58,12 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '8.13'
+          gradle-version: '9.5.0'
       - name: Initialize cloud Android SDK and build inputs
         uses: android-actions/setup-android@v4
         with:
           cmdline-tools-version: '12266719'
-          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+          packages: 'platform-tools platforms;android-37 build-tools;36.0.0'
       - name: Test, lint and build the actual checkout
         run: gradle --project-dir android --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
       - name: Record APK provenance
@@ -73,7 +73,7 @@ jobs:
         run: |
           mkdir -p artifacts/android
           cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/balance-assistant-0.1.0-debug.apk
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.0-debug.apk > artifacts/android/apk-metadata.txt
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.0-debug.apk > artifacts/android/apk-metadata.txt
           python3 - <<'PY'
           import hashlib, json, os, pathlib, re, subprocess
           apk = pathlib.Path('artifacts/android/balance-assistant-0.1.0-debug.apk')
