@@ -136,8 +136,10 @@ class ComparisonContractTest {
             Quote("c5", "b", amountCents = 0, status = "success", itemId = "100"),
             Quote("steam", "b", amountCents = 117, status = "success"), profile).reason)
     }
-    @Test fun providersRejectCurrencyAndUnsafeNumericIds() {
+    @Test fun providersRejectMalformedStatusCurrencyAndUnsafeNumericIds() {
         assertEquals(167L, Providers.steam("""{"success":true,"lowest_price":"¥ 1.67"}"""))
+        assertEquals("unavailable", failure { Providers.steam("""{"success":"true","lowest_price":"¥ 1.67"}""") })
+        assertEquals("c5_rejected", failure { Providers.c5("""{"success":"true","data":{}}""", listOf("A")) })
         assertEquals("currency_or_price_format", failure { Providers.steam("""{"success":true,"lowest_price":"HK$ 1.67"}""") })
         val unsafe = """{"success":true,"data":{"A":{"itemId":1098192327056363520,"marketHashName":"A","price":1.23,"count":1}}}"""
         assertEquals("mapping_or_availability", Providers.c5(unsafe, listOf("A"))["A"]!!.failure)

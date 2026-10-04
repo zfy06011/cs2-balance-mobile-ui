@@ -1,3 +1,13 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -21,16 +31,36 @@ android {
     }
     lint { abortOnError = true; warningsAsErrors = true }
     sourceSets {
-        getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/candidate-assets"))
-        getByName("test").resources.srcDir(rootProject.file("../fixtures"))
+        getByName("test").resources.directories.add(rootProject.file("../fixtures").absolutePath)
     }
 }
 kotlin { jvmToolchain(17) }
-val generateCandidateAssets by tasks.registering(Copy::class) {
-    from(rootProject.file("../fixtures/candidate-pool.json"))
-    into(layout.buildDirectory.dir("generated/candidate-assets"))
+
+@CacheableTask
+abstract class GenerateCandidateAssets : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val inputFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val directory = outputDirectory.get().asFile
+        if (!directory.isDirectory && !directory.mkdirs()) error("Cannot create candidate asset directory")
+        inputFile.get().asFile.copyTo(directory.resolve("candidate-pool.json"), overwrite = true)
+    }
 }
-tasks.named("preBuild") { dependsOn(generateCandidateAssets) }
+
+androidComponents.onVariants { variant ->
+    val capitalized = variant.name.replaceFirstChar { it.uppercaseChar() }
+    val assetTask = tasks.register<GenerateCandidateAssets>("generate${capitalized}CandidateAssets") {
+        inputFile.set(rootProject.layout.projectDirectory.file("../fixtures/candidate-pool.json"))
+    }
+    val assets = requireNotNull(variant.sources.assets) { "Asset sources required for built-in candidates" }
+    assets.addGeneratedSourceDirectory(assetTask, GenerateCandidateAssets::outputDirectory)
+}
 
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))

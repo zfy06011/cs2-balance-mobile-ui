@@ -19,14 +19,14 @@ object Providers {
     } catch (_: Exception) { throw DomainError("schema") }
     fun steam(text: String): Long {
         val value = objectFrom(text)
-        if ((value["success"] as? JsonPrimitive)?.booleanOrNull != true) throw DomainError("unavailable")
+        if ((value["success"] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull != true) throw DomainError("unavailable")
         val price = (value["lowest_price"] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
             ?: throw DomainError("empty_quote")
         return Money.steamCny(price)
     }
     fun c5(text: String, hashes: List<String>): Map<String, C5Value> {
         val root = objectFrom(text)
-        if ((root["success"] as? JsonPrimitive)?.booleanOrNull != true) {
+        if ((root["success"] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull != true) {
             val code = (root["errorCode"] as? JsonPrimitive)?.contentOrNull
             throw DomainError(if (code == "400001") "credential_invalid" else "c5_rejected")
         }

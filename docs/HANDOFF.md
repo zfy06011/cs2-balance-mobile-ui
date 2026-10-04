@@ -1,8 +1,19 @@
 # 宇额助手：数据链路与比价验证
 
-更新：2026-10-05（Asia/Shanghai）。用户已确认 MVP 与 Kotlin + Jetpack Compose，并分别授权各次推送；最新 lint 修复 `dbbf8a5` 已获“推送”授权并推送到 `zfy06011/cs2-balance-mobile-ui` 的 `codex/mvp` 分支。当前执行者 Codex，可运行非 Android 本地检查、读取云端 jobs／logs；不安装本地 Android 工具链。第四轮云端构建正在执行。
+更新：2026-10-05（Asia/Shanghai）。用户已确认 MVP 与 Kotlin + Jetpack Compose，并分别授权各次推送；SDK 包名修复 `f3f9918` 已按最新“推送”授权更新到 `zfy06011/cs2-balance-mobile-ui` 的 `codex/mvp` 分支。当前执行者 Codex，可运行非 Android 本地检查、读取云端 jobs／logs；不安装本地 Android 工具链。第五轮云端构建已触发。
 
-**状态：执行中。第四轮因 SDK 平台包名不匹配而在安装步骤失败，尚未验证新工具／依赖的编译与 lint。已本地按官方包目录修正为 `platforms;android-37.0`，待本次重新推送确认；真实接口与真机仍未验证。**
+**状态：执行中。第五轮 SDK37.0 已安装成功，随后在 AGP9 的资产 SourceSet 配置处失败；尚未进入本轮编译／测试／lint。已本地改用 Variant API，并修复发现的报价成功标志类型校验不一致，待本次重新推送确认。暂无可交付 APK，真实接口与真机未验证。**
+
+第五轮：[37218258205](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37218258205)，实际源码 SHA 为 `f3f99188a3595695fbc180071d58c0f5f6cd38b4`，已 completed／failure。Node检查与SDK安装通过，Gradle配置失败；后续本轮编译、测试、lint、APK未通过。历史 `重写参考.md` 保持原样且未跟踪。
+
+### 第五轮构建配置与响应类型修复
+
+- 日志：`You cannot add Provider instances to the Android SourceSet API`，指出直接把生成资产的 Directory Provider 交给 `assets.srcDir` 不再受AGP9支持；同时资产／测试资源的两个 srcDir 调用均给出弃用警告。这属于构建配置兼容问题，不把前轮已验证的计算测试记为失败。
+- `android/app/build.gradle.kts`：声明带 InputFile／OutputDirectory 的候选资产生成任务，使用 Variant API 的 `addGeneratedSourceDirectory` 注册，每个变体由AGP分配生成目录并携带任务依赖。只复制内置 candidate-pool.json；测试观察与比价契约仍仅在 test resources。测试资源改用 `directories` 集合，不传 Provider，也不设置 disallowProvider=false 或兼容绕过开关。
+- API签名已核对 [AGP9.3 SourceDirectories 原始文档](https://developer.android.com/reference/tools/gradle-api/9.3/com/android/build/api/variant/SourceDirectories) 及官方 gradle-api9.3.3 sources JAR；本地只读源码，不安装或运行 Android工具链。新配置的实际任务图与资产打包仍待下一次云端验证。
+- 代码核对另发现 Providers 的 booleanOrNull 按内容解析，字符串 "true" 也可返回true，和Node验证工具要求 JSON 布尔值的契约不一致。该行为已由 [Kotlin官方API](https://kotlinlang.org/api/kotlinx.serialization/kotlinx-serialization-json/kotlinx.serialization.json/boolean-or-null.html) 与serialization1.11.0原始实现确认。Android Steam／C5成功标志现在同时检查非字符串和布尔true；已有provider测试补充两侧拒绝字符串成功标志的回归断言，测试数保持10项，不改变有效报价算法或功能范围。
+- 本地 Kotlin／Gradle／XML／YAML／Python 语法解析、diff检查通过；Node参考实现的错误输入校验可复现。新的Android响应类型断言和Variant任务仍必须由CI实际运行后判定通过。
+- 本次变更为 app构建脚本、Providers.kt、既有JVM测试和本交接文档；全部原测试／lint／APK门槛保留。下一步单独确认推送至同仓库 `codex/mvp` 后重建。
 
 第四轮：[37216282367](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37216282367)，实际源码 SHA 为 `dbbf8a5ddf7f680934f29789ccfd96a377d7b48d`，已 completed／failure。Node检查通过；Android SDK 安装失败，后续 Gradle 测试／lint／APK均跳过。
 
