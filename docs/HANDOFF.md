@@ -1,8 +1,18 @@
 # 宇额助手：数据链路与比价验证
 
-更新：2026-10-04（Asia/Shanghai）。用户已确认 MVP 与 Kotlin + Jetpack Compose，分别授权首版 `b38af96`、SDK 修复 `df95444`、候选修复 `6b5e9bc` 推送到 `zfy06011/cs2-balance-mobile-ui` 的 `codex/mvp` 分支。当前执行者 Codex，可运行非 Android 本地检查、读取云端 jobs／logs；不安装本地 Android 工具链。第三轮云端构建正在执行。
+更新：2026-10-05（Asia/Shanghai）。用户已确认 MVP 与 Kotlin + Jetpack Compose，并分别授权各次推送；最新 lint 修复 `dbbf8a5` 已获“推送”授权并推送到 `zfy06011/cs2-balance-mobile-ui` 的 `codex/mvp` 分支。当前执行者 Codex，可运行非 Android 本地检查、读取云端 jobs／logs；不安装本地 Android 工具链。第四轮云端构建正在执行。
 
-**状态：执行中。第三轮 Node 与 Android JVM 10／10 测试通过，APK 打包任务完成；整轮构建因11项 lint 问题失败，未上传可交付 APK。相关构建／依赖／备份／图标修复已本地完成，待本次重新推送确认；真实接口与真机仍未验证。**
+**状态：执行中。第四轮因 SDK 平台包名不匹配而在安装步骤失败，尚未验证新工具／依赖的编译与 lint。已本地按官方包目录修正为 `platforms;android-37.0`，待本次重新推送确认；真实接口与真机仍未验证。**
+
+第四轮：[37216282367](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37216282367)，实际源码 SHA 为 `dbbf8a5ddf7f680934f29789ccfd96a377d7b48d`，已 completed／failure。Node检查通过；Android SDK 安装失败，后续 Gradle 测试／lint／APK均跳过。
+
+### 第四轮 SDK 包名修复
+
+- 日志实际错误：`Warning: Failed to find package 'platforms;android-37'`，sdkmanager 返回 exit 1；不是应用 Kotlin 编译失败，也不是对前轮10项 JVM通过结果的否定。
+- 当前核对 [Google 官方 SDK 包目录](https://dl.google.com/android/repository/repository2-3.xml) 与 repository2-4.xml：没有无小版本的 `platforms;android-37`，稳定渠道包含 `platforms;android-37.0`、37.1、37.2，另含命名带 beta 的条目。本轮选择基础平台37.0；实际 type-details 的 api-level 文本为 `37.0`、codename 为空、channelRef 为 channel-0，Build Tools36.0.0也存在。不将这些目录证据说成安装或编译已通过，也不切 beta 或自动升级到小版本平台。
+- 修复仅将工作流安装包名改为 `platforms;android-37.0`；compile／target API37、构建工具、检查命令、应用代码与测试门槛保持。依据 [sdkmanager 官方用法](https://developer.android.com/tools/sdkmanager)，安装参数必须是目录中的精确 SDK 包路径。
+- 本地 YAML／内嵌 Python／XML／Kotlin 静态解析及 diff 检查通过。该包在 sdkmanager 和 AGP 中的实际安装、解析及编译结果仍须下一次云端验证，不能据 XML目录声称构建成功。
+- 下一步：单独取得本次包名修复推送授权，再运行同仓库同分支的云端检查与APK构建。历史 `重写参考.md` 保持原样且未跟踪。
 
 第三轮：[37212035421](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37212035421)，实际源码 SHA 为 `6b5e9bc535f1b1aa991aeac096c38c4bc51a32ea`，已 completed／failure。历史 `重写参考.md` 保持原样且未跟踪。
 
