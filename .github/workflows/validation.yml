@@ -80,14 +80,14 @@ jobs:
           CHECKOUT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           mkdir -p artifacts/android
-          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/balance-assistant-0.1.1-debug.apk
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.1-debug.apk > artifacts/android/apk-metadata.txt
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/balance-assistant-0.1.2-debug.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.2-debug.apk > artifacts/android/apk-metadata.txt
           python3 - <<'PY'
           import hashlib, json, os, pathlib, re, subprocess
-          apk = pathlib.Path('artifacts/android/balance-assistant-0.1.1-debug.apk')
+          apk = pathlib.Path('artifacts/android/balance-assistant-0.1.2-debug.apk')
           badging = pathlib.Path('artifacts/android/apk-metadata.txt').read_text()
           metadata = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
-          if not metadata or metadata.groups() != ('com.cs2balance.assistant.mvp', '2', '0.1.1'):
+          if not metadata or metadata.groups() != ('com.cs2balance.assistant.mvp', '3', '0.1.2'):
               raise RuntimeError('APK identity/version mismatch')
           info = {
               'commitSha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
@@ -97,13 +97,14 @@ jobs:
               'versionCode': int(metadata[2]), 'variant': 'debug',
               'apk': apk.name, 'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
               'deviceVerified': False, 'liveSourcesVerified': False,
+              'feeEvidenceSha256': hashlib.sha256(pathlib.Path('android/app/src/main/assets/steam-cny-fee-evidence.json').read_bytes()).hexdigest(),
           }
           pathlib.Path('artifacts/android/build-info.json').write_text(json.dumps(info, indent=2) + '\n')
           PY
       - name: Upload debug APK and source evidence
         uses: actions/upload-artifact@v7
         with:
-          name: balance-assistant-0.1.1-debug-${{ github.run_id }}
+          name: balance-assistant-0.1.2-debug-${{ github.run_id }}
           path: artifacts/android/
           if-no-files-found: error
           retention-days: 14

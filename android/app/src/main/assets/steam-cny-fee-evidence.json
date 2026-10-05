@@ -1,0 +1,98 @@
+{
+  "evidenceType": "steam_public_original_cny_listings",
+  "currency": "CNY",
+  "viewPreference": "bMarketOptOut=1",
+  "observedAt": "2026-10-05T13:48:45.595Z",
+  "wallet": {
+    "minimumCents": 7,
+    "incrementCents": 1,
+    "steamBasisPoints": 500,
+    "publisherBasisPoints": 1000
+  },
+  "observations": [
+    {
+      "steamHashName": "P250 | Boreal Forest (Field-Tested)",
+      "sourceUrl": "https://steamcommunity.com/market/listings/730/P250%20%7C%20Boreal%20Forest%20(Field-Tested)/render/?query=&start=0&count=10&country=CN&language=schinese&currency=23",
+      "collectedAt": "2026-10-05T13:44:31.632Z",
+      "originalCurrencyId": 2023,
+      "convertedCurrencyId": 2023,
+      "publisherAppId": 730,
+      "publisherFeePercent": "0.100000001490116119",
+      "assetHashConfirmed": true,
+      "sellerReceivesCents": 7,
+      "buyerPaysCents": 21,
+      "steamFeeCents": 7,
+      "publisherFeeCents": 7
+    },
+    {
+      "steamHashName": "SCAR-20 | Fragments (Field-Tested)",
+      "sourceUrl": "https://steamcommunity.com/market/listings/730/SCAR-20%20%7C%20Fragments%20(Field-Tested)/render/?query=&start=0&count=10&country=CN&language=schinese&currency=23",
+      "collectedAt": "2026-10-05T13:46:33.395Z",
+      "originalCurrencyId": 2023,
+      "convertedCurrencyId": 2023,
+      "publisherAppId": 730,
+      "publisherFeePercent": "0.100000001490116119",
+      "assetHashConfirmed": true,
+      "sellerReceivesCents": 46,
+      "buyerPaysCents": 60,
+      "steamFeeCents": 7,
+      "publisherFeeCents": 7
+    },
+    {
+      "steamHashName": "MP9 | Starlight Protector (Field-Tested)",
+      "sourceUrl": "https://steamcommunity.com/market/listings/730/MP9%20%7C%20Starlight%20Protector%20(Field-Tested)/render/?query=&start=0&count=10&country=CN&language=schinese&currency=23",
+      "collectedAt": "2026-10-05T13:48:45.595Z",
+      "originalCurrencyId": 2023,
+      "convertedCurrencyId": 2023,
+      "publisherAppId": 730,
+      "publisherFeePercent": "0.100000001490116119",
+      "assetHashConfirmed": true,
+      "sellerReceivesCents": 49479,
+      "buyerPaysCents": 56899,
+      "steamFeeCents": 2473,
+      "publisherFeeCents": 4947
+    },
+    {
+      "steamHashName": "MP9 | Starlight Protector (Field-Tested)",
+      "sourceUrl": "https://steamcommunity.com/market/listings/730/MP9%20%7C%20Starlight%20Protector%20(Field-Tested)/render/?query=&start=0&count=10&country=CN&language=schinese&currency=23",
+      "collectedAt": "2026-10-05T13:48:45.595Z",
+      "originalCurrencyId": 2023,
+      "convertedCurrencyId": 2023,
+      "publisherAppId": 730,
+      "publisherFeePercent": "0.100000001490116119",
+      "assetHashConfirmed": true,
+      "sellerReceivesCents": 49566,
+      "buyerPaysCents": 57000,
+      "steamFeeCents": 2478,
+      "publisherFeeCents": 4956
+    },
+    {
+      "steamHashName": "MP9 | Starlight Protector (Field-Tested)",
+      "sourceUrl": "https://steamcommunity.com/market/listings/730/MP9%20%7C%20Starlight%20Protector%20(Field-Tested)/render/?query=&start=10&count=10&country=CN&language=schinese&currency=23",
+      "collectedAt": "2026-10-05T13:46:31.279Z",
+      "originalCurrencyId": 2023,
+      "convertedCurrencyId": 2023,
+      "publisherAppId": 730,
+      "publisherFeePercent": "0.100000001490116119",
+      "assetHashConfirmed": true,
+      "sellerReceivesCents": 50000,
+      "buyerPaysCents": 57500,
+      "steamFeeCents": 2500,
+      "publisherFeeCents": 5000
+    },
+    {
+      "steamHashName": "MP9 | Starlight Protector (Field-Tested)",
+      "sourceUrl": "https://steamcommunity.com/market/listings/730/MP9%20%7C%20Starlight%20Protector%20(Field-Tested)/render/?query=&start=10&count=10&country=CN&language=schinese&currency=23",
+      "collectedAt": "2026-10-05T13:46:31.279Z",
+      "originalCurrencyId": 2023,
+      "convertedCurrencyId": 2023,
+      "publisherAppId": 730,
+      "publisherFeePercent": "0.100000001490116119",
+      "assetHashConfirmed": true,
+      "sellerReceivesCents": 51044,
+      "buyerPaysCents": 58700,
+      "steamFeeCents": 2552,
+      "publisherFeeCents": 5104
+    }
+  ]
+}

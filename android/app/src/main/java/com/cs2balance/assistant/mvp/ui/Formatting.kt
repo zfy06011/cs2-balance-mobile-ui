@@ -5,8 +5,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 fun money(cents: Long?): String = cents?.let { "¥ ${it / 100}.${(it % 100).toString().padStart(2, '0')}" } ?: "未取得"
-fun time(value: String?): String = try {
-    if (value == null) "未采集" else DateTimeFormatter.ofPattern("MM-dd HH:mm:ss")
+fun time(value: String?, includeYear: Boolean = false): String = try {
+    if (value == null) "未采集" else DateTimeFormatter.ofPattern(if (includeYear) "yyyy-MM-dd HH:mm:ss" else "MM-dd HH:mm:ss")
         .withZone(ZoneId.systemDefault()).format(Instant.parse(value))
 } catch (_: Exception) { "时间不可用" }
 fun category(value: String) = when (value) { "case" -> "武器箱"; "capsule" -> "胶囊"; "sticker" -> "贴纸"; else -> "商品" }
@@ -37,6 +37,7 @@ fun reason(code: String?): String = when (code) {
     "fee_observations_missing" -> "请选择包含真实卖出对话框观察的 JSON 文件"
     "fee_coverage" -> "观察需含至少六个不同金额，覆盖低价和100元净到账"
     "fee_mismatch" -> "观察金额与手续费模型不一致，未导入"
+    "fee_source_unverified" -> "手续费证据来源或原币种未通过核对，不参与排行"
     "fee_file_unreadable", "fee_file_too_large" -> "观察文件无法读取或过大"
     "cache_unreadable", "cache_version" -> "本地数据读取失败，原文件已保留"
     "cache_write_failed" -> "本地数据保存失败，已保留上一份文件"

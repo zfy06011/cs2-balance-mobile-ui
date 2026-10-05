@@ -8,6 +8,9 @@ import com.cs2balance.assistant.mvp.domain.AppCache
 import com.cs2balance.assistant.mvp.domain.Candidate
 import com.cs2balance.assistant.mvp.domain.Candidates
 import com.cs2balance.assistant.mvp.domain.DomainError
+import com.cs2balance.assistant.mvp.domain.FeeProfile
+import com.cs2balance.assistant.mvp.domain.PublicFeeEvidence
+import com.cs2balance.assistant.mvp.domain.PublicFees
 import java.io.File
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -18,19 +21,23 @@ import kotlinx.serialization.encodeToString
 
 class CacheStore(private val context: Context) {
     private val file = AtomicFile(File(context.noBackupFilesDir, "app-cache.json"))
+    private fun bundledFees(): FeeProfile? = try {
+        val raw = context.assets.open("steam-cny-fee-evidence.json").bufferedReader().use { it.readText() }
+        PublicFees.validate(Providers.json.decodeFromString<PublicFeeEvidence>(raw), raw)
+    } catch (_: Exception) { null } // Invalid or absent evidence never enables ranking.
     fun load(): AppCache {
         if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) {
             val candidates = context.assets.open("candidate-pool.json").bufferedReader().use {
                 Providers.json.decodeFromString<List<Candidate>>(it.readText()).take(20)
             }
             Candidates.validate(candidates)
-            return AppCache(candidates = candidates)
+            return AppCache(candidates = candidates, feeProfile = bundledFees())
         }
         return try {
             val cache = Providers.json.decodeFromString<AppCache>(file.readFully().toString(Charsets.UTF_8))
             if (cache.version != 1) throw DomainError("cache_version")
             Candidates.validate(cache.candidates)
-            cache
+            cache.copy(feeProfile = cache.feeProfile ?: bundledFees())
         } catch (e: DomainError) { throw e
         } catch (_: Exception) { throw DomainError("cache_unreadable") }
     }

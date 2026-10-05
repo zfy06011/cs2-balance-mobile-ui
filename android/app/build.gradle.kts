@@ -21,8 +21,8 @@ android {
         applicationId = "com.cs2balance.assistant.mvp"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
@@ -44,6 +44,7 @@ android {
     }
     sourceSets {
         getByName("test").resources.directories.add(rootProject.file("../fixtures").absolutePath)
+        getByName("test").resources.directories.add(layout.projectDirectory.dir("src/main/assets").asFile.absolutePath)
     }
 }
 kotlin { jvmToolchain(17) }

@@ -35,6 +35,44 @@ export function validateFeeObservations(input) {
     observationsSha256: createHash('sha256').update(JSON.stringify(input)).digest('hex') };
 }
 
+// Used only for the bundled, source-reviewed snapshot; external observation imports keep the manual gate.
+export function validatePublicFeeEvidence(input, raw) {
+  const bad = () => { throw new ProbeError('fee_source_unverified'); };
+  if (input?.evidenceType !== 'steam_public_original_cny_listings' || input.currency !== 'CNY' ||
+      input.viewPreference !== 'bMarketOptOut=1' || !Array.isArray(input.observations) ||
+      input.observations.length < 6 || input.observations.length > 50) bad();
+  const observed = Date.parse(input.observedAt);
+  if (!Number.isFinite(observed)) bad();
+  const rows = input.observations;
+  if (new Set(rows.map(row => row.sellerReceivesCents)).size < 6 ||
+      !rows.some(row => row.sellerReceivesCents <= 20) || !rows.some(row => row.sellerReceivesCents >= 10000))
+    throw new ProbeError('fee_coverage');
+  for (const row of rows) {
+    let url; try { url = new URL(row.sourceUrl); } catch { bad(); }
+    const collected = Date.parse(row.collectedAt), query = [...url.searchParams.entries()];
+    if (!Number.isFinite(collected) || collected > observed || collected < observed - 900000 ||
+        row.originalCurrencyId !== 2023 || row.convertedCurrencyId !== 2023 || row.publisherAppId !== 730 ||
+        row.assetHashConfirmed !== true || typeof row.steamHashName !== 'string' ||
+        !row.steamHashName.trim() || row.steamHashName.length > 200 || row.steamHashName.includes('/') ||
+        /[\x00-\x1f\x7f]/.test(row.steamHashName) || url.origin !== 'https://steamcommunity.com' ||
+        url.username || url.password || url.hash || decodeURIComponent(url.pathname) !== '/market/listings/730/' + row.steamHashName + '/render/' ||
+        query.length !== 6 || new Set(query.map(([key]) => key)).size !== 6 ||
+        query.some(([key]) => !['query','start','count','country','language','currency'].includes(key)) ||
+        url.searchParams.get('query') !== '' || url.searchParams.get('country') !== 'CN' ||
+        url.searchParams.get('language') !== 'schinese' || url.searchParams.get('currency') !== '23' ||
+        url.searchParams.get('count') !== '10' || !/^\d+$/.test(url.searchParams.get('start') ?? '') ||
+        Number(url.searchParams.get('start')) > 20 || typeof row.publisherFeePercent !== 'string' ||
+        !Number.isFinite(Number(row.publisherFeePercent)) || Math.abs(Number(row.publisherFeePercent) - 0.10) > 0.00000001) bad();
+    const actual = feeTotal(row.sellerReceivesCents, input.wallet);
+    if (actual.netCents !== row.sellerReceivesCents || actual.grossCents !== row.buyerPaysCents ||
+        actual.steamFeeCents !== row.steamFeeCents || actual.publisherFeeCents !== row.publisherFeeCents)
+      throw new ProbeError('fee_mismatch');
+  }
+  if (Math.max(...rows.map(row => Date.parse(row.collectedAt))) !== observed) bad();
+  return { verified: true, evidenceType: input.evidenceType, observedAt: input.observedAt,
+    wallet: input.wallet, count: rows.length, observationsSha256: createHash('sha256').update(raw).digest('hex') };
+}
+
 export function validatePageObservations(report, input) {
   if (report.evidenceType !== 'live_network' || report.itemsRequested !== 6 || !report.stagePassed ||
       input?.evidenceType !== 'manual_market_page_comparison' || input.attestedRealObservations !== true ||
@@ -155,7 +193,11 @@ async function main() {
   if ((state.cooldowns.steam ?? 0) > Date.now() || (!steamOnly && (state.cooldowns.c5 ?? 0) > Date.now()))
     throw new ProbeError('persisted_cooldown');
   const profileFile = path.join(OUT, 'fee-profile.json');
-  const feeProfile = fs.existsSync(profileFile) ? read(profileFile) : null;
+  const bundledFeeFile = path.join(ROOT, 'android/app/src/main/assets/steam-cny-fee-evidence.json');
+  const feeProfile = fs.existsSync(profileFile) ? read(profileFile) : (() => {
+    const raw = fs.readFileSync(bundledFeeFile, 'utf8');
+    return validatePublicFeeEvidence(JSON.parse(raw), raw);
+  })();
   if (stage > 6 && !feeProfile?.verified) throw new ProbeError('fee_unverified');
   const seeds = read(path.join(ROOT, 'fixtures', 'candidate-pool.json')).slice(0, stage);
   if (seeds.length !== stage || new Set(seeds.map(i => i.steamHashName)).size !== stage) throw new ProbeError('invalid_pool');

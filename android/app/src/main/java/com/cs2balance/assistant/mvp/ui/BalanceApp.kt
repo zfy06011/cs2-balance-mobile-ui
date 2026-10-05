@@ -1,6 +1,8 @@
 package com.cs2balance.assistant.mvp.ui
 
 import androidx.activity.compose.BackHandler
+import com.cs2balance.assistant.mvp.BuildConfig
+import com.cs2balance.assistant.mvp.domain.PublicFees
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -398,14 +400,17 @@ private val destinations = listOf(Destination("ranking", "排行", Icons.Filled.
         HorizontalDivider()
         SectionTitle("Steam 人民币手续费")
         val profile = state.cache?.feeProfile
-        Text(if (profile?.verified == true) "已核对 ${profile.count} 项真实观察 · ${time(profile.observedAt)}" else "尚未核验，排行保持为空",
+        Text(if (profile?.verified == true) {
+            val source = if (profile.evidenceType == PublicFees.EVIDENCE_TYPE) "公开人民币在售费用" else "真实观察"
+            "已核对 ${profile.count} 项$source · ${time(profile.observedAt, includeYear = true)}"
+        } else "尚未核验，排行保持为空",
             style = MaterialTheme.typography.titleMedium)
-        Text("在 Steam 人民币卖出对话框观察金额即可，无需提交交易。记录至少六个不同净到账金额，包含低价、费用边界和100元净到账；按观察模板保存 JSON 后导入核对。",
+        Text("内置费用规则已对照 Steam 原币种人民币在售明细，包含低价与正常价位。也可导入自己的真实卖出对话框观察重新核对，无需提交交易。",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         FilledTonalButton(onClick = { importer.launch(arrayOf("application/json", "text/plain")) },
             enabled = !locked && state.cache != null, modifier = Modifier.fillMaxWidth()) { Text("导入实际手续费观察") }
         HorizontalDivider()
-        Text("宇额助手 · 开发版 0.1.0", style = MaterialTheme.typography.titleSmall)
+        Text("宇额助手 · 开发版 ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleSmall)
         Text("打开先读本地缓存；只在你手动扫描或刷新时采集。此版本不自动买卖，也不包含服务器、库存、预测和后台提醒。",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
