@@ -15,7 +15,7 @@
 - 检查报告：[android-checks](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37252954362/artifacts/11322140900)，本地ZIP在 artifacts/ci/37252954362，摘要 `ad93ee03372f75ba31d54a304897e61d5ab36ff338820f6ed9331e8839db8560` 核对通过。
 - build-info中的 deviceVerified=false、liveSourcesVerified=false 保持真实；未做安装／UI／TalkBack／性能／Keystore设备测试、真实C5及费用检查，不用受控输入或构建成功替代这些证据。debug签名尚未固定，不承诺不同后续构建直接覆盖安装。
 - 核心试用：①安装此独立开发包，打开排行／候选池／设置，核对初始20项与空排行提示；②候选池添加一个未存在的准确箱子标识（例如CS:GO Weapon Case3对应带空格的英文hashName），打开详情，再删除该项；③在设置自行填写新C5key并核对保存／删除反馈，后续再按实际观察文件核验费用和手动扫描。不要把凭证、cookie或账户完整信息发到聊天。
-- 下一步已提交选择卡：用户可先试用基本界面、配合真实报价与人民币费用验证，或说明暂时没有条件。按最新目标询问并等待实际条件，不将未验证项自动跳过或标为通过。
+- 用户已回复“可以配合 C5 真实报价和 Steam 人民币手续费验证”。已提交首轮匿名观测请求：手机自行配置新C5读取key，仅刷新变革武器箱一次，报告两侧价格／商品ID／采集时间或失败提示；Steam人民币账户在可售CS2商品出售对话框、数量1、卖家收到1.00元，观察四项金额，不提交交易。可以分次回复，遇限流先停止，不收密钥／cookie／账号／余额。**目前仅确认用户具备配合意愿，尚未收到实际数据，不算实测通过。**
 
 第五轮：[37218258205](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37218258205)，实际源码 SHA 为 `f3f99188a3595695fbc180071d58c0f5f6cd38b4`，已 completed／failure。Node检查与SDK安装通过，Gradle配置失败；后续本轮编译、测试、lint、APK未通过。历史 `重写参考.md` 保持原样且未跟踪。
 
