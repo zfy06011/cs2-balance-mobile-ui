@@ -4,7 +4,19 @@
 
 用户反馈：手机输入 C5 app-key 后仍无价格，只看到“未取得”，怀疑加密；用户无法协助 Steam 手续费观察，要求 AI 自行处理。本轮按明确反馈直接修复，不另设方案审批。执行者 Codex，目标仓库 `zfy06011/cs2-balance-mobile-ui`、分支 `codex/mvp`，本轮本地基准 `24741e4bc0f986b6f983c220f1e713cabdbb5f40`，已交付旧 APK 的源码仍为 `e3ef64855633d4394e6bbf1e9bf343339ea80e40`。
 
-**当前状态：0.1.1／versionCode2 修复源码已准备，尚未推送、云端检查或生成新 APK。发现请求头与 C5 官方要求不一致；没有真实 key／手机运行证据，不能断定它是唯一根因或宣称真实报价已修复。Steam 费用由 AI 独立研究，不再要求用户提供卖出对话框；当前人民币参数核验仍未完成。下方 0.1.0 交付记录是历史构建结果。**
+**当前状态：0.1.1 debug APK已构建并核对，可交付。用户2026-10-05明确回复“推送”，本次90bc9ae已推送且远端SHA核对一致。云端37315637695全部成功：Node17／17、JVM15／15、API35模拟器3／3、lint0项；包内资产、许可证、native库及来源摘要核对通过。新旧debug签名不同，不能覆盖安装。真实手机C5取价及人民币手续费尚未验证，不宣布完整目标完成。下方0.1.0交付记录为历史结果。**
+
+本次构建：[37315637695](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37315637695)，实际head_sha、产物workflow元数据、build-info均为 `90bc9ae9d582a259ce7b1fb09f609d8722082edf`，completed／success。Node job111781555046、Android job111781638022均success，实际assemble与Managed Device日志BUILD SUCCESSFUL。报告总页为15项／0失败／0跳过，三个测试类8＋5＋2；设备XML为3项／0失败／0跳过，lint XML无issue。
+
+### 0.1.1 APK 交付
+
+- 版本0.1.1／versionCode2，debug，包名 `com.cs2balance.assistant.mvp`，minSdk26／target37；实际构建源码见上方90bc9ae。
+- 本地：`artifacts/delivery/37315637695-90bc9ae/balance-assistant-0.1.1-debug.apk`，21,044,280字节；[GitHub下载](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37315637695/artifacts/11347608966)，2026-10-19过期。本地保留APK／build-info／aapt元数据／checks-summary。
+- APK SHA-256：`6e9ba93a96225020c46bb2d3afad192616286aba3a5a501f0029f8bca43b29fe`；产物ZIP摘要 `37de340b5fa0808735f3d2d75af6b5f52d178d51afe17aa439b9845b76e93068` 与GitHub元数据一致。APK CRC、身份／版本／变体、candidate-pool及third-party-notices与实际git blob字节一致，未混入受控观察、比价契约或压缩测试资产；四种ABI的Zstd库ELF对齐及未压缩ZIP入口16KiB对齐全部通过。
+- 检查报告：[android-checks](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37315637695/artifacts/11347758605)，本地 `artifacts/ci/37315637695/android-checks.zip`，摘要 `27d0cbaf1a0032366e599ddda5cbcd357fc9922869c0e47e5a93b632b52cfc8e` 核对一致。压缩四种编码、大小限制、HTTP／接口码脱敏、扫描结果存储的JVM测试已执行；API35模拟器实际执行Keystore重建读取／覆盖／删除／篡改拒绝及Android Brotli／Zstd加载。
+- 签名兼容：读取APK v2／v3签名块的公开证书，新包证书摘要 `c62139192c7f14ef566453ca3b972f76241b6dcc4bf73c38fb0ade5fb7e776dd`，旧0.1.0为 `0130f38553c857a72e10fa8d3501acadfd6e613af7ff718a75577677e2351b8b`，不同；源码未设置签名轮换链，因此不能直接覆盖旧开发包。用户如选择升级，需自行卸载旧开发包后安装，会清除本机配置／缓存／保存的C5凭证；AI未卸载或删除用户应用数据。暂未设置稳定debug签名。
+- 核心试用：①安装新版后在设置自行重新输入开放平台app-key，核对“通过本机读取校验”；②候选池→变革武器箱→商品比价，只刷新一次，核对报价或新的具体失败提示／HTTP状态／接口错误码；遇限流停止，只回报价格或提示，不发送key。Steam费用继续由AI研究，不要求用户观察卖出对话框。
+- build-info的deviceVerified=false／liveSourcesVerified=false保持真实，指真实手机和真实来源未核验；API35模拟器通过单独记录，不替代用户手机或实际C5权限／价格单位。未正式发布、未合并旧默认分支，完整目标仍保留未验证项。本次结果仅补充交接并作本地文档提交，不再次推送或触发构建。
 
 ### 本轮计划与结果
 
@@ -26,7 +38,15 @@
 
 ### 本轮检查结论与接续
 
-局部源码可进入云端检查；真实 C5 价格、手机Keystore、人民币参数与实际排行未验证。每次推送仍按AGENTS单独确认：确认后将本轮提交推送既有 `codex/mvp`，触发Node、Android JVM／lint／API35设备测试和0.1.1 debug构建，再核对实际APK来源提交并交付。debug签名未固定，不承诺覆盖安装旧包；不得为升级擅自卸载用户应用或删除凭证。
+修复源码提交 `90bc9ae9d582a259ce7b1fb09f609d8722082edf`（fix: support C5 encodings and verify encrypted credentials），18个相关文件，已获本次确认并推送。下面接续研究和云端结果只补充本交接文档，未修改或追加源码提交；本次云端构建只使用90bc9ae。
+
+历史阻塞已解除：此前因本次推送确认缺失，目标标为blocked；用户此次“推送”授权后已恢复执行，GitHub运行与远端SHA均确认。当前仅本交接文档结果补充未提交，本地核对助手及研究证据仍在忽略目录。
+
+2026-10-05接续：从Steam当前公开JS确认新的GET只读查询协议（`x-valve-request-type: queryAction`、`q=QueryListingsForItem`、`qp`参数），对变革箱匿名查询取得结构化在售价／费用。即使URL currency=23，实际仍返回eCurrency29，单件价151、Steam费用8、游戏费用15、总费用23（均港币分）；这是港币上下文的来源数据，不是人民币手续费验证或本人卖出到账证据。旧group render路径返回HTML，不能当作JSON接口成功。只保存金额、币种、状态，不保存卖家／账号／资产身份；未发送任何mutationAction、交易或登录请求。摘要为 `artifacts/fee-source-review/new-market-query-2026-10-05.json`。
+
+本地忽略目录中的APK交付核对助手已改为从实际源码提交读取版本号，并为0.1.1核对许可证asset、四种ABI的Zstd ELF及未压缩库的16KiB ZIP对齐；语法检查通过，已有0.1.0实际归档正向核验通过，同归档冒充90bc9ae的负向核验拒绝。没有生成或核验实际0.1.1 APK，不能把该助手的测试写作新包构建通过。
+
+本轮源码、云端检查和APK来源核对完成，可进入手机试用；真实C5报价、用户手机Keystore、人民币参数与实际排行未验证。后续先处理新版具体失败提示或真实报价反馈；不扩大50项扫描或放宽未验证费用排行门槛。debug签名未固定且此次已确认不同，不承诺覆盖安装旧包；不得为升级擅自卸载用户应用或删除凭证。
 
 更新：2026-10-05（Asia/Shanghai）。最新目标为“按开发流程开发项目，卡住的可以询问我”，取代原“卡住的可以跳过”。MVP与Kotlin + Compose已确认；源码及远端分支 `codex/mvp` 的基准为 `e3ef64855633d4394e6bbf1e9bf343339ea80e40`。当前执行者 Codex，已完成云端检查、下载和APK来源核对；未安装本地Android工具链。
 
