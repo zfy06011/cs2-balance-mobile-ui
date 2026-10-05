@@ -1,0 +1,11 @@
+{
+  "evidenceType": "controlled_fixture",
+  "generator": "Node 24 zlib",
+  "text": "{\"success\":true,\"data\":{\"测试\":\"codec-check\"}}",
+  "encodings": {
+    "gzip": "H4sIAAAAAAAACqtWKi5NTk4tLlayKikqTdVRSkksSVSyqlZ6trX7xfqpSlZKyfkpqcm6yRmpydlKtbUAOrT3NDAAAAA=",
+    "br": "Gy8AKIzTFfOghXUfodJbZG+sZen0wUQO3NN2iV+ZTV9GJpcFpB08WSi0nyoD",
+    "zstd": "KLUv/SAwgQEAeyJzdWNjZXNzIjp0cnVlLCJkYXRhIjp7Iua1i+ivlSI6ImNvZGVjLWNoZWNrIn19",
+    "deflate": "eJyrViouTU5OLS5WsiopKk3VUUpJLElUsqpWera1+8X6qUpWSsn5KanJuskZqcnZSrW1AMOXEqk="
+  }
+}

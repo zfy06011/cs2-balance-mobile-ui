@@ -282,9 +282,12 @@ private val destinations = listOf(Destination("ranking", "排行", Icons.Filled.
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Space.medium), verticalArrangement = Arrangement.spacedBy(Space.small)) {
             Text(label, style = MaterialTheme.typography.titleSmall)
-            Text(money(quote.amountCents), style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"))
+            Text(if (quote.status == "success") money(quote.amountCents) else "报价获取失败",
+                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"))
             Text("币种 ${quote.currency} · ${time(quote.collectedAt)}", style = MaterialTheme.typography.bodySmall)
             if (quote.status != "success") Text(reason(quote.failure), color = MaterialTheme.colorScheme.error)
+            quote.httpStatus?.takeIf { it in 100..599 }?.let { Text("HTTP $it", style = MaterialTheme.typography.bodySmall) }
+            quote.businessCode?.let { Text("接口错误码 $it", style = MaterialTheme.typography.bodySmall) }
         }
     }
 }
@@ -293,9 +296,13 @@ private val destinations = listOf(Destination("ranking", "排行", Icons.Filled.
     Column(verticalArrangement = Arrangement.spacedBy(Space.small)) {
         Text("Steam 交易费 ${money(fee.steamFeeCents)} · CS2 游戏费 ${money(fee.publisherFeeCents)}",
             style = MaterialTheme.typography.bodyMedium)
-        Text("卖家净到账 ${money(fee.netCents)}", style = MaterialTheme.typography.titleMedium)
-        Text("每100元余额所需现金 ${money(row.cashPer100Cny?.displayCents)}",
-            style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        Text("${if (fee.unrepresentableRemainderCents == 0L) "卖家净到账" else "按参数估算到账"} ${money(fee.netCents)}",
+            style = MaterialTheme.typography.titleMedium)
+        if (fee.unrepresentableRemainderCents != 0L) Text("费用进位差额 ${money(fee.unrepresentableRemainderCents)}，暂不参与排行")
+        row.cashPer100Cny?.let {
+            Text("每100元余额所需现金 ${money(it.displayCents)}",
+                style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        }
     }
 }
 

@@ -60,6 +60,7 @@ object Money {
         if (profile?.verified != true) return excluded("fee_unverified")
         return try {
             val fee = sellerNet(gross, profile.wallet)
+            // Conservative ranking policy for fee rounding gaps; it is not proof that Steam's net is ambiguous.
             if (fee.unrepresentableRemainderCents != 0L) row.copy(fee = fee, reason = "fee_inverse_ambiguous")
             else {
                 val numerator = cost.toBigInteger() * 10000.toBigInteger()

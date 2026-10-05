@@ -69,7 +69,8 @@ class BalanceViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try { operation()
             } catch (e: CancellationException) { throw e
-            } catch (e: DomainError) { mutable.update { it.copy(error = e.code) }
+            } catch (e: DomainError) { mutable.update { it.copy(error = e.code,
+                credentialProblem = it.credentialProblem || e.code == "credential_unreadable") }
             } catch (_: Exception) { mutable.update { it.copy(error = "local_error") }
             } finally { mutable.update { it.copy(busy = false) } }
         }
@@ -139,7 +140,8 @@ class BalanceViewModel(application: Application) : AndroidViewModel(application)
                 updateCache { it.copy(latest = it.latest?.copy(completedAt = Instant.now().toString())) }
                 mutable.update { it.copy(notice = "scan_finished") }
             } catch (e: CancellationException) { throw e
-            } catch (e: DomainError) { mutable.update { it.copy(error = e.code) }
+            } catch (e: DomainError) { mutable.update { it.copy(error = e.code,
+                credentialProblem = it.credentialProblem || e.code == "credential_unreadable") }
             } catch (_: Exception) { mutable.update { it.copy(error = "local_error") }
             } finally { mutable.update { it.copy(scanning = false) } }
         }

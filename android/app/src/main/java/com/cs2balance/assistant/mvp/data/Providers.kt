@@ -10,6 +10,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.intOrNull
 
 data class C5Value(val amountCents: Long? = null, val itemId: String? = null, val failure: String? = null)
 
@@ -27,8 +28,8 @@ object Providers {
     fun c5(text: String, hashes: List<String>): Map<String, C5Value> {
         val root = objectFrom(text)
         if ((root["success"] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull != true) {
-            val code = (root["errorCode"] as? JsonPrimitive)?.contentOrNull
-            throw DomainError(if (code == "400001") "credential_invalid" else "c5_rejected")
+            val code = (root["errorCode"] as? JsonPrimitive)?.takeUnless { it.isString }?.intOrNull
+            throw DomainError(if (code == 400001) "credential_invalid" else "c5_rejected", businessCode = code)
         }
         val data = root["data"] as? JsonObject ?: throw DomainError("schema")
         return hashes.associateWith { hash ->

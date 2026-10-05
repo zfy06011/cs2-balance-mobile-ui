@@ -146,11 +146,54 @@ class ComparisonContractTest {
         val safe = unsafe.replace("1098192327056363520", "\"1098192327056363520\"")
         assertEquals(C5Value(123, "1098192327056363520"), Providers.c5(safe, listOf("A"))["A"])
     }
+    @Test fun providerDiagnosticsNeverIncludeServerMessage() {
+        try {
+            Providers.c5("""{"success":false,"errorCode":400001,"errorMsg":"sensitive-value-must-not-escape"}""", listOf("A"))
+            fail("expected rejection")
+        } catch (e: DomainError) {
+            assertEquals("credential_invalid", e.code)
+            assertEquals(400001, e.businessCode)
+            assertFalse(e.toString().contains("sensitive-value"))
+        }
+        try {
+            Providers.c5("""{"success":false,"errorCode":"sensitive-value"}""", listOf("A"))
+            fail("expected rejection")
+        } catch (e: DomainError) { assertNull(e.businessCode) }
+    }
+    @Test fun scanPersistsSafeDiagnosticsWithoutRawProviderMessage() = runTest {
+        val item = Candidate("one", "case", "One", "Fixture Case")
+        var calls = 0
+        val client = MarketClient(HttpTransport { _, _ ->
+            if (calls++ == 0) HttpResponse(200, null,
+                """{"success":false,"errorCode":400001,"errorMsg":"sensitive-test-value"}""")
+            else HttpResponse(200, null, """{"success":true,"lowest_price":"¥ 1.67"}""")
+        })
+        val rows = mutableListOf<Comparison>()
+        Scanner(client).scan(listOf(item), "current", "synthetic-test-key", null) { rows += it }
+        val quote = rows.single().c5
+        assertEquals("credential_invalid", quote.failure); assertEquals(400001, quote.businessCode)
+        assertNull(quote.amountCents); assertFalse(rows.single().rankable)
+        val stored = Providers.json.encodeToString(Quote.serializer(), quote)
+        assertEquals(quote, Providers.json.decodeFromString<Quote>(stored))
+        assertFalse(stored.contains("sensitive-test-value")); assertFalse(stored.contains("synthetic-test-key"))
+    }
     private fun failure(block: () -> Any?): String = try { block(); fail("expected DomainError"); "" }
         catch (e: DomainError) { e.code }
 }
 
 class MarketClientTest {
+    @Test fun accessFailureKeepsOnlyHttpStatus() = runTest {
+        var calls = 0
+        val client = MarketClient(HttpTransport { _, _ -> calls++; HttpResponse(403, null, "sensitive-message") })
+        try {
+            client.request("c5", "one", "https://example.invalid?app-key=sensitive-value")
+            fail("expected rejection")
+        } catch (e: DomainError) {
+            assertEquals("auth_or_access", e.code); assertEquals(403, e.httpStatus)
+            assertFalse(e.toString().contains("sensitive"))
+        }
+        assertEquals(1, calls)
+    }
     @Test fun newScanHonorsPersistedRequestStarts() = runTest {
         var clock = 1000L; var started = -1L
         val client = MarketClient(HttpTransport { _, _ -> HttpResponse(200, null, "ok") },

@@ -44,9 +44,9 @@ class CacheStore(private val context: Context) {
     }
 }
 
-class CredentialStore(context: Context) {
-    private val alias = "balance-assistant-c5-v1"
-    private val file = AtomicFile(File(context.noBackupFilesDir, "credential.enc"))
+class CredentialStore internal constructor(context: Context,
+    private val alias: String = "balance-assistant-c5-v1", fileName: String = "credential.enc") {
+    private val file = AtomicFile(File(context.noBackupFilesDir, fileName))
     private fun keyStore() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
     private fun key(create: Boolean): SecretKey {
         val store = keyStore()
@@ -81,6 +81,8 @@ class CredentialStore(context: Context) {
             output.write(cipher.iv.size); output.write(cipher.iv); output.write(encrypted)
             file.finishWrite(output)
         } catch (_: Exception) { file.failWrite(output); throw DomainError("credential_write_failed") }
+        // A successful write alone does not prove that AndroidKeyStore can decrypt it.
+        if (read() != cleaned) throw DomainError("credential_unreadable")
     }
     @Synchronized fun delete() {
         try { keyStore().deleteEntry(alias); file.delete()

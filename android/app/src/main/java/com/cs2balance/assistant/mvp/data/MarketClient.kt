@@ -1,13 +1,11 @@
 package com.cs2balance.assistant.mvp.data
 
 import com.cs2balance.assistant.mvp.domain.DomainError
-import java.io.ByteArrayOutputStream
+import com.cs2balance.assistant.mvp.BuildConfig
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.zip.GZIPInputStream
-import java.util.zip.InflaterInputStream
 import javax.net.ssl.HttpsURLConnection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
@@ -32,10 +30,9 @@ class AndroidTransport : HttpTransport {
             connection.connectTimeout = 20_000
             connection.readTimeout = 20_000
             connection.instanceFollowRedirects = false
-            connection.setRequestProperty("User-Agent", "BalanceAssistantMVP/0.1.0")
+            connection.setRequestProperty("User-Agent", "BalanceAssistantMVP/${BuildConfig.VERSION_NAME}")
             connection.setRequestProperty("Accept", "application/json")
-            // Only advertise encodings implemented by this Android transport.
-            connection.setRequestProperty("Accept-Encoding", "gzip, deflate")
+            connection.setRequestProperty("Accept-Encoding", ResponseDecoder.ACCEPT_ENCODING)
             if (body != null) {
                 connection.requestMethod = "POST"; connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json")
@@ -44,23 +41,7 @@ class AndroidTransport : HttpTransport {
             val status = connection.responseCode
             val retryAfter = connection.getHeaderField("Retry-After")
             if (status !in 200..299) return@withContext HttpResponse(status, retryAfter, "")
-            val raw = connection.inputStream
-            val stream = when (connection.getHeaderField("Content-Encoding")?.lowercase()) {
-                null, "", "identity" -> raw
-                "gzip" -> GZIPInputStream(raw)
-                "deflate" -> InflaterInputStream(raw)
-                else -> { raw.close(); throw DomainError("encoding") }
-            }
-            val text = stream.use { input ->
-                val output = ByteArrayOutputStream(); val buffer = ByteArray(8192)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    if (output.size() + count > 3_000_000) throw DomainError("response_too_large")
-                    output.write(buffer, 0, count)
-                }
-                output.toString(Charsets.UTF_8.name())
-            }
+            val text = ResponseDecoder.text(connection.inputStream, connection.getHeaderField("Content-Encoding"))
             HttpResponse(status, retryAfter, text)
         } catch (e: CancellationException) { throw e
         } catch (e: DomainError) { throw e
@@ -107,15 +88,16 @@ class MarketClient(
             val response = transport.send(url, body)
             if (response.status == 429) {
                 stop(source, maxOf(retryAfterMillis(response.retryAfter, clock()) ?: 900_000, 1000))
-                throw DomainError("rate_limited")
+                throw DomainError("rate_limited", httpStatus = 429)
             }
             if (response.status in 500..599 && attempt < 2) {
                 val wait = maxOf(retryAfterMillis(response.retryAfter, clock()) ?: 0, 2000L shl attempt)
-                if (wait > 60_000) { stop(source, wait); throw DomainError("server_cooldown") }
+                if (wait > 60_000) { stop(source, wait); throw DomainError("server_cooldown", httpStatus = response.status) }
                 sleep(wait)
             } else {
                 if (response.status !in 200..299) throw DomainError(
-                    if (response.status == 401 || response.status == 403) "auth_or_access" else "http")
+                    if (response.status == 401 || response.status == 403) "auth_or_access" else "http",
+                    httpStatus = response.status)
                 return response.text
             }
         }

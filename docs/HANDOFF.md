@@ -1,5 +1,33 @@
 # 宇额助手：Android MVP 与真实比价验证
 
+## 当前反馈修复：C5 取价失败（2026-10-05）
+
+用户反馈：手机输入 C5 app-key 后仍无价格，只看到“未取得”，怀疑加密；用户无法协助 Steam 手续费观察，要求 AI 自行处理。本轮按明确反馈直接修复，不另设方案审批。执行者 Codex，目标仓库 `zfy06011/cs2-balance-mobile-ui`、分支 `codex/mvp`，本轮本地基准 `24741e4bc0f986b6f983c220f1e713cabdbb5f40`，已交付旧 APK 的源码仍为 `e3ef64855633d4394e6bbf1e9bf343339ea80e40`。
+
+**当前状态：0.1.1／versionCode2 修复源码已准备，尚未推送、云端检查或生成新 APK。发现请求头与 C5 官方要求不一致；没有真实 key／手机运行证据，不能断定它是唯一根因或宣称真实报价已修复。Steam 费用由 AI 独立研究，不再要求用户提供卖出对话框；当前人民币参数核验仍未完成。下方 0.1.0 交付记录是历史构建结果。**
+
+### 本轮计划与结果
+
+- C5 官方要求 `Accept-Encoding: gzip, br, zstd, deflate`，旧 Android 只发送 `gzip, deflate`。本轮增加 Brotli、Zstandard 解码器并发送完整头，保留 gzip／deflate／identity，未知／损坏编码拒绝，解压后最多3MB；Zstd窗口上限8MiB。未改端点、认证方式或商品映射规则。[C5 批量价格文档](https://opendoc.c5game.com/api-125914570)、[接入指南](https://opendoc.c5game.com/)仍标部分接口开发中，未证明账户权限与实际单位。
+- 保留 AndroidKeyStore AES-GCM 加密及原文件格式；保存完成后立即读取并逐字核对，只有成功才提示保存完成。读取失败会标记凭证问题并阻止扫描。未记录密钥、密钥摘要、响应原文或请求URL。
+- C5 失败卡片改为“报价获取失败”，区分本机读取、网络、解压、HTTP拒绝和接口拒绝；仅保留 HTTP数字状态与 int32接口错误码，忽略服务器 errorMsg，避免服务器回显凭证。旧缓存兼容默认空字段。
+- 增加独立 Node zlib 生成的四种压缩受控样本、Android JVM解压／大小限制及脱敏诊断测试，新增 AndroidKeyStore 保存／重新创建读取／覆盖／删除／篡改拒绝与 native Zstd／Brotli 加载测试。设备测试仅使用专门的测试 alias／文件和合成字符串，不接触生产凭证；GitHub Actions 增加 API35 Managed Device 测试，成功后才归档新APK。未执行本地Android构建。
+- 新依赖：`org.brotli:dec:0.1.2`（MIT）、`com.github.luben:zstd-jni:1.5.7-21@aar`（JNI绑定BSD-2-Clause／native Zstandard选BSD-3-Clause）。使用库，未复制其实现；完整许可证与来源位于生产asset `third-party-notices.txt`。[Brotli来源](https://github.com/google/brotli)、[zstd-jni Android接入](https://github.com/luben/zstd-jni)。从Maven AAR读取四种ABI的ELF PT_LOAD对齐均16384，支持16KiB对齐；尚未核对实际新APK打包与手机运行。
+- 本地已运行：Node17／17；Kotlin／Gradle20份源文件、XML、workflow YAML及嵌入Python语法检查通过；diff whitespace通过。语法检查不是Kotlin编译；新JVM测试、lint、Managed Device和0.1.1 APK均待授权推送后云端检查。
+- 使用明确的合成无效凭证向C5只读价格端点发出一次完整压缩头诊断，HTTP200／success=false／errorCode400001；证明当前网络可访问该端点并能取得结构化认证错误，未使用真实key、未取得实际价格，不证明真实账户权限。仅保存状态／数字码，忽略响应消息，摘要位于 `artifacts/c5-synthetic-diagnostic-2026-10-05.json`。
+
+### Steam 手续费独立核对
+
+- 本轮再次读取 [官方 economy_common.js](https://steamcommunity.com/public/javascript/economy_common.js)，摘要仍为 `84429d06a9ef8c250ac567f9fedc9fb155d23ceb7442c92a19b815840c102784`。受控CNY模板最低值7分、步长1分、5%／10%条件下，9个买家总额的逆向净额与本工具一致；这些是算法对照，不能替代真实人民币参数。
+- 当前商品路径重定向至 `/market/listings/730/G1890263004`。匿名带 country=CN／currency=23 的新页面仍返回 eCurrency29（港币），没有人民币wallet参数；不能用中文页面或查询参数认定人民币核验成功。现有priceoverview人民币接口不因商品页重定向被擅自替换。
+- 跟踪新官方前端 [Cey3QSfl.js](https://cdn.fastly.steamstatic.com/steamcommunity/public/ssr/Cey3QSfl.js) 到费用模块 [_JZ6rMH42.js](https://cdn.fastly.steamstatic.com/steamcommunity/public/ssr/_JZ6rMH42.js)：新算法从wallet读最低值／步长，从单独费用配置读费率及可选fee_cap；实际配置不在本次匿名页面中。只读取公开静态代码，不执行远端脚本，不读取登录cookie、账单、余额，不提交交易。
+- 费用进位间隔有官方逆向算法返回值，因此原“无法反推出”的中文过强；本轮改为“报价落在手续费进位间隔，暂不参与排行”，明确是保守排行策略。有差额时显示按参数估算及进位差额，隐藏空比价数字；没有放宽排行门槛。
+- 独立核验仍需当前人民币最低值／步长及CS2费用配置（包括上限是否生效）的可靠证据；不把模板7分或社区讨论当作官方实测，不伪造已验证 FeeProfile。本轮保持未验证参数不排名，不再要求用户提供手续费观察。研究摘要在忽略目录 `artifacts/fee-source-review/`；不把原始用户数据写入源码或交接。
+
+### 本轮检查结论与接续
+
+局部源码可进入云端检查；真实 C5 价格、手机Keystore、人民币参数与实际排行未验证。每次推送仍按AGENTS单独确认：确认后将本轮提交推送既有 `codex/mvp`，触发Node、Android JVM／lint／API35设备测试和0.1.1 debug构建，再核对实际APK来源提交并交付。debug签名未固定，不承诺覆盖安装旧包；不得为升级擅自卸载用户应用或删除凭证。
+
 更新：2026-10-05（Asia/Shanghai）。最新目标为“按开发流程开发项目，卡住的可以询问我”，取代原“卡住的可以跳过”。MVP与Kotlin + Compose已确认；源码及远端分支 `codex/mvp` 的基准为 `e3ef64855633d4394e6bbf1e9bf343339ea80e40`。当前执行者 Codex，已完成云端检查、下载和APK来源核对；未安装本地Android工具链。
 
 **状态：开发版源码与 APK 可交付。第六轮 Node17／17、Android JVM10／10、lint0项问题、debug构建全部通过，产物来源和内置资产核对通过。真机流程、C5接口权限／价格单位、人民币手续费与实际比价仍未验证，已向用户询问下一步验证条件；完整目标尚不能宣布实测完成。**

@@ -44,10 +44,10 @@ jobs:
         run: npm test
 
   android:
-    name: Android JVM tests, lint and debug APK
+    name: Android JVM, Keystore emulator tests, lint and debug APK
     needs: data-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
@@ -66,20 +66,28 @@ jobs:
           packages: 'platform-tools platforms;android-37.0 build-tools;36.0.0'
       - name: Test, lint and build the actual checkout
         run: gradle --project-dir android --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+      - name: Enable emulator acceleration on the cloud runner
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Verify AndroidKeyStore round-trip and Android compression libraries
+        run: gradle --project-dir android --no-daemon --console=plain :app:pixel2api35DebugAndroidTest -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
       - name: Record APK provenance
         env:
           CHECKOUT_REPOSITORY: ${{ github.repository }}
           CHECKOUT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           mkdir -p artifacts/android
-          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/balance-assistant-0.1.0-debug.apk
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.0-debug.apk > artifacts/android/apk-metadata.txt
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/balance-assistant-0.1.1-debug.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.1-debug.apk > artifacts/android/apk-metadata.txt
           python3 - <<'PY'
           import hashlib, json, os, pathlib, re, subprocess
-          apk = pathlib.Path('artifacts/android/balance-assistant-0.1.0-debug.apk')
+          apk = pathlib.Path('artifacts/android/balance-assistant-0.1.1-debug.apk')
           badging = pathlib.Path('artifacts/android/apk-metadata.txt').read_text()
           metadata = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
-          if not metadata or metadata.groups() != ('com.cs2balance.assistant.mvp', '1', '0.1.0'):
+          if not metadata or metadata.groups() != ('com.cs2balance.assistant.mvp', '2', '0.1.1'):
               raise RuntimeError('APK identity/version mismatch')
           info = {
               'commitSha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
@@ -95,7 +103,7 @@ jobs:
       - name: Upload debug APK and source evidence
         uses: actions/upload-artifact@v7
         with:
-          name: balance-assistant-0.1.0-debug-${{ github.run_id }}
+          name: balance-assistant-0.1.1-debug-${{ github.run_id }}
           path: artifacts/android/
           if-no-files-found: error
           retention-days: 14
@@ -106,6 +114,8 @@ jobs:
           name: android-checks-${{ github.run_id }}
           path: |
             android/app/build/reports/tests/
+            android/app/build/reports/androidTests/
+            android/app/build/outputs/androidTest-results/
             android/app/build/reports/lint-results-debug.*
           if-no-files-found: warn
           retention-days: 14

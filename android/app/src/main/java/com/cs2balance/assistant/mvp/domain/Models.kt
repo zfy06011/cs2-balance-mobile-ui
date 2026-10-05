@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
     val source: String, val batchId: String, val collectedAt: String? = null,
     val currency: String = "CNY", val amountCents: Long? = null, val status: String = "failed",
     val failure: String? = null, val itemId: String? = null,
+    val httpStatus: Int? = null, val businessCode: Int? = null,
 )
 @Serializable data class Wallet(
     val minimumCents: Long, val incrementCents: Long = 1,
@@ -48,4 +49,5 @@ import kotlinx.serialization.Serializable
     val observedAt: String? = null, val walletParametersConfirmed: Boolean,
     val wallet: Wallet, val observations: List<FeeObservation>,
 )
-class DomainError(val code: String) : Exception(code)
+// Only numeric diagnostics may cross the provider boundary. Never include server messages or URLs.
+class DomainError(val code: String, val httpStatus: Int? = null, val businessCode: Int? = null) : Exception(code)

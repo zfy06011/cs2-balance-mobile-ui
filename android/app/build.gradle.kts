@@ -21,8 +21,9 @@ android {
         applicationId = "com.cs2balance.assistant.mvp"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions {
@@ -30,6 +31,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     lint { abortOnError = true; warningsAsErrors = true }
+    testOptions {
+        managedDevices {
+            localDevices {
+                create("pixel2api35") {
+                    device = "Pixel 2"
+                    apiLevel = 35
+                    systemImageSource = "aosp"
+                }
+            }
+        }
+    }
     sourceSets {
         getByName("test").resources.directories.add(rootProject.file("../fixtures").absolutePath)
     }
@@ -73,6 +85,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.brotli:dec:0.1.2")
+    implementation("com.github.luben:zstd-jni:1.5.7-21@aar")
+    testImplementation("com.github.luben:zstd-jni:1.5.7-21")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
