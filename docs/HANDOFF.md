@@ -1,10 +1,30 @@
-# 宇额助手：数据链路与比价验证
+# 宇额助手：Android MVP 与真实比价验证
 
-更新：2026-10-05（Asia/Shanghai）。用户已确认 MVP 与 Kotlin + Jetpack Compose，并分别授权各次推送；SDK 包名修复 `f3f9918` 已按最新“推送”授权更新到 `zfy06011/cs2-balance-mobile-ui` 的 `codex/mvp` 分支。当前执行者 Codex，可运行非 Android 本地检查、读取云端 jobs／logs；不安装本地 Android 工具链。第五轮云端构建已触发。
+更新：2026-10-05（Asia/Shanghai）。最新目标为“按开发流程开发项目，卡住的可以询问我”，取代原“卡住的可以跳过”。MVP与Kotlin + Compose已确认；源码及远端分支 `codex/mvp` 的基准为 `e3ef64855633d4394e6bbf1e9bf343339ea80e40`。当前执行者 Codex，已完成云端检查、下载和APK来源核对；未安装本地Android工具链。
 
-**状态：执行中。第五轮 SDK37.0 已安装成功，随后在 AGP9 的资产 SourceSet 配置处失败；尚未进入本轮编译／测试／lint。已本地改用 Variant API，并修复发现的报价成功标志类型校验不一致，待本次重新推送确认。暂无可交付 APK，真实接口与真机未验证。**
+**状态：开发版源码与 APK 可交付。第六轮 Node17／17、Android JVM10／10、lint0项问题、debug构建全部通过，产物来源和内置资产核对通过。真机流程、C5接口权限／价格单位、人民币手续费与实际比价仍未验证，已向用户询问下一步验证条件；完整目标尚不能宣布实测完成。**
+
+第六轮：[37252954362](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37252954362)，实际checkout和build-info均为 `e3ef64855633d4394e6bbf1e9bf343339ea80e40`，completed／success。源码之外的本次结果仅更新本交接文档，另作文档提交，不推送或触发新构建；历史 `重写参考.md` 保持原样且未跟踪。
+
+### 开发版 APK 交付
+
+- 版本0.1.0／versionCode1，debug，包名 `com.cs2balance.assistant.mvp`；对应上方实际源码与构建。未合并旧分支、未正式发布、未提交商店。
+- 本地 APK：`artifacts/delivery/37252954362-e3ef648/balance-assistant-0.1.0-debug.apk`，18,909,187字节。下载：[GitHub artifact](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37252954362/artifacts/11322265435)，过期时间2026-10-19；本地文件另行保留。
+- APK SHA-256：`f590be26ba925bb7f824a56d18f1ed5265d585ece0c93c01dc7b125bd98b50f7`。归档摘要 `70755a549c8a9b587aa46b22d14c588e29d5faf5a79e18b2f31301586c37e9da` 与GitHub元数据一致；build-info的提交、run URL、身份、版本、debug变体均核对一致。
+- aapt元数据为minSdk26／target37；APK CRC检查通过；生产 assets/candidate-pool.json 与 `git show e3ef648:fixtures/candidate-pool.json` 字节一致，没有混入测试观察或比价契约。实际 `generateDebugCandidateAssets`、JVM测试、lint、assemble均完成，日志BUILD SUCCESSFUL；检查报告HTML为10项／0失败／0跳过，lint XML issue数0。
+- 检查报告：[android-checks](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37252954362/artifacts/11322140900)，本地ZIP在 artifacts/ci/37252954362，摘要 `ad93ee03372f75ba31d54a304897e61d5ab36ff338820f6ed9331e8839db8560` 核对通过。
+- build-info中的 deviceVerified=false、liveSourcesVerified=false 保持真实；未做安装／UI／TalkBack／性能／Keystore设备测试、真实C5及费用检查，不用受控输入或构建成功替代这些证据。debug签名尚未固定，不承诺不同后续构建直接覆盖安装。
+- 核心试用：①安装此独立开发包，打开排行／候选池／设置，核对初始20项与空排行提示；②候选池添加一个未存在的准确箱子标识（例如CS:GO Weapon Case3对应带空格的英文hashName），打开详情，再删除该项；③在设置自行填写新C5key并核对保存／删除反馈，后续再按实际观察文件核验费用和手动扫描。不要把凭证、cookie或账户完整信息发到聊天。
+- 下一步已提交选择卡：用户可先试用基本界面、配合真实报价与人民币费用验证，或说明暂时没有条件。按最新目标询问并等待实际条件，不将未验证项自动跳过或标为通过。
 
 第五轮：[37218258205](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37218258205)，实际源码 SHA 为 `f3f99188a3595695fbc180071d58c0f5f6cd38b4`，已 completed／failure。Node检查与SDK安装通过，Gradle配置失败；后续本轮编译、测试、lint、APK未通过。历史 `重写参考.md` 保持原样且未跟踪。
+
+### 最新目标与交付准备
+
+- 目标变化只改变阻塞处理：遇到影响完成的条件缺口时询问用户，不自动跳过，也不把已跳过的真实接口／手续费／设备验证改为PASS；功能边界、技术栈和逐次推送确认不变。`e3ef648` 推送与构建已按用户确认完成，当前需要用户配合真机／真实数据验证。
+- `.local/verify_apk_archive.py` 已完成本地交付核对工具：检查 GitHub artifact ZIP摘要、build-info 的实际提交／run／身份／版本／变体、APK摘要与CRC、aapt身份／SDK信息、候选资产与对应Git提交的字节一致性，并拒绝生产资产中的测试观察／比价契约。仅在全部核对通过后写入 Git 忽略的 artifacts/delivery/<run>-<sha>，不任意解压、不安装Android工具链、不验证或声称设备／真实行情通过。
+- 本地 Python语法检查通过；真实第三轮报告ZIP负例被正确拒绝，未产生交付目录；第六轮真实APK归档正向核对已通过并生成上述本地交付文件。该工具只核对来源／打包，不能代替运行或真实价格验证。
+- 本段记录仅在 `docs/HANDOFF.md` 未提交；交付工具在 Git 忽略的 `.local`，不会混入已提交的应用代码或当前推送范围。`e3ef648` 的原确认卡保持有效，不重复询问。
 
 ### 第五轮构建配置与响应类型修复
 
@@ -85,7 +105,7 @@
 
 ## 本轮开发计划与范围变更
 
-最新用户指示允许跳过阻塞；因此下文旧阶段“真实验证通过后才规划页面与技术选型”的执行顺序已被本轮指示调整。跳过的是等待实测，不是将实测改为 PASS，也不删除测试或绕过报价入榜门槛。
+原目标曾允许跳过阻塞，因此Android实现先于真实数据验证推进。最新目标已改为“卡住的可以询问我”：后续完成所需的实际条件应询问用户；下文保留历史阶段顺序，所有尚未实际通过的项目保持未验证，不能改为PASS或绕过报价入榜门槛。
 
 - 已授权执行：继续当前四项 MVP，修复数据层缺陷、实现 Kotlin Android 工程和页面流程、建立本地版本控制及云端检查配置。真实 C5 凭证、手续费对话框和 Steam 页面核对暂记 BLOCKED／NOT TESTED。
 - 技术方案已确认：用户在推荐方案后回复“继续”，按 Kotlin + Jetpack Compose + Material 3 原生 Android 执行；不再等待原技术栈选择卡。
