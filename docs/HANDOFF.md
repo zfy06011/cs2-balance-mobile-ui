@@ -4,7 +4,19 @@
 
 目标和范围由用户“Steam手续费我无法提供帮助，你自己解决”确认。执行工具仍为Codex／pwsh7；基准源码90bc9ae（已交付0.1.1），本地文档HEAD7b706f1，目标分支codex/mvp。实现路径改为使用Steam官方公开接口的原币种CNY在售费用交叉校验，保留真实来源、币种、金额覆盖及整数模型一致性的门槛，不冒充人工卖出对话框，也不把跨币种换算费用当作人民币原始费用。
 
-**进展：0d02bd3已按用户确认推送。首轮37326641061及同提交有限重试37402315949均在云端KVM检查处失败；Node19／19、JVM18／18、lint0项、assemble已通过，模拟器测试未执行，新APK尚未交付。已准备仅CI的KVM权限修复，保留设备存在／读写检查及全部模拟器测试，等待本次修复推送确认。真实C5报价继续等待手机反馈。**
+**进展：0.1.2 debug APK已构建、下载及核对，可交付。用户2026-10-06确认后推送b8abd5d；云端37404713771全部success，Node19／19、JVM18／18、API35模拟器4／4、lint0项，KVM直接权限设置通过。公开原币CNY费用已内置并经模拟器实际加载，旧缓存及已有配置保留验证通过。新旧debug签名不同，需用户自行卸载旧开发包后安装；真实手机C5报价仍未验证，完整目标尚未宣布完成。**
+
+CI修复构建：[37404713771](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37404713771)，认证API确认completed／success，实际head_sha、artifact元数据及build-info均为 `b8abd5d537a11d3821fdac70df4949cb96a6645b`。Node job112079596237、Android job112079651853均success，日志/dev/kvm为crw-rw-rw-且读写检查通过，实际assemble及4项模拟器测试均BUILD SUCCESSFUL。旧业务提交0d02bd3不能替代本次APK真实来源。
+
+### 0.1.2 APK 交付（2026-10-06）
+
+- 版本0.1.2／versionCode3，debug，包名com.cs2balance.assistant.mvp，minSdk26／target37；实际来源为上方b8abd5d。
+- 本地APK：`artifacts/delivery/37404713771-b8abd5d/balance-assistant-0.1.2-debug.apk`，21,045,168字节；[GitHub下载](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37404713771/artifacts/11387310626)，过期2026-10-20。本地同时保留build-info、aapt元数据及checks-summary。
+- APK SHA-256 `67c1c4d638d89ec40e4feb0c7c352f5e834a642bb2cc3fb4684b441811dd1c7f`；产物ZIP摘要 `e12fac580dbf35aa28d71bb200f1ffdf26edd63676e29c872de41496391cdc10` 与GitHub元数据核对一致。身份、版本、debug变体、CRC、candidate-pool、许可证和公开费用证据均核对实际git blob；费用证据SHA307034d2d387576630b2f82b3255b924cf232fc9df0760fa4cb0ff4c4bca4d75也与build-info.feeEvidenceSha256一致，未混入受控测试资产。四种ABI的Zstd ELF及未压缩ZIP入口16KiB对齐通过。
+- [检查报告](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37404713771/artifacts/11387255641)，本地 `artifacts/ci/37404713771/android-checks.zip`，SHA `a54a55a029cca7ee24a81adb4cfac51a73f63421969c05b1b517ad8f5b2e6a73` 一致；JVM总页18项／0失败／0跳过，设备XML4项／0失败／0跳过，lint XML issue数0。四个设备用例为Brotli／Zstd加载、密文篡改拒绝、Keystore读写／重建／覆盖／删除，以及内置费用首次加载／旧缓存和既有配置保留。
+- 读取签名块的公开证书：本包SHA `1d3c8c04123f09ade6c6a5e80990443a9f813cbad641ec638453442143127fff`，0.1.1为c62139192c7f14ef566453ca3b972f76241b6dcc4bf73c38fb0ade5fb7e776dd；新旧debug签名不同，不能覆盖。用户选择安装时须自行卸载旧开发包，会清除本机配置／缓存／已保存C5key；AI未卸载或删除用户应用数据。稳定debug签名仍未配置。
+- 试用：①安装后打开设置，确认页脚0.1.2、费用“已核对6项公开人民币在售费用”；②自行填写C5开放平台app-key，确认本机读取校验，打开候选池→变革武器箱→商品比价，只刷新一次；成功回报两侧价格，失败回报具体提示／HTTP状态／接口错误码，遇限流停止。勿发送密钥／cookie，费用不再要求人工观察或导入。
+- build-info.deviceVerified=false／liveSourcesVerified=false指真实用户手机及两侧真实报价未核验；公开费用模型来源与4项API35模拟器通过分别记录，不替代手机实测、真实C5权限／价格单位或整批排行验证。未合并默认分支、未正式发布。结果仅更新交接并作本地文档提交，不再次推送或触发构建。
 
 本次构建：[37326641061](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37326641061)，实际head_sha为 `0d02bd3405d24d304ff918e58e250af94b08360b`。构建和APK状态按实际结果更新，不把运行中状态写成通过。
 
@@ -13,6 +25,8 @@
 有限重试：[37402315949](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37402315949)，workflow_dispatch、head_sha仍为0d02bd3405d24d304ff918e58e250af94b08360b。认证GitHub API核对已completed／failure，同样失败于KVM设置／读写检查；没有无限重试。连接器jobs曾显示旧in_progress，已以认证API终态及终态日志纠正。交付包只以最终实际构建／测试来源为准。
 
 CI修复：移除依赖异步udev事件的配置，先确认/dev/kvm为字符设备，再仅对云端此设备直接设置a+rw并打印权限，继续检查实际读写权限及API35模拟器。目标权限与原MODE0666一致，未更改本地Windows、业务逻辑、费率或版本，没有continue-on-error／跳过测试／软件回退；设备缺失仍明确失败。首轮检查报告ZIP摘要8efc19750adf56c443a259a192a8d432aef40047bb5c93450ff779b5a8378852核对成功，JVM总报告18项／0失败／0跳过、lint0项，模拟器未验证。CI修复尚未推送或云端执行，按AGENTS本次重新推送仍需确认。
+
+CI修复提交 `b8abd5d537a11d3821fdac70df4949cb96a6645b` 已完成本地workflow语法与diff检查，仅涉及workflow和交接文档。本次确认已解除此前审批阻塞，目标恢复active，进入云端验证及0.1.2交付。当前结果补充仅修改交接文档，未提交，云端源码为b8abd5d。
 
 ### 接续计划与证据
 
