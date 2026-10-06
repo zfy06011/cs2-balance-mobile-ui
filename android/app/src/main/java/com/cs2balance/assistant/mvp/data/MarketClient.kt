@@ -2,7 +2,6 @@ package com.cs2balance.assistant.mvp.data
 
 import com.cs2balance.assistant.mvp.domain.DomainError
 import com.cs2balance.assistant.mvp.BuildConfig
-import java.net.SocketTimeoutException
 import java.net.URL
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -25,8 +24,11 @@ fun interface HttpTransport {
 
 class AndroidTransport : HttpTransport {
     override suspend fun send(url: String, body: String?): HttpResponse = withContext(Dispatchers.IO) {
-        val connection = URL(url).openConnection() as HttpsURLConnection
+        var activeConnection: HttpsURLConnection? = null
+        var responseStatus: Int? = null
         try {
+            val connection = URL(url).openConnection() as HttpsURLConnection
+            activeConnection = connection
             connection.connectTimeout = 20_000
             connection.readTimeout = 20_000
             connection.instanceFollowRedirects = false
@@ -39,15 +41,15 @@ class AndroidTransport : HttpTransport {
                 connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             }
             val status = connection.responseCode
+            responseStatus = status
             val retryAfter = connection.getHeaderField("Retry-After")
             if (status !in 200..299) return@withContext HttpResponse(status, retryAfter, "")
             val text = ResponseDecoder.text(connection.inputStream, connection.getHeaderField("Content-Encoding"))
             HttpResponse(status, retryAfter, text)
         } catch (e: CancellationException) { throw e
-        } catch (e: DomainError) { throw e
-        } catch (_: SocketTimeoutException) { throw DomainError("timeout")
-        } catch (_: Exception) { throw DomainError("network")
-        } finally { connection.disconnect() }
+        } catch (e: DomainError) { throw DomainError(e.code, e.httpStatus ?: responseStatus, e.businessCode)
+        } catch (e: Exception) { throw DomainError(NetworkFailures.code(e), httpStatus = responseStatus)
+        } finally { activeConnection?.disconnect() }
     }
 }
 

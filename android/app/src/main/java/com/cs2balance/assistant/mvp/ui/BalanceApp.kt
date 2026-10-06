@@ -1,6 +1,7 @@
 package com.cs2balance.assistant.mvp.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.text.selection.SelectionContainer
 import com.cs2balance.assistant.mvp.BuildConfig
 import com.cs2balance.assistant.mvp.domain.PublicFees
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -284,12 +285,13 @@ private val destinations = listOf(Destination("ranking", "排行", Icons.Filled.
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Space.medium), verticalArrangement = Arrangement.spacedBy(Space.small)) {
             Text(label, style = MaterialTheme.typography.titleSmall)
-            Text(if (quote.status == "success") money(quote.amountCents) else "报价获取失败",
+            if (quote.status == "success") Text(money(quote.amountCents),
                 style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"))
+            else SelectionContainer {
+                Text(quoteFailureHeadline(quote), style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.error)
+            }
             Text("币种 ${quote.currency} · ${time(quote.collectedAt)}", style = MaterialTheme.typography.bodySmall)
-            if (quote.status != "success") Text(reason(quote.failure), color = MaterialTheme.colorScheme.error)
-            quote.httpStatus?.takeIf { it in 100..599 }?.let { Text("HTTP $it", style = MaterialTheme.typography.bodySmall) }
-            quote.businessCode?.let { Text("接口错误码 $it", style = MaterialTheme.typography.bodySmall) }
         }
     }
 }
@@ -391,6 +393,8 @@ private val destinations = listOf(Destination("ranking", "排行", Icons.Filled.
         }, style = MaterialTheme.typography.titleMedium)
         Text("凭证仅加密保存在本机。接口权限、价格单位与手机网络可用性仍需实际验证。",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("保存成功后输入框自动清空，已保存的 key 不会回显；可按上方状态确认，或删除后重新保存。",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(value = key, onValueChange = { key = it.take(256) }, modifier = Modifier.fillMaxWidth(),
             enabled = !locked, label = { Text("新的 C5 app-key") }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(),

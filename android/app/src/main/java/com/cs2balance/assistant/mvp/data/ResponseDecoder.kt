@@ -36,6 +36,8 @@ object ResponseDecoder {
             }
         } catch (e: DomainError) { throw e
         } catch (_: java.net.SocketTimeoutException) { throw DomainError("timeout")
+        } catch (_: javax.net.ssl.SSLException) { throw DomainError("tls_failed")
+        } catch (_: java.net.SocketException) { throw DomainError("connection_interrupted")
         } catch (_: java.io.IOException) { throw DomainError("decode")
         } catch (_: LinkageError) { throw DomainError("encoding") }
     }

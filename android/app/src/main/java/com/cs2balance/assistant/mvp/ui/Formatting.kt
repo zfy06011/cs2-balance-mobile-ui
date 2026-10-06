@@ -3,6 +3,7 @@ package com.cs2balance.assistant.mvp.ui
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.cs2balance.assistant.mvp.domain.Quote
 
 fun money(cents: Long?): String = cents?.let { "¥ ${it / 100}.${(it % 100).toString().padStart(2, '0')}" } ?: "未取得"
 fun time(value: String?, includeYear: Boolean = false): String = try {
@@ -22,6 +23,11 @@ fun reason(code: String?): String = when (code) {
     "cooldown", "server_cooldown" -> "来源仍在冷却，请稍后刷新"
     "timeout" -> "请求超时"
     "network" -> "网络请求失败，请检查网络"
+    "dns_failed" -> "域名解析失败，请检查手机网络或 DNS"
+    "tls_failed" -> "HTTPS 校验或握手失败，请检查系统时间和网络"
+    "connect_failed" -> "无法连接来源，请检查手机网络"
+    "connection_interrupted" -> "网络连接中断，请稍后重试"
+    "network_permission" -> "应用网络访问被系统阻止"
     "fee_unverified" -> "手续费尚未核验，仅展示来源报价"
     "fee_inverse_ambiguous" -> "报价落在手续费进位间隔，暂不参与排行"
     "below_market_minimum" -> "报价低于钱包市场最低金额"
@@ -50,6 +56,22 @@ fun reason(code: String?): String = when (code) {
     "decode" -> "来源压缩响应无法解压"
     "http" -> "来源请求失败，本轮结果未通过校验"
     else -> "本次操作未完成，请重试"
+}
+private val quoteFailureCodes = setOf("credential_missing", "credential_invalid", "credential_unreadable",
+    "rate_limited", "cooldown", "server_cooldown", "timeout", "network", "dns_failed", "tls_failed",
+    "connect_failed", "connection_interrupted", "network_permission", "auth_or_access", "http", "schema",
+    "c5_rejected", "empty_quote", "unavailable", "mapping_or_availability", "currency_or_price_format",
+    "invalid_money", "encoding", "decode", "response_too_large")
+fun quoteFailureHeadline(quote: Quote): String {
+    val code = quote.failure?.takeIf { it in quoteFailureCodes }
+    val source = when (quote.source) { "c5" -> "C5"; "steam" -> "Steam"; else -> "来源" }
+    val diagnostics = buildList {
+        add(source); add(code?.uppercase(java.util.Locale.ROOT) ?: "UNKNOWN")
+        quote.httpStatus?.takeIf { it in 100..599 }?.let { add("HTTP $it") }
+        quote.businessCode?.let { add("API $it") }
+    }.joinToString(" / ")
+    val description = if (code == null) "失败原因未上报，请重新刷新" else reason(code)
+    return "[$diagnostics] $description"
 }
 fun notice(code: String) = when (code) {
     "credential_saved" -> "凭证已加密保存并通过本机读取校验"
