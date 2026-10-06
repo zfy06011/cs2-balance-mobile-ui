@@ -6,7 +6,12 @@
 
 计划按本次反馈直接处理：保留现有加密和C5接口，将失败原因与安全诊断码放到卡片首行，区分DNS／TLS／连接／超时／中断／系统权限，并保留已收到的数字HTTP状态；未知原因也给明确UNKNOWN提示。只用异常类型分类，不显示异常消息、URL、凭证或原始服务器消息，失败文本可选择复制。说明保存成功后输入框不回显且自动清空；不更换网络架构、禁止绕过证书校验，不改变费用或排行门槛。
 
-0.1.3／versionCode4源码准备中。新增JVM检查覆盖安全网络分类、可见首行诊断组成以及未知内容脱敏；本地25份Kotlin／Gradle、XML、workflow与嵌入Python语法检查通过，新增Android检查尚未运行。代码仍不能证明解决真实手机取价问题，诊断改动需经确认推送、云端构建，再由手机新错误码指导下一次修复。凭证值未进入源码／交接／Git，详细授权只读结果见本交接当前接续条件。
+0.1.3／versionCode4 debug APK已构建并核对，可交付。用户2026-10-06回复“确认”，本次源码 `8263c3aa56722a9eb51498ec8566ca05eb4326f4` 已推送到codex/mvp；[云端37445779510](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37445779510)为completed／success，实际head_sha、artifact元数据、build-info均对应此SHA。Node19／19、JVM21／21、API35模拟器4／4通过，均无失败／跳过，lint0项；新增JVM检查覆盖安全网络分类、可见首行诊断组成以及未知内容脱敏。凭证值未进入源码／交接／Git或云端。真实手机取价问题仍未确诊，需用新版本安全错误码指导下一次修复，不能宣称已解决。
+
+- APK：[本地下载](../../artifacts/delivery/37445779510-8263c3a/balance-assistant-0.1.3-debug.apk)，[GitHub下载](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37445779510/artifacts/11403566144)（到2026-10-20）。APK SHA-256 `3ff17529ee8dd814f84903fa7237207f6edf656bf42d5262c44991c8ec62a1b2`；产物ZIP摘要 `4c64f738a655b7518aa2b9491ec6ade266bbfa8610699fc2c6a42dab067a9622`，检查报告ZIP摘要 `ed0a33b9f126c3aac6eb5c749d7880a741fa49ea0975abf1fef3668a5da311fd`，均与GitHub元数据核对。包内候选、公开费用证据、许可证和四ABI native库与实际来源／对齐检查通过；摘要在忽略目录artifacts/ci/37445779510/checks-summary.json。
+- 新调试证书公开摘要 `0babd2c467f3adebaee9176ff24420c7d065cf5de2a4c5bd76da0c427bfc6f54` 与0.1.2不同，不能覆盖安装；用户自行卸载旧版会清除缓存和凭证。此项仅核对签名块证书身份，不冒称完整密码学签名验证或真机安装通过。
+- 试用：①安装后确认设置页0.1.3，凭证自行输入并保存，保存后输入框清空属正常；②候选池→变革武器箱→商品比价，只刷新一次；若失败，只回报首行的安全原因／DNS_FAILED、TLS_FAILED等诊断码及数字HTTP／API码，勿发送key，遇限流停止。此前聊天中提供的key建议撤销重建，新key只输入手机。
+- 检查结论：可以交付诊断APK；构建和模拟器通过不替代真实手机／两侧实时取价或6／20／50批次验证。build-info.deviceVerified=false／liveSourcesVerified=false保留；未合并主分支或正式发布。本次结果只更新交接并本地提交，不再推送。
 
 ## 当前接续：独立完成 Steam 人民币费用核对（2026-10-05）
 
