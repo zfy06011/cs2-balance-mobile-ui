@@ -1,6 +1,8 @@
 package com.cs2balance.assistant.mvp.domain
 
 import java.math.BigInteger
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.security.MessageDigest
 import java.time.Instant
 
@@ -14,6 +16,16 @@ object Money {
             parts.getOrElse(1) { "" }.padEnd(2, '0').toBigInteger()
         if (result > max) throw DomainError("invalid_money")
         return result.toLong()
+    }
+    fun jsonNumberCents(value: String): Long {
+        // JSON preserves numeric spelling on Android. Normalize exactly, never through Double.
+        // Bound the token/exponent before BigDecimal to avoid hostile allocation sizes.
+        if (value.length > 128 || !Regex("^(0|[1-9]\\d*)(\\.\\d+)?([eE][+-]?\\d{1,3})?$").matches(value))
+            throw DomainError("invalid_money")
+        return try {
+            cents(BigDecimal(value).setScale(2, RoundingMode.UNNECESSARY).toPlainString())
+        } catch (_: ArithmeticException) { throw DomainError("invalid_money")
+        } catch (_: NumberFormatException) { throw DomainError("invalid_money") }
     }
     fun steamCny(value: String): Long {
         if (!Regex("^[¥￥]\\s*(\\d{1,3}(,\\d{3})*|\\d+)\\.\\d{2}$").matches(value))

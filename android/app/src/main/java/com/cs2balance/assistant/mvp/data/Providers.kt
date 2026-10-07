@@ -8,7 +8,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.intOrNull
 
@@ -42,8 +41,8 @@ object Providers {
                 if (marketHash != hash || !Regex("^[1-9]\\d*$").matches(identity) ||
                     (!item.isString && (item.longOrNull ?: 0) !in 1..Money.MAX_CENTS) ||
                     count !in 1..Money.MAX_CENTS) throw DomainError("mapping_or_availability")
-                val price = value["price"]?.jsonPrimitive?.content ?: throw DomainError("empty_quote")
-                val amount = Money.cents(price)
+                val price = value["price"] as? JsonPrimitive ?: throw DomainError("empty_quote")
+                val amount = if (price.isString) Money.cents(price.content) else Money.jsonNumberCents(price.content)
                 if (amount == 0L) throw DomainError("empty_quote")
                 C5Value(amount, identity)
             } catch (e: DomainError) { C5Value(failure = e.code)

@@ -83,14 +83,14 @@ jobs:
           CHECKOUT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           mkdir -p artifacts/android
-          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/balance-assistant-0.1.3-debug.apk
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.3-debug.apk > artifacts/android/apk-metadata.txt
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/balance-assistant-0.1.4-debug.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging artifacts/android/balance-assistant-0.1.4-debug.apk > artifacts/android/apk-metadata.txt
           python3 - <<'PY'
           import hashlib, json, os, pathlib, re, subprocess
-          apk = pathlib.Path('artifacts/android/balance-assistant-0.1.3-debug.apk')
+          apk = pathlib.Path('artifacts/android/balance-assistant-0.1.4-debug.apk')
           badging = pathlib.Path('artifacts/android/apk-metadata.txt').read_text()
           metadata = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
-          if not metadata or metadata.groups() != ('com.cs2balance.assistant.mvp', '4', '0.1.3'):
+          if not metadata or metadata.groups() != ('com.cs2balance.assistant.mvp', '5', '0.1.4'):
               raise RuntimeError('APK identity/version mismatch')
           info = {
               'commitSha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
@@ -107,7 +107,7 @@ jobs:
       - name: Upload debug APK and source evidence
         uses: actions/upload-artifact@v7
         with:
-          name: balance-assistant-0.1.3-debug-${{ github.run_id }}
+          name: balance-assistant-0.1.4-debug-${{ github.run_id }}
           path: artifacts/android/
           if-no-files-found: error
           retention-days: 14

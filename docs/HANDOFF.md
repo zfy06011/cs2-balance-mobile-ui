@@ -1,5 +1,15 @@
 # 宇额助手：Android MVP 与真实比价验证
 
+## 当前任务：INVALID_MONEY 与解除截图限制（2026-10-07）
+
+用户反馈手机报INVALID_MONEY，并明确要求以后的版本允许截图。计划按反馈直接确认，执行者Codex／pwsh7，基准d7e465b（已交付APK源码8263c3a），目标codex/mvp。仅修复C5 JSON数字报价的精确转换并移除MainActivity全局FLAG_SECURE，不改变凭证隐藏／加密、不引入浮点舍入、不调整费用或排行门槛。
+
+当前源码确认：C5数字price通过JsonPrimitive.content保留原始数值拼写，直接交给最多两位小数的Money.cents。JSON数字1.010000或101e-2会被Android拒绝，而Node先JSON.parse成Number后会得到1.01并成功；这是一处真实解析差异，可以解释此前电脑成功／手机INVALID_MONEY，但没有采集本次手机原始响应，不能声称实际返回的token已证实。参考[JsonPrimitive.content](https://kotlinlang.org/api/kotlinx.serialization/kotlinx-serialization-json/kotlinx.serialization.json/-json-primitive/content.html)及[BigDecimal官方说明](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/math/BigDecimal.html)。
+
+实现：仅C5数字primitive以有界JSON数值词法及BigDecimal／UNNECESSARY精确转为两位小数后转换整数分；接受等值尾零／科学计数法，拒绝非整分、负值、超安全整数及无效类型。C5字符串和Steam货币格式校验维持原有严格规则；不显示原始响应或凭证。新增两项JVM回归覆盖实际Provider入口的数值拼写、精度／上界／类型／输入长度，全部为受控样本，不冒充手机报价。移除全局截图限制是用户直接授权的行为变更，后续版本沿用允许截图，密钥输入仍隐藏并在保存后清空。
+
+0.1.4／versionCode5源码完成，预计JVM23项、模拟器4项、Node19项。本地26份Kotlin／Gradle、XML、workflow YAML与嵌入Python语法检查及diff通过；三组受控数值拼写在现有Node入口实际解析成功、旧Android词法拒绝，确认差异。云端编译／lint／新JVM与真机报价、系统截图行为尚未验证，没有本地Android工具链。提交完成后按AGENTS逐次获得确认，才推送到公开仓库zfy06011/cs2-balance-mobile-ui并触发APK构建。完整目标仍有真实手机取价与6／20／50批次未验证项，历史结果以下保留。
+
 ## 当前任务：手机 C5 失败信息定位（2026-10-06）
 
 用户明确授权测试其提供的现有凭证，并确认手机0.1.2只显示“报价获取失败”，没有其他提示。两次电脑只读报价（第二次与应用相同headers）成功，证明当前本接口接受此凭证；实际手机失败仍未确诊。当前执行者Codex／pwsh7，源码基准b8abd5d、结果文档基准dc420c3，目标codex/mvp。
