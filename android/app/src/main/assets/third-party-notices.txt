@@ -24,8 +24,9 @@ THE SOFTWARE.
 
 ----------------------------------------
 
-zstd-jni 1.5.7-21 (BSD-2-Clause)
-Source: https://raw.githubusercontent.com/luben/zstd-jni/v1.5.7-21/LICENSE
+zstd-jni 1.5.7-22 (BSD-2-Clause)
+Artifact: https://repo.maven.apache.org/maven2/com/github/luben/zstd-jni/1.5.7-22/zstd-jni-1.5.7-22.pom
+License source: https://raw.githubusercontent.com/luben/zstd-jni/master/LICENSE
 
 Copyright (c) 2015-present, Luben Karavelov/ All rights reserved.
 

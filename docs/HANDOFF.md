@@ -10,6 +10,10 @@
 
 0.1.4／versionCode5源码完成，预计JVM23项、模拟器4项、Node19项。本地26份Kotlin／Gradle、XML、workflow YAML与嵌入Python语法检查及diff通过；三组受控数值拼写在现有Node入口实际解析成功、旧Android词法拒绝，确认差异。云端编译／lint／新JVM与真机报价、系统截图行为尚未验证，没有本地Android工具链。提交完成后按AGENTS逐次获得确认，才推送到公开仓库zfy06011/cs2-balance-mobile-ui并触发APK构建。完整目标仍有真实手机取价与6／20／50批次未验证项，历史结果以下保留。
 
+用户回复“确认推送”后，源码 `1874e1e2d2ab49344bbaa6d4e7db96d4ed07bfa7` 已推送，[云端37590011083](https://github.com/zfy06011/cs2-balance-mobile-ui/actions/runs/37590011083)实际head_sha对应此提交，Android失败于lintDebug，两项NewerVersionAvailable错误指向zstd-jni最新1.5.7-22。Node19／19、JVM23／23成功，0失败／跳过；模拟器未执行、没有APK，不把assemble或业务测试通过冒称可交付。检查报告ZIP摘要 `e7aeef0b31c8d34075bad182bc7f91d7f3c6c31b3a245f91a2e37fc58058f6ad` 与GitHub元数据核对；报告位于忽略目录artifacts/ci/37590011083/。
+
+范围内CI修复：仅将Android AAR与JVM JAR依赖同步为zstd-jni1.5.7-22，并更新生产许可证版本／来源。Maven Central POM、AAR、JAR均实际HTTP200；JAR manifest确认版本和BSD-2-Clause，AAR四ABI ELF的PT_LOAD均16384对齐。新版本GitHub标签URL当前404，因此许可证引用实际HTTP200的上游master/LICENSE，内容与现有BSD正文一致，并附精确版本POM，不伪造已发布标签。没有关闭lint、baseline、warningsAsErrors或跳过模拟器；原金额／截图修复和0.1.4版本保留。新的Android依赖解析／native实际加载／打包需重新云端验证。用户只确认了1874e1e这次推送，本次修复提交重新推送仍须按AGENTS确认。
+
 ## 当前任务：手机 C5 失败信息定位（2026-10-06）
 
 用户明确授权测试其提供的现有凭证，并确认手机0.1.2只显示“报价获取失败”，没有其他提示。两次电脑只读报价（第二次与应用相同headers）成功，证明当前本接口接受此凭证；实际手机失败仍未确诊。当前执行者Codex／pwsh7，源码基准b8abd5d、结果文档基准dc420c3，目标codex/mvp。
